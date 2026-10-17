@@ -6,8 +6,10 @@ Interface (tasks PLN-01..PLN-06, CHK-01..CHK-03):
         solve_schedule(windows, utilities: dict[window_id, CandidateUtility],
                        spacecraft: dict[str, SpacecraftProfile], planner_cfg,
                        committed: list[ObservationWindow]) -> tuple[Plan, dict[str, datetime]]
-            One Boolean per AcquisitionOption; at most one option per window. Because options have
-            fixed times, slew is exact: for every same-spacecraft option pair (i before j) with
+            One Boolean per AcquisitionOption; at most one option per window. Plans store explicit
+            Selection(window_id, option_id) records; options remain intact on each window.
+            Because options have fixed times, slew is exact: for every same-spacecraft option pair
+            (i before j) with
             start_j < end_i + slew_time_s(i, j), add NOT(x_i AND x_j). Optional intervals +
             AddNoOverlap per spacecraft as a second guard. <= max_visits_per_source_per_solve per
             source; <= max_acquisitions_per_orbit per (sat, orbit_number); storage and energy
@@ -26,10 +28,11 @@ Interface (tasks PLN-01..PLN-06, CHK-01..CHK-03):
         constraint helpers, so no baseline can produce an illegal schedule.
 
     planning/checker.py (L8) -- INDEPENDENT. Must not import planning.cpsat or planning.policies.
-        check_schedule(selected_option_ids, windows, spacecraft, cfg, committed)
-            -> ScheduleValidation
-        Re-derives every rule from scratch with plain Python loops. Recomputes LOS, off-nadir and
-        sun elevation at each selected option's own start/end time with its OWN sgp4 propagation
-        (not aether.orbit), and its own slew math. Mutation test: a deliberately broken
-        orbit.slew_time_s must be caught.
+        check_schedule(plan, windows, sources, spacecraft_profiles, sensor_profile, scenario)
+            -> CheckReport
+        Resolves each Selection.option_id only within its named window. Re-derives feasibility
+        from raw configuration and model-view source coordinates. Uses independent SGP4 and
+        Astropy TEME/ITRS and solar geometry with the shared pinned IERS table; never imports
+        aether.orbit or consumes its geometry. Recomputes LOS at each option's start/end and
+        calculates slew independently.
 """

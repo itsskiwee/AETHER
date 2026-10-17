@@ -20,3 +20,21 @@ Interface (tasks SCI-01, SCI-02):
 Both the simulator (truth view) and the belief filter (model view) call these with their own
 SensorProfile, which is how the m2/m4 misspecification families take effect.
 """
+
+from aether.sensors.response import (
+    false_positive_flux_logpdf,
+    gsd_effective_m,
+    p_detect,
+    p_valid,
+    pod,
+    q50_kg_h,
+)
+
+__all__ = [
+    "false_positive_flux_logpdf",
+    "gsd_effective_m",
+    "p_detect",
+    "p_valid",
+    "pod",
+    "q50_kg_h",
+]

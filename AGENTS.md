@@ -39,6 +39,8 @@ Python ≥ 3.12 (3.14 verified for numpy, ortools, sgp4, skyfield, pydantic).
 13. **Honest wording.** Never write "NASA tasking", "detected leak", "verified reduction", "optimal" (unless the solver status is OPTIMAL), or "% better" without a CI. Use the allowed wording in PRD §22.3.
 14. **No network in tests** unless the test is marked `@pytest.mark.network`.
 15. **Stay in your lane's directories** (Work_Plan.md "Lanes"). Contract changes go through L1.
+16. **Network only through the policy.** Only `aether.ingestion`, `aether/weather/era5*`, `aether/orbit/ephemeris*` and `scripts/` may import HTTP/socket libraries. Pass every URL through `aether.netpolicy.require_allowed_url`, call `assert_public_address` before connecting, and use `netpolicy.TIMEOUTS_S`. Never `pickle`/`joblib`, never `yaml.load` (use `yaml.safe_load`). `tests/unit/test_security_baseline.py` enforces this; see `SECURITY.md`.
+17. **Two import homes.** Data records (`ObservationWindow`, `Plan`, `SimulatedAcquisition`, ...) come from `aether.contracts`. Config types (`ScenarioConfig`, `SpacecraftProfile`, `SensorProfile`, `AttitudeConfig`, `*Config`) come from `aether.config`. They are never re-exported across, and a guard test enforces this.
 
 ## Testing expectations
 

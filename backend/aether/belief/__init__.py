@@ -36,5 +36,21 @@ Interface (tasks SCI-03..SCI-07):
         evaluation times between at_utc and next_pass_utc. Captures that information about
         episodic sources decays within hours while regime information lasts.
 
+Implementation notes (L2): likelihoods marginalize hourly flux variability and wind-estimate
+error exactly by Gauss-Hermite quadrature (filter.py docstring, PR-B03/B04); with constant POD this
+is the sigma_eff form above. EIG and the Brier ablation use outcome categories only (PR-B05).
+
 Import rule: this package must never import aether.simulation or aether.evaluation.
 """
+
+from aether.belief.eig import expected_brier_reduction, expected_info_gain_bits
+from aether.belief.filter import MODEL_VERSION, BeliefModel, SourceBelief, binary_entropy_bits
+
+__all__ = [
+    "MODEL_VERSION",
+    "BeliefModel",
+    "SourceBelief",
+    "binary_entropy_bits",
+    "expected_brier_reduction",
+    "expected_info_gain_bits",
+]

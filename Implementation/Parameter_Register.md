@@ -112,16 +112,33 @@ Hourly transition probabilities are `p(on→off) = 1/mean_on`, `p(off→on) = 1/
 
 | ID | Regime | Weight | Mean on | Mean off | π | τ | Tag |
 |---|---|---|---|---|---|---|---|
-| PR-P20 | PERSISTENT | 0.15 | 240 h | 48 h | 0.83 | 39.5 h | [A] |
-| PR-P21 | INTERMITTENT | 0.45 | 12 h | 24 h | 0.33 | 7.5 h | [A] |
-| PR-P22 | EPISODIC | 0.40 | 3 h | 72 h | 0.04 | 2.3 h | [A] |
+| PR-P20 | PERSISTENT | 0.15 | 240 h | 48 h | 0.83 | 39.5 h | [A] may overstate persistence (SCI-08) |
+| PR-P21 | INTERMITTENT | 0.45 | 12 h | 24 h | 0.33 | 7.5 h | [A] may overstate persistence (SCI-08) |
+| PR-P22 | EPISODIC | 0.40 | 3 h | 72 h | 0.04 | 2.3 h | [A] may overstate persistence (SCI-08) |
 | PR-P23 | Population mean active fraction | — | — | — | **0.29** | — | derived |
 
-**Calibration anchor [E]:** Cusworth et al. 2021 (ES&T Letters, DOI `10.1021/acs.estlett.1c00173`) report ~26% average detection persistence on revisits across Permian sources. About 11% of repeatedly observed sources (123 of ~1,100) were seen on 50–100% of revisits. Detection persistence ≈ π × POD < π, so a modelled mean π of 0.29 is consistent with ~0.26 observed. **[V] SCI-08:** check the published paper's final numbers (the 26% figure comes from the EGU 2021 abstract).
+**Calibration anchor [E] and known mismatch (SCI-08, found by L2):** Cusworth et al. 2021 (ES&T Letters, DOI `10.1021/acs.estlett.1c00173`) report ~26% average detection persistence on revisits across Permian sources, and about 11% of repeatedly observed sources (123 of ~1,100) seen on 50–100% of revisits. That persistence is measured over sources the survey **detected at least once**, which inflates it relative to the unconditional π. The earlier claim here, that "mean π = 0.29 is consistent with ~0.26", compared two different quantities and was **wrong**.
+
+The like-for-like model analogue (exact enumeration, PR-P20–P22, 3–8 revisits at 24–72 h) is:
+
+| Regime mix | Airborne POD = 1 | POD = 0.6 |
+|---|---|---|
+| base (0.15 / 0.45 / 0.40) | 0.42–0.59 (0.48 at 5 visits) | 0.36 |
+| m1 (0.075 / 0.325 / 0.60) | 0.42 | 0.33 |
+| no persistent (0 / 0.5 / 0.5) | 0.36 | 0.29 |
+
+So the base scenario is probably **more persistent than the Permian**, perhaps by up to ~2×. That makes adaptive revisits look easier than they would be. Reaching ~0.26 needs both lower persistence and sub-unity POD, so it isn't a simple weight change. Status: PR-P20–P22 stay **[A], flagged "may overstate persistence"**. The m1 family is the designated lower-persistence sensitivity check. Recalibration (SCI-08b) waits until someone reads the paper's methods section (persistence definition, revisit counts, POD treatment). Scripts: `docs/model-card-source-state.md` (L2).
 
 **Why this matters:** adaptive revisits have value only where τ is comparable to the revisit spacing (~10–12 h). PERSISTENT sources (τ ≈ 40 h) are where AETHER should win. EPISODIC ones (τ ≈ 2 h) are close to unpredictable, and no policy should win there. Report results **per regime**.
 
 **Belief model:** regime is a latent static variable per source, so the filter is a 3 × 2 × G tensor (G = 64 flux grid points, 10–50,000 kg/h log-spaced; PR-B01). Observations therefore teach the filter both the current state and the source's regime. EIG is measured on the binary activity state, in bits (PR-B02; PRD §7.1).
+
+| ID | Parameter | Value | Tag | Rationale |
+|---|---|---|---|---|
+| PR-B03 | Likelihood quadrature | Gauss–Hermite, 16 nodes per nuisance dimension (hourly ε; wind error) | [D] | Marginalizes the hourly flux variability (PR-P11) exactly, the way truth applies it, instead of only widening the measurement σ. Detection density = N(a; 0, σ_eff) × E[POD \| ε ~ N(μ*, s*)], which reduces to the PR-V41 σ_eff form when POD is constant. 16 nodes: the integrand is a smooth logistic; the EIG Monte Carlo test (SCI-06) agrees within 0.005 bit. Known limit: two acquisitions of one source in the same hour are treated as having independent ε. |
+| PR-B04 | Wind uncertainty in the belief | ln U_true ~ N(ln U_est, PR-W13 σ = 0.25), flat-prior inversion of the analysis error; POD wind clip applied per node | [A] | The belief sees only the wind estimate. Ignoring its error makes non-detections look too informative and miscalibrates m0. Flat prior ignores the PR-W10 wind climatology (slight under-shrinkage). The same σ is used for planning-time wind forecasts because the config has no separate forecast wind-error parameter. |
+| PR-B05 | EIG / Brier utility outcome space | categories {DETECTION, VALID_NON_DETECTION, INVALID}; measured flux value ignored | [D] | Closed form. The flux value carries a little extra information about z (false alarms report near-threshold fluxes), so both utilities are conservative lower bounds. |
+| PR-B06 | Flux prior on the grid | truncated lognormal (PR-P10) integrated exactly over each ln-flux bin | [D] | Register PR-P10 says truncated. **Mismatch:** `simulation/truth.py` currently *clips* (≈1.8 % point mass at 30 kg/h). L6 and L2 must use the same form, or m0 is misspecified; raised with L6. |
 
 ## 5. Virtual sensor VS-A (point-source imaging spectrometer)
 
@@ -224,6 +241,9 @@ Hourly transition probabilities are `p(on→off) = 1/mean_on`, `p(off→on) = 1/
 | PR-E05 | Success criterion | see `experiments/protocol.yaml`; wins on m0 plus ≥ 2 misspecified families after Holm correction; `greedy_eig` comparison reported with equal prominence | [D] |
 | PR-E06 | Reference policies | `random_feasible` (lower bound), `oracle` (reads truth; upper bound) | [D] | Gate G4.5: the oracle-minus-random Brier gap must exceed 2 × the seed-to-seed SD on dev seeds, or the scenario can't discriminate between policies. |
 | PR-E07 | B1 request stream | Poisson, 1 request per source per 24 h | [A] | Parameter_2 ENG-SIM-006. Same stream for every policy (rng `requests`). |
+| PR-E08 | Log-loss probability clip | p clipped to [1e-12, 1 − 1e-12] before ln | [D] | Same value as Parameter_2 ENG-BEL-007. Caps one confidently wrong prediction at −ln(1e-12) ≈ 27.6 nats instead of ∞. |
+| PR-E09 | ECE bins | 10 equal-width bins on [0, 1], weighted by count; p = 1 goes in the top bin | [D] | Standard reliability-diagram binning. With ~240 points per run, finer bins would be mostly empty. |
+| PR-E10 | High-impact recall cut-off | top k = 5 sources, ranked by Σ_r P(r) · π_r · flux median (planner-side long-run mean rate) at the last evaluation time; ties by source id | [D] | k = 5 is in the metric name (protocol.yaml). The ranking score estimates the same long-run mean rate that PR-E02 thresholds. Alternatives are in `docs/validation-report.md`. |
 
 ## 10. Remaining gaps that need a human
 

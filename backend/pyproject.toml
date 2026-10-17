@@ -16,6 +16,7 @@ dependencies = [
   "sgp4>=2.23",
   "skyfield>=1.49",
   "ortools>=9.12",
+  "astropy>=6.1",
 ]
 
 [project.optional-dependencies]

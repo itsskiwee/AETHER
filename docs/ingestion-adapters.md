@@ -3,7 +3,9 @@
 ## Shared guarantees
 
 The adapters read local files or saved API responses; they do not download upstream data or
-create acquisition records from plume records. The caller must construct a `DataSource` with the
+create acquisition records from plume records. Adapter identity checks reject mismatched providers
+or products, and fixture metadata marked synthetic is refused before it can produce a
+`REAL_OBSERVATION`. The caller must construct a `DataSource` with the
 actual file SHA-256, retrieval time, provider URL, version, citation and license URL. The manifest
 also records the Carbon Mapper terms version and whether they were reviewed for the intended use.
 Both parsers check the supplied hash against the input bytes before accepting features.
@@ -11,7 +13,8 @@ Both parsers check the supplied hash against the input bytes before accepting fe
 GeoJSON is interpreted as WGS84 longitude/latitude. An explicit non-WGS84 CRS is rejected.
 Features with invalid geometry, time, numeric values, or duplicate native IDs are excluded with
 an `IngestDiagnostic`. Original properties are retained verbatim. Missing rates stay null with a
-closed `MissingReason`; no row absence becomes a valid non-detection.
+closed `MissingReason`; no row absence becomes a valid non-detection. Scene IDs remain raw
+properties and do not populate `acquisition_id` without a matching real `Acquisition` record.
 
 ## NASA EMIT L2BCH4PLM
 

@@ -21,6 +21,7 @@ Reserved namespaces (add new ones to this list in the same PR that uses them):
     "requests"  ()                                   Poisson request stream for first_feasible (B1)
     "solver"    (policy_id, plan_revision)           CP-SAT random_seed via derive_seed()
     "reference" (policy_id,)                         random_feasible reference policy
+    "bootstrap" (comparison_id,)                     paired bootstrap in aether.evaluation
 """
 
 from __future__ import annotations
@@ -31,7 +32,7 @@ from datetime import datetime
 import numpy as np
 
 RESERVED_NAMESPACES = frozenset(
-    {"truth", "outcome", "weather", "placement", "requests", "solver", "reference"}
+    {"truth", "outcome", "weather", "placement", "requests", "solver", "reference", "bootstrap"}
 )
 
 

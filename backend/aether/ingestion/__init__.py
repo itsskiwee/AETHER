@@ -404,7 +404,16 @@ def _check_source_identity(
 ) -> IngestDiagnostic | None:
     provider = source.provider.casefold()
     dataset = source.dataset.casefold()
-    if provider_token not in provider or (dataset_token and dataset_token not in dataset):
+    compact_dataset = re.sub(r"[^a-z0-9]", "", dataset)
+    provider_matches = (
+        provider.startswith(("nasa", "lp daac"))
+        if provider_token == "nasa"
+        else provider.startswith("carbon mapper")
+    )
+    dataset_matches = not dataset_token or compact_dataset.startswith(
+        (dataset_token, "emitl2bestimatedmethaneplumecomplexes")
+    )
+    if not provider_matches or not dataset_matches:
         return IngestDiagnostic(
             None,
             None,

@@ -29,28 +29,26 @@ import zlib
 from datetime import UTC, datetime, timedelta
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import numpy as np
 from sgp4.api import Satrec, WGS72
 from sgp4.earth_gravity import wgs72
-from sgp4.ext import jday
 from skyfield.api import EarthSatellite, load, load_file, wgs84
 from skyfield.framelib import itrs
 
-from aether.config import ScenarioConfig
+from aether.config import AttitudeConfig, ScenarioConfig, SpacecraftProfile
 from aether.contracts.enums import RejectionReason
 from aether.contracts.models import (
     AcquisitionOption,
-    AttitudeConfig,
     ObservationWindow,
     Source,
-    SpacecraftProfile,
+    acquisition_option_id,
 )
 
-_JULIAN_DATE_1949_EPOCH = 2433281.5
 _SHA256_RE = re.compile(r"^[0-9a-fA-F]{64}$")
 _LTDN_TOLERANCE_S = 120.0  # ORB-02: registered ±2 min
+_DE421_URL = "https://ssd.jpl.nasa.gov/ftp/eph/planets/bsp/de421.bsp"
 
 
 def _repo_root() -> Path:
@@ -63,14 +61,8 @@ def _timescale() -> Any:
     return load.timescale(builtin=True)
 
 
-@lru_cache(maxsize=1)
 def load_ephemeris() -> Any:
-    """Load local DE421 after verifying its SHA-256 sidecar.
-
-    Accepted sidecars are ``de421.bsp.sha256`` in standard ``sha256sum`` format, or
-    ``manifest.json`` containing either ``{"sha256": "…"}`` or
-    ``{"de421.bsp": {"sha256": "…"}}``. No network fallback is permitted.
-    """
+    """Load local DE421 only after checking its first-fetch manifest SHA-256."""
     directory = _repo_root() / "data" / "ephemeris"
     ephemeris_path = directory / "de421.bsp"
     if not ephemeris_path.is_file():
@@ -80,17 +72,15 @@ def load_ephemeris() -> Any:
         )
 
     expected: str | None = None
-    checksum_path = directory / "de421.bsp.sha256"
     manifest_path = directory / "manifest.json"
-    if checksum_path.is_file():
-        parts = checksum_path.read_text(encoding="ascii").strip().split()
-        expected = parts[0] if parts else None
-    elif manifest_path.is_file():
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-        entry = manifest.get("de421.bsp", manifest)
-        expected = entry.get("sha256") if isinstance(entry, dict) else None
-    if not expected or not _SHA256_RE.fullmatch(expected):
-        raise ValueError(f"Missing or invalid DE421 SHA-256 manifest in {directory}")
+    if not manifest_path.is_file():
+        raise ValueError(f"Missing DE421 manifest: {manifest_path}")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    expected = manifest.get("sha256")
+    if not isinstance(expected, str) or not _SHA256_RE.fullmatch(expected):
+        raise ValueError(f"Missing or invalid DE421 SHA-256 in {manifest_path}")
+    if manifest.get("url") != _DE421_URL:
+        raise ValueError(f"DE421 manifest URL must be {_DE421_URL}")
 
     digest = hashlib.sha256()
     with ephemeris_path.open("rb") as stream:
@@ -101,7 +91,15 @@ def load_ephemeris() -> Any:
         raise ValueError(
             f"DE421 SHA-256 mismatch: expected {expected.lower()}, got {actual}"
         )
-    return load_file(str(ephemeris_path))
+    if manifest.get("byte_size") != ephemeris_path.stat().st_size:
+        raise ValueError("DE421 byte size does not match its first-fetch manifest")
+    return _load_verified_kernel(str(ephemeris_path), actual)
+
+
+@lru_cache(maxsize=1)
+def _load_verified_kernel(path: str, sha256: str) -> Any:
+    """Reuse the parsed kernel while ``load_ephemeris`` rechecks disk on every call."""
+    return load_file(path)
 
 
 def _ensure_utc(value: datetime, name: str) -> datetime:
@@ -128,11 +126,8 @@ def build_satellite(profile: SpacecraftProfile) -> EarthSatellite:
         raise NotImplementedError(f"unsupported orbit input kind: {orbit.kind}")
 
     epoch = _ensure_utc(orbit.epoch_utc, "orbit.epoch_utc")
-    seconds = epoch.second + epoch.microsecond / 1_000_000
-    jd, fraction = jday(
-        epoch.year, epoch.month, epoch.day, epoch.hour, epoch.minute, seconds
-    )
-    epoch_days = jd + fraction - _JULIAN_DATE_1949_EPOCH
+    julian_epoch = datetime(1949, 12, 31, tzinfo=UTC)
+    epoch_days = (epoch - julian_epoch).total_seconds() / 86_400.0
     semi_major_axis_km = wgs72.radiusearthkm + orbit.altitude_km
     mean_motion_rad_min = math.sqrt(wgs72.mu / semi_major_axis_km**3) * 60.0
 
@@ -164,7 +159,7 @@ def _check_sgp4(satellite: EarthSatellite, times: Any) -> None:
         if error_code:
             raise RuntimeError(f"SGP4 propagation failed with error code {error_code}")
         return
-    _, _, errors = satellite.model.sgp4_array(times.whole, times.ut1_fraction)
+    errors, _, _ = satellite.model.sgp4_array(times.whole, times.ut1_fraction)
     error_codes = np.asarray(errors)
     if np.any(error_codes != 0):
         first = int(error_codes.flat[np.flatnonzero(error_codes)[0]])
@@ -177,12 +172,15 @@ def _geometry_series(
     times: Any,
     earth: Any,
     sun: Any,
+    sun_elevation_fn: Callable[[Source, Any], Any] | None = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Return off-nadir, target elevation, solar elevation and unit LOS arrays."""
     _check_sgp4(satellite, times)
     site = wgs84.latlon(latitude_degrees=source.lat, longitude_degrees=source.lon)
     sat_position = np.asarray(satellite.at(times).frame_xyz(itrs).km)
-    ground_position = np.asarray((earth + site).at(times).frame_xyz(itrs).km)
+    if sat_position.ndim == 1:
+        sat_position = sat_position.reshape(3, 1)
+    ground_position = np.asarray(site.itrs_xyz.km).reshape(3, 1)
     los = ground_position - sat_position
     nadir = -sat_position
     cosine = np.sum(los * nadir, axis=0) / (
@@ -190,9 +188,36 @@ def _geometry_series(
     )
     off_nadir_deg = np.degrees(np.arccos(np.clip(cosine, -1.0, 1.0)))
 
-    target_elevation_deg = (satellite - site).at(times).altaz()[0].degrees
-    observer = earth + site
-    sun_elevation_deg = observer.at(times).observe(sun).apparent().altaz()[0].degrees
+    surface_normal = np.array(
+        [
+            math.cos(math.radians(source.lat)) * math.cos(math.radians(source.lon)),
+            math.cos(math.radians(source.lat)) * math.sin(math.radians(source.lon)),
+            math.sin(math.radians(source.lat)),
+        ]
+    ).reshape(3, 1)
+    target_to_satellite = -los
+    target_elevation_deg = np.degrees(
+        np.arcsin(
+            np.clip(
+                np.sum(target_to_satellite * surface_normal, axis=0)
+                / np.linalg.norm(target_to_satellite, axis=0),
+                -1.0,
+                1.0,
+            )
+        )
+    )
+    if sun_elevation_fn is None:
+        observer = earth + site
+        sun_elevation_deg = observer.at(times).observe(sun).apparent().altaz()[0].degrees
+    else:
+        sun_elevation_deg = np.asarray(sun_elevation_fn(source, times), dtype=float)
+        expected_shape = (sat_position.shape[1],)
+        try:
+            sun_elevation_deg = np.broadcast_to(sun_elevation_deg, expected_shape)
+        except ValueError as exc:
+            raise ValueError(
+                "sun_elevation_fn must return a scalar or one value per requested time"
+            ) from exc
     los_unit = los / np.linalg.norm(los, axis=0)
     return (
         np.asarray(off_nadir_deg),
@@ -208,16 +233,17 @@ def _scalar_geometry(
     when_utc: datetime,
     earth: Any,
     sun: Any,
+    sun_elevation_fn: Callable[[Source, Any], Any] | None = None,
 ) -> tuple[float, float, float, tuple[float, float, float]]:
     ts = _timescale().from_datetime(when_utc)
     off, elevation, sun_elevation, los_unit = _geometry_series(
-        satellite, source, ts, earth, sun
+        satellite, source, ts, earth, sun, sun_elevation_fn
     )
     return (
-        float(off),
-        float(elevation),
-        float(sun_elevation),
-        tuple(float(x) for x in los_unit),
+        float(np.asarray(off).item()),
+        float(np.asarray(elevation).item()),
+        float(np.asarray(sun_elevation).item()),
+        tuple(float(np.asarray(x).item()) for x in los_unit),
     )
 
 
@@ -270,14 +296,20 @@ def _refine_transition(
     earth: Any,
     sun: Any,
     tolerance_s: float,
+    sun_elevation_fn: Callable[[Source, Any], Any] | None = None,
 ) -> datetime:
-    """Bisect a detected state transition until its time bracket meets the configured tolerance."""
+    """Return the midpoint of a state-transition bracket at the configured precision.
+
+    Returning the first sample in the right-hand state is appropriate for one side of an
+    interval and wrong for the other. The bracket midpoint gives both adjacent intervals the
+    same boundary estimate, with a maximum error of half the requested tolerance.
+    """
     left = left_utc
     right = right_utc
     while (right - left).total_seconds() > tolerance_s:
         mid = left + (right - left) / 2
         off, elevation, sun_elevation, _ = _scalar_geometry(
-            satellite, source, mid, earth, sun
+            satellite, source, mid, earth, sun, sun_elevation_fn
         )
         state = _reason_for_state(
             off,
@@ -291,7 +323,7 @@ def _refine_transition(
             right = mid
         else:
             left = mid
-    return right
+    return left + (right - left) / 2
 
 
 def _minimum_off_nadir_time(
@@ -304,6 +336,7 @@ def _minimum_off_nadir_time(
     earth: Any,
     sun: Any,
     tolerance_s: float,
+    sun_elevation_fn: Callable[[Source, Any], Any] | None = None,
 ) -> tuple[datetime, float]:
     """Refine the lowest sampled off-nadir point with a bounded golden-section search."""
     # The minimum is normally near closest approach. Bracket it by adjacent samples so the search
@@ -318,7 +351,9 @@ def _minimum_off_nadir_time(
     ratio = (math.sqrt(5.0) - 1.0) / 2.0
 
     def objective(when: datetime) -> float:
-        return _scalar_geometry(satellite, source, when, earth, sun)[0]
+        return _scalar_geometry(
+            satellite, source, when, earth, sun, sun_elevation_fn
+        )[0]
 
     x1 = hi - (hi - lo) * ratio
     x2 = lo + (hi - lo) * ratio
@@ -399,6 +434,7 @@ def _make_window(
     sun: Any,
     tolerance_s: float,
     index: int,
+    sun_elevation_fn: Callable[[Source, Any], Any] | None = None,
 ) -> ObservationWindow:
     min_time, min_off = _minimum_off_nadir_time(
         satellite,
@@ -410,6 +446,7 @@ def _make_window(
         earth,
         sun,
         tolerance_s,
+        sun_elevation_fn,
     )
     duration_s = sensor.exposure_seconds
     energy_wh = sensor.costs.energy_wh_per_scene
@@ -431,16 +468,15 @@ def _make_window(
             cfg.window_search.max_options_per_window,
             min_time,
         )
-        for option_index, option_start in enumerate(option_starts):
+        for option_start in option_starts:
             off, _, sun_elevation, los_unit = _scalar_geometry(
-                satellite, source, option_start, earth, sun
+                satellite, source, option_start, earth, sun, sun_elevation_fn
             )
             option_end = option_start + timedelta(seconds=duration_s)
             options.append(
                 AcquisitionOption(
-                    id=f"{window_id}#{option_index}",
+                    option_id=acquisition_option_id(window_id, option_start),
                     window_id=window_id,
-                    index=option_index,
                     start_utc=option_start,
                     end_utc=option_end,
                     off_nadir_deg=off,
@@ -498,13 +534,17 @@ def generate_windows(
     sources: list[Source],
     start_utc: datetime,
     end_utc: datetime,
+    *,
+    sun_elevation_fn: Callable[[Source, Any], Any] | None = None,
 ) -> list[ObservationWindow]:
     """Generate refined geometric access windows and explicit rejection windows.
 
     Rejections are emitted for intervals in which the source is above the geometric horizon but
     pointing, daylight, or a spacecraft blackout prevents an acquisition. If a target is never
     geometrically visible during the requested interval, one ``NOT_VISIBLE`` record is emitted
-    for that spacecraft/sensor/source combination.
+    for that spacecraft/sensor/source combination. Tests may inject
+    ``sun_elevation_fn(source, skyfield_times)`` to run without DE421; LTDN validation is skipped
+    in that mode because it requires the ephemeris Sun position.
     """
     start_utc = _ensure_utc(start_utc, "start_utc")
     end_utc = _ensure_utc(end_utc, "end_utc")
@@ -515,33 +555,40 @@ def generate_windows(
 
     step_s = cfg.window_search.coarse_step_s
     tolerance_s = cfg.window_search.refine_tolerance_s
-    if step_s > 0.5 * min(
-        sensor.exposure_seconds + min(sc.attitude.settle_seconds for sc in cfg.spacecraft.values())
-        for sensor in cfg.sensors.values()
-    ):
+    minimum_usable_window_s = min(
+        cfg.sensors[sensor_id].exposure_seconds + profile.attitude.settle_seconds
+        for profile in cfg.spacecraft.values()
+        for sensor_id in profile.sensor_ids
+    )
+    if step_s > 0.5 * minimum_usable_window_s:
         raise ValueError("coarse orbit-search step exceeds half the minimum usable window")
 
     sample_times = _sample_datetimes(start_utc, end_utc, step_s)
     times = _timescale().from_datetimes(sample_times)
-    ephemeris = load_ephemeris()
-    earth, sun = ephemeris["earth"], ephemeris["sun"]
+    if sun_elevation_fn is None:
+        ephemeris = load_ephemeris()
+        earth, sun = ephemeris["earth"], ephemeris["sun"]
+    else:
+        ephemeris = None
+        earth = sun = None
     output: list[ObservationWindow] = []
 
     for spacecraft_id in sorted(cfg.spacecraft):
         profile = cfg.spacecraft[spacecraft_id]
-        ltdn_error_s = _ltdn_error_seconds(profile, ephemeris)
-        if ltdn_error_s > _LTDN_TOLERANCE_S:
-            raise ValueError(
-                f"spacecraft {profile.id} RAAN implies LTDN differs from configured "
-                f"{profile.orbit.ltdn} by {ltdn_error_s / 60.0:.2f} min "
-                "(allowed ±2 min; ORB-02)"
-            )
+        if ephemeris is not None:
+            ltdn_error_s = _ltdn_error_seconds(profile, ephemeris)
+            if ltdn_error_s > _LTDN_TOLERANCE_S:
+                raise ValueError(
+                    f"spacecraft {profile.id} RAAN implies LTDN differs from configured "
+                    f"{profile.orbit.ltdn} by {ltdn_error_s / 60.0:.2f} min "
+                    "(allowed ±2 min; ORB-02)"
+                )
         satellite = build_satellite(profile)
         for sensor_id in profile.sensor_ids:
             sensor = cfg.sensors[sensor_id]
             for source in sorted(sources, key=lambda item: item.id):
                 off, elevation, sun_elevation, _ = _geometry_series(
-                    satellite, source, times, earth, sun
+                    satellite, source, times, earth, sun, sun_elevation_fn
                 )
                 blackout_mask = np.fromiter(
                     (_in_blackout(profile, when) for when in sample_times),
@@ -614,6 +661,7 @@ def generate_windows(
                             earth,
                             sun,
                             tolerance_s,
+                            sun_elevation_fn,
                         )
                     if last < len(sample_times) - 1:
                         next_state = run_bounds[run_i + 1][2]
@@ -628,6 +676,7 @@ def generate_windows(
                             earth,
                             sun,
                             tolerance_s,
+                            sun_elevation_fn,
                         )
                     midpoint = left + (right - left) / 2
                     orbit_number = _orbit_number(satellite, midpoint)
@@ -652,6 +701,7 @@ def generate_windows(
                             sun,
                             tolerance_s,
                             window_index,
+                            sun_elevation_fn,
                         )
                     )
                     window_index += 1

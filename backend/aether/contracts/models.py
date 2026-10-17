@@ -12,7 +12,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Annotated
 
-from pydantic import AfterValidator, BaseModel, ConfigDict, Field, model_validator
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, computed_field, model_validator
 
 from aether.contracts.enums import (
     AcquisitionStatus,
@@ -134,12 +134,11 @@ class AcquisitionOption(Contract):
     """One discrete acquisition start time inside a window (PRD 20: discretized start times).
 
     The solver selects options, not windows, so slew between two options is computed from the
-    line of sight at the actual times. ``id`` is ``f"{window_id}#{index}"``.
+    line of sight at the actual times. Identity is derived from its window and exact start time.
     """
 
-    id: str
+    option_id: str
     window_id: str
-    index: int = Field(ge=0)
     start_utc: UtcDatetime
     end_utc: UtcDatetime  # start + sensor exposure
     off_nadir_deg: float
@@ -148,12 +147,20 @@ class AcquisitionOption(Contract):
 
     @model_validator(mode="after")
     def _consistent(self) -> AcquisitionOption:
-        if self.id != f"{self.window_id}#{self.index}":
-            raise ValueError("option id must be '<window_id>#<index>'")
+        if self.option_id != acquisition_option_id(self.window_id, self.start_utc):
+            raise ValueError("option_id must be derived from window_id and start_utc")
         if self.end_utc <= self.start_utc:
             raise ValueError("end_utc must be after start_utc")
         _check_unit(self.los_unit_ecef)
         return self
+
+
+def acquisition_option_id(window_id: str, start_utc: datetime) -> str:
+    """Build a stable option ID from its window and UTC start time, never its list position."""
+    stamp = start_utc.strftime("%Y%m%dT%H%M%S")
+    if start_utc.microsecond:
+        stamp += f".{start_utc.microsecond:06d}"
+    return f"{window_id}@{stamp}Z"
 
 
 class ObservationWindow(Contract):
@@ -188,6 +195,9 @@ class ObservationWindow(Contract):
             raise ValueError("feasible windows have no rejection reasons; rejected ones need one")
         if self.feasible != bool(self.options):
             raise ValueError("feasible windows need >= 1 option; rejected windows have none")
+        option_ids = [option.option_id for option in self.options]
+        if len(option_ids) != len(set(option_ids)):
+            raise ValueError("window acquisition option IDs must be unique")
         for opt in self.options:
             if opt.window_id != self.id:
                 raise ValueError("option belongs to a different window")
@@ -210,6 +220,11 @@ class CandidateUtility(Contract):
     integer_utility: int
 
 
+class Selection(Contract):
+    window_id: str
+    option_id: str
+
+
 class Plan(Contract):
     run_id: str
     policy_id: PolicyId
@@ -218,12 +233,24 @@ class Plan(Contract):
     cause: str
     objective_weights: dict[str, float]
     candidate_window_ids: tuple[str, ...]
-    selected_option_ids: tuple[str, ...]  # "<window_id>#<index>"; at most one per window
+    selections: tuple[Selection, ...]
     solver_status: SolverStatus
     objective_value: float | None
     best_bound: float | None
     runtime_s: float
     validation_ok: bool | None = None  # set by the independent checker, never by the solver
+
+    @model_validator(mode="after")
+    def _unique_selected_windows(self) -> Plan:
+        window_ids = [selection.window_id for selection in self.selections]
+        if len(window_ids) != len(set(window_ids)):
+            raise ValueError("a Plan may select at most one option per window")
+        return self
+
+    @computed_field
+    @property
+    def selected_window_ids(self) -> tuple[str, ...]:
+        return tuple(selection.window_id for selection in self.selections)
 
 
 class ScheduleViolation(Contract):

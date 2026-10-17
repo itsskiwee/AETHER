@@ -93,3 +93,10 @@ def test_derive_seed_is_stable_and_bounded():
     assert a == derive_seed(1000, "solver", "adaptive_eig", 3)
     assert 0 <= a < 2**31 - 1
     assert a != derive_seed(1001, "solver", "adaptive_eig", 3)
+
+
+def test_bootstrap_namespace_registered():
+    """L3 contract request: EVL-03 paired_bootstrap needs a keyed stream."""
+    a = keyed_rng(7, "bootstrap", "adaptive_eig_vs_largest_first").integers(0, 100, 5)
+    b = keyed_rng(7, "bootstrap", "adaptive_eig_vs_largest_first").integers(0, 100, 5)
+    assert np.array_equal(a, b)

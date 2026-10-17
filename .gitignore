@@ -7,8 +7,11 @@ __pycache__/
 runs/
 artifacts/
 *.bsp
+!data/ephemeris/de421.bsp
 data/raw/
 .env
+.env.*
+!.env.example
 .netrc
 node_modules/
 frontend/dist/
