@@ -1,0 +1,4 @@
+family: m3_forecast_overconfident
+overrides:
+  truth:weather.forecast.logit_error_sigma_base: 0.60
+  truth:weather.forecast.logit_error_sigma_per_lead_hour: 0.10

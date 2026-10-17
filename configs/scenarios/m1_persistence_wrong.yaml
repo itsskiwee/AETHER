@@ -1,0 +1,5 @@
+family: m1_persistence_wrong
+overrides:
+  truth:sources.regimes.0.weight: 0.075
+  truth:sources.regimes.1.weight: 0.325
+  truth:sources.regimes.2.weight: 0.600

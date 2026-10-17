@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+runs/
+artifacts/
+*.bsp
+data/raw/
+.env
+.netrc
+node_modules/
+frontend/dist/

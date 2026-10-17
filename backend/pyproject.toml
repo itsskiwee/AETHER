@@ -1,0 +1,45 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "aether"
+version = "0.1.0"
+description = "Evidence-aware methane observation planner (research prototype, simulated taskable satellites)"
+requires-python = ">=3.12"
+license = "MIT"
+dependencies = [
+  "numpy>=2.0",
+  "scipy>=1.13",
+  "pydantic>=2.7",
+  "pyyaml>=6.0",
+  "sgp4>=2.23",
+  "skyfield>=1.49",
+  "ortools>=9.12",
+]
+
+[project.optional-dependencies]
+geo = ["shapely>=2.0", "pyproj>=3.6"]
+api = ["fastapi>=0.110", "uvicorn>=0.29"]
+dev = ["pytest>=8.0", "hypothesis>=6.100", "ruff>=0.5"]
+
+[project.scripts]
+aether = "aether.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["aether"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+markers = [
+  "network: needs internet or credentials; excluded from CI by default",
+  "slow: takes more than ~10 s",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "NPY"]

@@ -1,0 +1,34 @@
+# Virtual agile smallsat VSAT-A. virtual=true: NOT a real spacecraft; no tasking authority implied.
+# Orbit is a documented hypothetical SGP4-compatible element set (PR-K* in Parameter_Register.md).
+id: vsat_a
+virtual: true
+profile_version: "p0-1"
+sensor_ids: [vs_a_point_source]
+orbit:
+  kind: keplerian_sgp4init        # build Satrec via sgp4init; do NOT fetch CelesTrak for virtual sats
+  epoch_utc: "2026-10-17T00:00:00Z"
+  plane: 1
+  altitude_km: 500.0              # [D] PR-K01
+  inclination_deg: 97.40          # [E] sun-synchronous at 500 km, PR-K02
+  eccentricity: 0.0001            # [D] PR-K03
+  arg_perigee_deg: 0.0
+  ltdn: "10:30"                     # [D] PR-K04 local time of descending node
+  raan_deg: 359.0                     # [D] PR-K05 = RA_sun(epoch)=201.5 + (LTAN-12h)*15, LTAN = LTDN+12h
+  mean_anomaly_deg: 0.0             # [D] PR-K06 phasing within plane
+  bstar: 0.0                      # [A] drag ignored over 72-168 h
+attitude:
+  max_off_nadir_deg: 40.0         # [A] PR-A01
+  slew_rate_deg_s: 1.5            # [A] PR-A02
+  settle_seconds: 5.0             # [A] PR-A03
+resources:
+  battery_capacity_wh: 150.0      # [A] PR-A10
+  min_state_of_charge: 0.40       # [A] PR-A11
+  initial_state_of_charge: 0.90
+  orbit_average_recharge_wh: 40.0 # [A] PR-A12 per sunlit orbit
+  storage_bytes: 64000000000      # [A] PR-A20
+  max_acquisitions_per_orbit: 10  # [D] PR-A21 duty-cycle surrogate
+downlink:
+  model: fixed_latency_surrogate  # [D] PR-A30 explicitly NOT physical downlink
+  latency_seconds: 5400
+  storage_release: per_orbit
+blackouts: []                     # list of {start_utc, end_utc, reason}

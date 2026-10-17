@@ -1,0 +1,62 @@
+{
+  "type": "FeatureCollection",
+  "name": "EMIT V002-shaped parser fixture",
+  "metadata": {
+    "fixture_status": "EXAMPLE_ONLY_NOT_SOURCE_VERIFIED",
+    "synthetic": true,
+    "not_a_nasa_record": true,
+    "note": "All feature values and geometries below are fabricated for offline parser examples."
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "id": "synthetic-emit-001",
+      "properties": {
+        "Plume_ID": "SYNTHETIC-EMIT-001",
+        "global_plume_identifier": "SYNTHETIC-EMIT-001",
+        "datetime": "2023-08-14T18:02:00Z",
+        "DAAC_Scene_Names": ["SYNTHETIC_SCENE_ONLY"],
+        "Latitude_of_max_concentration": 31.75,
+        "Longitude_of_max_concentration": -103.4,
+        "Max_Plume_Concentration": 825.0,
+        "Concentration_Uncertainty": 145.0,
+        "emission_rate_kg_h": "N/A",
+        "quality": "example_only"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-103.41, 31.74], [-103.39, 31.74], [-103.39, 31.76], [-103.41, 31.76], [-103.41, 31.74]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "synthetic-emit-002",
+      "properties": {
+        "Plume_ID": "SYNTHETIC-EMIT-002",
+        "global_plume_identifier": "SYNTHETIC-EMIT-002",
+        "datetime": "2023-08-15T18:02:00Z",
+        "Latitude_of_max_concentration": 32.05,
+        "Longitude_of_max_concentration": -102.8,
+        "Max_Plume_Concentration": 610.0
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-102.81, 32.04], [-102.79, 32.04], [-102.79, 32.06], [-102.81, 32.06], [-102.81, 32.04]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "synthetic-emit-003-malformed",
+      "properties": {
+        "Plume_ID": "SYNTHETIC-EMIT-003",
+        "datetime": "2023-08-16T18:02:00Z",
+        "Latitude_of_max_concentration": 32.4,
+        "Longitude_of_max_concentration": -102.2
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-102.21, 32.39], [-102.19, 32.39], [-102.19, 32.41], [-102.21, 32.41]]]
+      }
+    }
+  ]
+}

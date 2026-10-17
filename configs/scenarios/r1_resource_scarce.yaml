@@ -1,0 +1,4 @@
+family: r1_resource_scarce
+overrides:
+  spacecraft.*.resources.storage_bytes: 1500000000
+  spacecraft.*.attitude.slew_rate_deg_s: 0.75

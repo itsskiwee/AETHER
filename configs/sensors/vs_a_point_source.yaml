@@ -1,0 +1,33 @@
+# Virtual point-source imaging spectrometer "VS-A".
+# SIMULATED_PROFILE: Tanager-class numbers are used as anchors only. This is NOT a Tanager,
+# EMIT or any vendor specification. See PR-V* in Implementation/Parameter_Register.md.
+id: vs_a_point_source
+calibration_status: SIMULATED_PROFILE
+gsd_nadir_m: 30.0                    # [A] PR-V01
+gsd_off_nadir_exponent: 1.0          # [A] PR-V02 gsd_eff = gsd_nadir / cos(theta)^exponent
+scene_size_km: [18.0, 18.0]          # [A] PR-V03 cross-track x along-track
+exposure_seconds: 3.0                # [D] PR-V04
+min_sun_elevation_deg: 20.0          # [A] PR-V05
+pod:                                 # [A] PR-V10..V13 logistic in ln Q
+  family: logistic_log_flux
+  q50_ref_kg_h: 100.0
+  q90_ref_kg_h: 200.0
+  ref_wind_m_s: 3.0
+  ref_gsd_m: 30.0
+  wind_scaling_exponent: 1.0         # Q50 ~ U^1 (Jacob et al. 2016 scaling)
+  gsd_scaling_exponent: 1.0          # Q50 ~ W^1
+  wind_clip_m_s: [1.0, 10.0]
+false_positive_prob: 0.02            # [A] PR-V20 per valid scene when inactive
+false_positive_flux:                 # [A] PR-V21 reported-flux density of a false alarm
+  family: lognormal
+  median_kg_h: 100.0                 # near Q50: spurious "plumes" look like threshold detections
+  sigma_ln: 0.5
+validity:                            # [A] PR-V30..V32
+  retrieval_success_prob: 0.95
+  off_nadir_quality_penalty: 0.25    # q_geom = 1 - penalty * (theta/theta_max)^2
+flux_measurement:
+  error_family: lognormal
+  sigma_ln: 0.35                     # [A] PR-V40
+costs:
+  data_bytes_per_scene: 306000000    # [D] PR-V50 600x600 px x 425 bands x 2 B
+  energy_wh_per_scene: 0.2           # [A] PR-V51

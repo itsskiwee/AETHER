@@ -1,0 +1,43 @@
+# Pre-registered benchmark protocol (PRD 9.4). LOCK this file (tag a commit) before the first
+# holdout run. Changing it after holdout results are seen invalidates the comparison.
+protocol_version: 1
+locked: false
+base_config: configs/base.yaml        # never demo.yaml (scripted events)
+families: [m0_well_specified, m1_persistence_wrong, m2_pod_optimistic, m3_forecast_overconfident, m4_false_positives, r1_resource_scarce]
+policies: [first_feasible, largest_first, static_priority, adaptive_eig, greedy_eig]
+tuning_seeds: experiments/seeds_dev.txt
+holdout_seeds: experiments/seeds_holdout.txt
+primary_metric: brier_active_state          # lower is better, evaluated every 6 h
+primary_comparison: [adaptive_eig, largest_first]
+mandatory_secondary_comparison: [adaptive_eig, greedy_eig]   # separates adaptivity from the optimizer
+reference_policies: [random_feasible, oracle]                # gate G4.5 only, never "competitors"
+secondary_metrics:
+  - log_loss_active_state
+  - ece_active_state
+  - high_impact_recall_at_5      # undefined when a seed has 0 high-impact sources: excluded, count reported
+  - time_to_corroboration_hours   # right-censored at horizon
+  - flux_interval_coverage_90
+  - valid_acquisition_fraction
+  - acquisitions_count
+  - solver_runtime_p95_s
+  - feasibility_checker_violations # must be 0 for every run
+breakdowns: [regime, observed_at_least_once]
+discriminability_gate:          # G4.5, run on tuning seeds BEFORE locking
+  require: oracle_minus_random_brier_gap > 2 * sd_of_paired_difference_across_tuning_seeds
+  report: [capacity_to_demand_ratio, passes_per_72h, acquisitions_per_pass]
+  on_fail: change the scenario (sources, capacity, horizon), never the planner
+analysis:
+  pairing: by_seed_and_family
+  statistic: mean_paired_difference
+  ci: bootstrap_percentile
+  resamples: 10000
+  level: 0.95
+multiplicity: holm_bonferroni across families m1..m4 at family-wise alpha 0.05
+seed_count_rule: holdout seed count fixed from the tuning-seed variance of the paired difference
+  (power 0.8 for a pre-stated minimum effect); 100 is the default upper budget
+success_criterion: >
+  adaptive_eig has a negative paired Brier difference vs largest_first with the 95% CI excluding 0
+  on m0 AND on at least 2 of {m1, m2, m3, m4} after Holm correction, with zero checker violations.
+  The adaptive_eig vs greedy_eig comparison and high-impact recall are reported with equal
+  prominence. Report all families either way, including regimes where adaptive_eig is equal or
+  worse.

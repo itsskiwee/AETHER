@@ -1,0 +1,4 @@
+family: h168_long_horizon
+overrides:
+  horizon_hours: 168
+  sources.count: 60

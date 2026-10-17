@@ -1,0 +1,11 @@
+# AETHER golden DEMO scenario = base.yaml + the scripted environment change of PRD 13.9 step 5.
+# Never use this file for benchmarks (experiments/protocol.yaml points at base.yaml).
+extends: base.yaml
+scenario_id: permian-p0-demo
+weather:
+  injected_events:                              # [D] PR-W20
+    - kind: forecast_revision
+      at_hour: 20.0
+      target_source_index: 0
+      cloud_fraction: 0.90
+      duration_hours: 12.0

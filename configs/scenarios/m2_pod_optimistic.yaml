@@ -1,0 +1,4 @@
+family: m2_pod_optimistic
+overrides:
+  truth:sensors.vs_a_point_source.pod.q50_ref_kg_h: 200.0
+  truth:sensors.vs_a_point_source.pod.q90_ref_kg_h: 400.0

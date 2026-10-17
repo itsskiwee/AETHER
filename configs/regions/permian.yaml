@@ -1,0 +1,14 @@
+# Study region. [D] PR-R01..R03 in Implementation/Parameter_Register.md
+region_id: permian_basin
+name: Permian Basin (Delaware + Midland sub-basins), Texas/New Mexico
+bbox_wgs84:            # [lon_min, lat_min, lon_max, lat_max], EPSG:4326
+  - -104.5
+  - 30.8
+  - -101.0
+  - 33.5
+timezone_note: "Display only. All computation is UTC."
+rationale:
+  - "Dense public point-source record (aircraft campaigns and EMIT plumes)."
+  - "Inside the ISS/EMIT sunlit coverage band (~52N-52S)."
+  - "Arid, so a higher clear-sky fraction than most oil and gas basins."
+  - "Published intermittency study exists (Cusworth et al. 2021)."

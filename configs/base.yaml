@@ -1,0 +1,102 @@
+# AETHER P0 BENCHMARK base scenario. No scripted events: demo.yaml extends this and adds them.
+# Every numeric value is a labelled scenario parameter. Tags: [E] sourced fact, [A] assumption,
+# [D] design decision. Sources and rationale: Implementation/Parameter_Register.md (PR-* IDs).
+schema_version: 1
+scenario_id: permian-p0
+simulation_epoch_utc: "2026-10-17T00:00:00Z"   # [D] PR-S01
+horizon_hours: 72                               # [D] PR-S02 (benchmark sensitivity: 168)
+random_seed: 42017                              # [D] PR-S03 the ONLY seed; all streams derive from it
+historical_data_mode: historical_context_only   # real plumes seed locations/priors only
+orbital_mode: virtual_taskable_constellation
+
+region_file: regions/permian.yaml
+spacecraft_files:
+  - spacecraft/vsat_a.yaml
+  - spacecraft/vsat_b.yaml
+  - spacecraft/vsat_c.yaml
+  - spacecraft/vsat_d.yaml
+sensor_files:
+  - sensors/vs_a_point_source.yaml
+
+sources:
+  count: 20                                     # [D] PR-P01
+  placement: emit_fixture_then_uniform          # [D] PR-P02
+  min_separation_m: 500                         # [D] PR-P03
+  flux_prior:                                   # conditional on active, kg CH4/h  [A] PR-P10
+    family: lognormal
+    median_kg_h: 300.0
+    sigma_ln: 1.1
+    min_kg_h: 30.0
+    max_kg_h: 30000.0
+  hourly_variability_sigma_ln: 0.30             # [A] PR-P11
+  regimes:                                      # [A] PR-P20..P23
+    - name: PERSISTENT
+      weight: 0.15
+      mean_on_hours: 240.0
+      mean_off_hours: 48.0
+    - name: INTERMITTENT
+      weight: 0.45
+      mean_on_hours: 12.0
+      mean_off_hours: 24.0
+    - name: EPISODIC
+      weight: 0.40
+      mean_on_hours: 3.0
+      mean_off_hours: 72.0
+
+weather:
+  type: synthetic_scenario                      # never presented as a forecast product
+  cloud:
+    mean_cloud_fraction: 0.30                   # [A] PR-W01 (verify with ERA5 tcc, Oct, Permian)
+    spatial_corr_length_km: 150.0               # [A] PR-W02
+    temporal_corr_hours: 12.0                   # [A] PR-W03
+    logit_sigma: 1.5                            # [A] PR-W04
+  forecast:
+    logit_error_sigma_base: 0.30                # [A] PR-W05
+    logit_error_sigma_per_lead_hour: 0.05       # [A] PR-W06
+    issue_interval_hours: 6.0                   # [D] PR-W07
+  wind:
+    analysis_error_sigma_ln: 0.25               # [A] PR-W13 wind available to the belief update
+    median_m_s: 4.0                             # [A] PR-W10
+    sigma_ln: 0.45                              # [A] PR-W11
+    temporal_corr_hours: 6.0                    # [A] PR-W12
+    min_m_s: 1.0
+    max_m_s: 12.0
+  injected_events: []                           # benchmark must stay empty (test-enforced)
+
+window_search:
+  coarse_step_s: 2.0                            # [D] PR-R03 <= half the 8 s minimum window
+  refine_tolerance_s: 0.1                       # [D] PR-R04
+  option_step_s: 10.0                           # [D] PR-O09 discrete acquisition start times
+  max_options_per_window: 12                    # [D] PR-O09
+
+planner:
+  lookahead_hours: 24.0                         # [D] PR-O01
+  replan_on: [pass_completed, informative_acquisition, forecast_revision]  # [D] PR-O02
+  freeze_current_pass: true
+  max_visits_per_source_per_solve: 1            # [D] PR-O03 (prevents EIG double counting)
+  weights: {information: 1.0, decision: 0.0, latency: 0.0, resource: 0.0}  # [D] PR-O04
+  utility_integer_scale: 10000                  # [D] PR-O05 (1 bit -> 10000 units)
+  min_utility_bits: 0.001                       # [D] PR-O06 candidates below are dropped
+  utility: one_step_eig                         # [D] PR-O10 ablation: brier_reduction_to_next_pass
+  solver:
+    mode: reproducible                          # [D] PR-O08 num_workers=1 + deterministic time
+    max_deterministic_time: 30.0                # [D] PR-O07 CP-SAT deterministic-time units
+    num_workers: 1
+    fast_mode_wall_time_seconds: 10.0           # UI exploration only; runs tagged non-reproducible
+  belief_grid:
+    flux_points: 64                             # [D] PR-B01
+    flux_min_kg_h: 10.0
+    flux_max_kg_h: 50000.0
+    eig_target: binary_activity                 # [D] PR-B02 bits; flux dispersion reported separately
+
+evaluation:
+  policies: [first_feasible, largest_first, static_priority, adaptive_eig, greedy_eig]
+  primary_policies_p0: [largest_first, adaptive_eig]
+  reference_policies: [random_feasible, oracle]  # [D] PR-E06 discriminability gate G4.5 only
+  eval_interval_hours: 6.0                      # [D] PR-E01
+  high_impact_mean_rate_kg_h: 278.0             # [D] PR-E02 true mean rate over horizon, incl. off time
+  first_feasible_request_rate_per_source_per_day: 1.0  # [A] PR-E07 Poisson requests for B1
+  corroboration_p_threshold: 0.90               # [D] PR-E03
+  bootstrap_resamples: 10000                    # [D] PR-E04
+  ci_level: 0.95
+  truth_isolation: enforced

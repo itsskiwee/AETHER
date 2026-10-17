@@ -1,0 +1,23 @@
+{
+  "provider": "AETHER synthetic fixtures",
+  "dataset": "Synthetic EMIT and Carbon Mapper-shaped GeoJSON parser examples",
+  "version": "1",
+  "citation_text": "AETHER fabricated parser fixtures; not provider source data.",
+  "license_url": null,
+  "retrieved_at_utc": "2026-10-17T00:00:00Z",
+  "adapter_version": "aether-ingestion/0.1.0",
+  "transformation_version": "aether-geojson-normalization/1",
+  "fixture_status": "EXAMPLE_ONLY_NOT_SOURCE_VERIFIED",
+  "files": [
+    {
+      "path": "data/fixtures/carbon_mapper_synthetic.geojson",
+      "sha256": "150f3d6d9f8b4f4d6f039e3db0a2adf8e6ed75aaea8d8043abc73a7f5de787c2",
+      "size_bytes": 1218
+    },
+    {
+      "path": "data/fixtures/emit_v002_synthetic.geojson",
+      "sha256": "13974416a7df1780c7a3277e80ca1157adbb6ff8adbc9b3b00f6302c78661f16",
+      "size_bytes": 2060
+    }
+  ]
+}
