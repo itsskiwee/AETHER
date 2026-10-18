@@ -1,3 +1,4 @@
+import json
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
@@ -80,6 +81,29 @@ def test_pinned_ephemeris_and_shared_eop_are_loaded_offline(cfg):
     timescale = _timescale()
     assert timescale.from_datetime(cfg.simulation_epoch_utc).tt > 0
     assert "SUN" in str(load_ephemeris()["sun"])
+
+
+def test_windows_replay_identically_from_pinned_ephemeris(cfg, monkeypatch):
+    monkeypatch.setattr(
+        ephemeris_fetcher,
+        "assert_public_address",
+        lambda *_: pytest.fail("window generation must use the pinned local ephemeris"),
+    )
+    source = Source(id="replay", lon=-103.0, lat=32.0)
+    start_utc = cfg.simulation_epoch_utc
+    end_utc = start_utc + timedelta(hours=24)
+
+    first = generate_windows(cfg, [source], start_utc, end_utc)
+    second = generate_windows(cfg, [source], start_utc, end_utc)
+
+    def encode(result):
+        return json.dumps(
+            [window.model_dump(mode="json") for window in result],
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+
+    assert encode(first) == encode(second)
 
 
 def test_ephemeris_fetcher_reuses_verified_pin_without_network(monkeypatch):
