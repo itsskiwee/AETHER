@@ -33,7 +33,8 @@ recorded replay then runs offline. This serves the production console and API to
 For local FastAPI container hosting, see [hosted replay instructions](docs/hosted-replay.md).
 For the GitHub-connected Cloudflare Worker deployment, see
 [Cloudflare and GitHub hosting](docs/cloudflare-hosting.md).
-The hosted globe is available at `/?view=globe`.
+Open the [hosted globe](https://aether-replay-hosted.ryan-rawal43.workers.dev/?view=globe).
+The local route is `/?view=globe`.
 The saved sample contains two demo policies and a completed six-run development
 comparison on two seeds. It is labelled preliminary and insufficient for research
 claims. No benchmark win is claimed. See the [workspace guide](docs/frontend-workspace.md).

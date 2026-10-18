@@ -21,8 +21,9 @@ service's HTTPS endpoint for public access. No account keys belong in this repo.
 
 ## Cloudflare
 
-The Cloudflare Worker and Container setup, Workers Builds configuration, account
-requirements and cost notes are in [Cloudflare hosting](cloudflare-hosting.md).
+The Cloudflare Worker with Static Assets, GitHub Workers Builds configuration, account
+requirements and cost notes are in [Cloudflare hosting](cloudflare-hosting.md). Open the
+[hosted globe](https://aether-replay-hosted.ryan-rawal43.workers.dev/?view=globe).
 
 ## Run without Docker
 

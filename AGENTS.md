@@ -48,6 +48,13 @@ Python ≥ 3.12 (3.14 verified for numpy, ortools, sgp4, skyfield, pydantic).
 - Scientific functions get closed-form or brute-force oracle tests, not just "runs without error".
 - Prefer Hypothesis property tests for invariants (monotonicity, probability normalization, no constraint violations).
 
+## Product and code quality
+
+- Do not claim completion until the expected behavior has been verified; report the evidence.
+- Prefer clear, maintainable code over clever code.
+- Choose the simplest solution that meets the requirements for security, reliability, and performance.
+- Keep the product complete and easy to use, and keep its architecture proportionate to its purpose. Advanced capabilities are appropriate when the problem needs them; avoid redundant systems and decorative features that do not support the product's primary purpose.
+
 ## Git
 
 - Branch `lane/<TASK-ID>-short-name` from `main`; small PRs; rebase before opening.

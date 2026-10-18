@@ -6,6 +6,8 @@ the configured production branch. The React console, globe, accepted replay data
 evidence exports, and read-only API snapshots ship together. The Worker does not run
 the planner or simulator, and this deployment does not use Containers or a database.
 
+Open the [hosted globe](https://aether-replay-hosted.ryan-rawal43.workers.dev/?view=globe).
+
 ## GitHub build settings
 
 Connect the existing Worker from **Workers & Pages → aether-replay-hosted → Settings
@@ -38,10 +40,10 @@ provider state as unavailable. Satellite positions are estimates from published
 orbital elements, not telemetry. Catalogue records are metadata, not real-time methane
 measurements.
 
-No Cloudflare or Supabase secrets are needed for the public replay. Cloudflare manages
-the deployment token for Workers Builds. The current `workers.dev` address is shown in
-the Worker dashboard. Static assets use the Worker Assets binding; no Durable Objects,
-Containers, or paid database bindings are configured.
+The public replay needs no runtime Cloudflare or Supabase secrets. Workers Builds uses
+the GitHub and build credentials configured in the Cloudflare dashboard. The current
+`workers.dev` address is shown in the Worker dashboard. Static assets use the Worker
+Assets binding; no Durable Objects, Containers, or database bindings are configured.
 
 ## Build and deploy locally
 
