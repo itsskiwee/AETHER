@@ -1,54 +1,51 @@
 # AETHER hackathon submission
 
-## Submission details — complete before submitting
-
-- **Competition / event:** [COMPLETE: competition name]
-- **Track / category:** [COMPLETE]
-- **Team name:** [COMPLETE]
-- **Team members and roles:** [COMPLETE]
-- **Submission deadline and time zone:** [COMPLETE]
-- **Official length or format limit:** [CHECK RULES AND COMPLETE]
-- **Recorded demo URL:** [COMPLETE AFTER RECORDING]
-- **Repository or project URL:** [COMPLETE]
-
 ## Project description
 
-AETHER is a research prototype for planning which methane-source hypotheses simulated Earth-observation satellites should observe next. It compares a largest-first scheduler with an adaptive expected-information-gain planner, records how simulated evidence and refreshed forecasts affect plans, and presents the resulting runs in a reproducible, offline console.
+AETHER is a reproducible research prototype for planning which methane-source hypotheses virtual Earth-observation satellites should observe next. It connects real historical NASA EMIT plume locations to simulated orbital opportunities, sensor outcomes and an adaptive information-gain planner. A read-only console shows what was scheduled, why, which constraints were checked, and how the simulated evidence changes the model.
 
-## Problem
+## Problem and approach
 
-Satellite observation opportunities are intermittent and constrained by visibility, sensor conditions, weather, and spacecraft resources. Choosing only the source with the largest current estimate can overlook uncertainty and the value of a future observation. A planner also needs to distinguish a valid non-detection from an invalid or missing observation so that missing evidence is not treated as proof of no emissions.
+Satellite observation opportunities are intermittent and constrained by geometry, weather, sensor validity and spacecraft resources. A large estimated source is not always the most informative next observation. AETHER compares a largest-first policy with an adaptive expected-information-gain policy using the same source locations and windows. An independent checker validates the selected schedules. Missing or invalid observations remain distinct from valid non-detections.
 
-## Approach
+## What is working
 
-AETHER runs a seeded simulation with synthetic source hypotheses, hidden simulated ground truth, virtual spacecraft, synthetic weather, and modeled acquisition outcomes. The planner sees its model and forecast inputs; the evaluator uses hidden truth for scoring. The demo runs `largest_first` and `adaptive_eig` under the same `configs/demo.yaml` scenario and seed 1000. A separate development comparison uses `configs/base.yaml`, which excludes the demo's scripted forecast event.
+The checked-in demonstration uses twenty historical EMIT V002 Permian plume records to place twenty virtual source hypotheses, with no uniform-fill locations. Every selected metadata/raster pair and the normalized observations are hash-pinned. Historical rates do not set simulated truth or establish present activity. Ten sample records have unquantified rates, preserved as null; the unknown original retrieval time is also preserved as null.
 
-## Implemented features and observed run counts
+Both policies run over the same 1,494 generated windows, with seed 1000:
 
-The read-only console presents recorded spacecraft windows and feasibility reasons, plan revisions and candidate utilities, an independent schedule-check result, source belief histories and evidence, forecast events, evaluator output, and method and provenance details. The records can be replayed without rerunning the simulation. Both seed-1000 run archives contain 20 synthetic source hypotheses and 1,483 generated windows.
+| Policy | Plans / independent validations | Acquisitions | Checker violations |
+|---|---:|---:|---:|
+| adaptive_eig | 47 / 47 | 51 | 0 |
+| largest_first | 41 / 41 | 37 | 0 |
 
-| Demo policy (`configs/demo.yaml`, seed 1000) | Plans / independent checks | Checker violations | Acquisitions and outcomes |
-|---|---:|---:|---|
-| `largest_first` | 40 / 40 | 0 | 35: 12 detections, 9 valid non-detections, 14 invalid acquisitions |
-| `adaptive_eig` | 52 / 52 | 0 | 47: 10 detections, 23 valid non-detections, 14 invalid acquisitions |
+The accepted records have byte-identical replay and verified export reloads. Each input manifest enumerates 46 input files, including 42 pinned dataset files. Measured performance is stored separately from deterministic simulation records.
 
-The event at simulation hour 20 refreshes forecasts at `2026-10-17T20:00:00Z`. In `largest_first`, forecast revision 10 retains the same selections. In `adaptive_eig`, revision 11 changes selections: the candidate set remains 16 windows, with 11 option IDs removed and 9 added compared with the preceding plan. The forecast issuance advances from hour 18 to hour 20 and refreshes estimates for other sources. The event targets `source-001`, which has no feasible observation window during the scripted cloud interval from simulation hours 20–32. This is evidence of a recorded selection change after refreshed forecasts; it does not show that the planner avoided observing the targeted source during that interval.
+The console and artifact API now run from one server. A saved demonstration is checked into `data/fixtures/hosted_replay`, so reviewers can open the product without regenerating the simulations. The Dockerfile and native commands are documented in `docs/hosted-replay.md`.
 
-The separate base-config comparison contains six actual runs: three policies (`largest_first`, `adaptive_eig`, and `greedy_eig`) on development seeds 1000 and 1001. All six runs have zero checker violations and no rejected proposals. The comparison has two paired samples per policy comparison and is labeled preliminary with insufficient samples. These two seeds do not establish adaptive superiority, and the comparison is not a holdout evaluation.
+## Three-minute demonstration
 
-## Simulation and offline status
+1. Start the saved replay with the README commands and open the console. Explain the SIMULATED MISSION label and historical versus simulated provenance.
+2. Open historical EMIT context: show dates, sample lineage, source hashes and a null-rate record.
+3. Select adaptive_eig and inspect windows, candidate utilities, plan revisions and independent validations.
+4. Open a source history and distinguish detection, valid non-detection and invalid acquisition. Show an evidence-driven revision in the planner view.
+5. Open largest_first and compare recorded scheduling choices. Acquisition counts alone do not establish scientific superiority.
+6. Finish with method/input hashes and the acceptance record. The forecast event at hour 20 is logged but changes no selected option in this pinned demo; do not describe it as demonstrated forecast-driven selection change.
 
-This is a **SIMULATED MISSION — offline replay**. The demo uses seeded synthetic sources, hidden synthetic truth, virtual spacecraft, modeled sensor outcomes, and synthetic weather. Its EMIT-shaped ingestion fixture is synthetic; these runs do not depend on verified real plume records. AETHER does not task real spacecraft or establish real-world emissions, source attribution, or emission reductions.
+## Scientific status and limitations
 
-Once dependencies and the repository's pinned ephemeris data are installed, simulation generation and console replay run offline and require no credentials. Initial dependency installation needs access to package registries. The console replays actual saved run records; it does not present replay as a live satellite tasking system.
+This is a simulated mission and recorded replay. The spacecraft, weather, sensor responses, acquisitions and ground truth are simulated. AETHER does not command real satellites, measure current emissions, establish source attribution or verify reductions.
 
-## Limitations
+Implementation and demonstration evidence are available; scientific acceptance is unfinished. The integrated capacity scenario fails its minimum on one pass (two acquisitions against a required four). The synthetic thirty-seed discriminability pilot failed. Pinned-data gate/calibration work is separate from this fixed replay sample; use the final validation report for its latest status. The protocol remains unlocked and no holdout result or adaptive superiority is claimed by this submission draft. The comparison panel reports unavailable when completed evaluator artifacts have not been supplied.
 
-These results depend on the simulator's explicit assumptions about sources, weather, sensors, and spacecraft. The scripted forecast event demonstrates a logged forecast refresh and, for `adaptive_eig`, a different recorded selection. Because the targeted source has no feasible window in the affected interval, it does not demonstrate targeted cloud avoidance. The development comparison uses only two seeds, has no locked protocol or holdout result, and is too small to support a superiority claim. The prototype does not validate operational mission capability or real-world methane attribution.
+## Submission material
 
-## Supporting project material
+- Repository: https://github.com/itsskiwee/AETHER (the team manages public visibility and the submitted branch).
+- Startup and product overview: [README](../README.md).
+- Hosted/native replay: [deployment guide](hosted-replay.md).
+- Walkthrough: [console guide](demo-console.md).
+- Requirements and evidence: [P0 matrix](p0-requirements-evidence.md).
+- Accepted saved sample: [acceptance record](../data/fixtures/hosted_replay/acceptance.json).
+- Data provenance and attribution: [dataset interface](dataset-interface.md), [data licenses](../DATA_LICENSES.md), [citations](../CITATIONS.md).
 
-- [Repository overview](../README.md)
-- [Offline console walkthrough and known-good evidence](demo-console.md)
-- [Development comparison and interpretation](demo-comparison.md)
-- [Acceptance record](../runs/demo/acceptance.json)
+Add the actual hosted URL and recorded-demo URL after those artifacts exist. Do not submit a local loopback URL as a hosted website.
