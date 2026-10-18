@@ -248,6 +248,28 @@ adaptive_eig: `python -m aether.evaluation.calibration --output-dir runs/sci10-a
 
 **Caveat (strength of evidence).** 5,977 of 7,200 evaluation points lie in the 0.2–0.3 bin, around the stationary prior of 0.291. Coverage is likewise dominated by sources whose interval is still close to the prior, and truth is drawn from that prior. The criteria therefore test posterior calibration *after observation* only weakly: the bins away from the prior hold 36–674 points, with wide CIs. The compact gate records do not mark which sources were observed, so observed-only coverage is not reported. adaptive_eig calibration (the Work_Plan's default pair) is listed under "not run" in §6.
 
+### 3.4 h168_long_horizon diagnostic for decision H3 (7 tuning seeds, 18 Oct 2026). **Does not separate**
+
+Claude-2's proposed check before adopting H3 option A: the G4.5 rule, run unchanged on `h168_long_horizon` (168 h, 60 sources: 20 plume-seeded, 40 uniform fill per seed) for the first ten tuning seeds. Reference policies only. Same oracle reference, same metric, same SD rule. This is a **subset diagnostic, not the registered 30-seed verdict** (`seed_subset_only: true`). Records: Windows 11 / Python 3.13.9, merged with `scripts/merge_gate_records.py`, which derives the verdict through `run_gate` with a run function that refuses to compute.
+
+| Quantity | Value |
+|---|---|
+| Seeds | 1000, 1002, 1003, 1004, 1005, 1006, 1009 |
+| Mean random − oracle Brier gap | -0.0006 |
+| Paired SD | 0.0068 (SE 0.0026) |
+| Required (2 × SD) | 0.0136 |
+| Seeds where the oracle beat random | 3 / 7 |
+| Passes per 72 h (random_feasible) | 6.86 (16 per 168 h on every seed) |
+| Executed acquisitions per pass | 6.69 to 7.06 |
+| Capacity / demand | 0.115 |
+| Reference checker violations | 0 |
+
+**Interpretation.** The longer horizon fixes capacity: every seed has at least 6.6 executed acquisitions per pass, against the G1-F minimum of 4, and 6.9 passes per 72 h. It does not fix discriminability. The mean gap is indistinguishable from zero, and passing would need a true mean gap about 2 SD above zero. With the observed mean and SE, that is several standard errors away, so more seeds are very unlikely to change the conclusion. That is a judgment, not a registered test. Capacity / demand is lower than on the 72 h base (0.27), because the source count tripled while passes grew 2.3×. The likely limits are the same as in §3.2: the 6 h Brier grid against 3–24 h activity dynamics, and many sources below the sensor's Q50.
+
+**Consequence for H3.** Option A alone is not supported by this evidence. Remaining options: A+B (h168 plus a denser fleet, so capacity / demand rises), a registered change to the evaluation question (option C, not recommended after seeing results), or D (keep the scenario and report a likely null). Nothing registered has changed. Artifacts: `experiments/results/g45-h168-diagnostic/`.
+
+**Desktop run.** A parallel run of seeds 1010–1029 on a second machine (Linux, 31 GiB) was killed by the operating system's out-of-memory handler within 14 minutes. Each h168 geometry computation peaks at about 6.5 GB, and 20 workers were started. It produced no records. Its log is kept in the results repository and is not used here.
+
 ## 4. Known caveats that apply to any future result
 
 - **EMIT flux comparison (SCI-08) is uninformative about the population prior.** The 73
@@ -302,7 +324,7 @@ The development comparison (base config, m0, development seeds 1000 and 1001, 3 
 |---|---|---|---|
 | H1 | G1-F contingency (Register: "switch the demo to `h168_long_horizon`") | (a) keep the 72 h pinned demo with G1-F shown as failed; (b) add a labelled h168 demo; (c) make h168 the primary demo. h168 has 168 h and 60 sources (20 plume-seeded, 40 fill). **Diagnostic G1-F on h168 (fill seed 1000) meets both thresholds:** 16 passes (6.9 per 72 h); every pass has at least 5 checker-valid acquisitions (8 proven OPTIMAL, 8 time-limited lower bounds); `experiments/results/g1f-h168-diagnostic/`. Windows took 56 min; planning estimate 1.5–2.5 h of compute per demo seed | (a) for this submission. The submitted demo stays on base, labelled. Then (b). The h168 capacity evidence above supports it; check more fill seeds first |
 | H2 | D9 family scope sign-off | all six families (proposed) / m0 only / m0 + 2 of m1–m4. Every option includes m0, which fails, so today's verdict is FAIL under each | All six (D9 as proposed) |
-| H3 | G4.5 scenario remedy | A: h168 base; A+B: h168 + denser fleet; C: evaluation-time metric change (not recommended); D: keep the scenario and accept a likely null | A (Claude-2), only after H1(b) measures h168 capacity; then re-run the 360-run gate (several hours, planning estimate) |
+| H3 | G4.5 scenario remedy | A: h168 base; A+B: h168 + denser fleet; C: evaluation-time metric change (not recommended); D: keep the scenario and accept a likely null. **h168 diagnostic (§3.4): capacity fixed, discriminability not** (gap ≈ 0 vs 2 SD ≈ 0.014) | A alone is no longer supported. Choose between A+B (needs a registered fleet change and a new gate run) and D (report the null). Integrator: D for this submission, A+B as the next study |
 | H4 | SD-not-SE rule, and the oracle as an oracle-informed greedy reference | Kept as registered (§3 notes 1–2) | Keep |
 | H6 | SCI-10 reliability rule for tiny bins | Keep as written (adaptive_eig fails), or pre-register a minimum bin size or a binomial check for bins whose seed-cluster bootstrap is degenerate, then re-evaluate | **Decided by the user (18 Oct 2026): keep as written.** adaptive_eig is reported as failing the reliability rule; the binomial-consistency note stays as context, not as a pass |
 | H5 | G5/G6 sign-off | Concrete artifacts in `docs/p0-requirements-evidence.md` | Pending the user's review |

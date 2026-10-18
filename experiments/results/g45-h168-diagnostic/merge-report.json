@@ -1,0 +1,20 @@
+{
+  "families": {
+    "h168_long_horizon": {
+      "gap_mean_random_minus_oracle": -0.0006262881828521408,
+      "n_seeds": 7,
+      "passed": false,
+      "reference_checker_violations": 0,
+      "status": "SUBSET_DIAGNOSTIC_NOT_A_VERDICT",
+      "threshold_2sd": 0.013598450493489839
+    }
+  },
+  "merge": {
+    "copied": 14,
+    "identical_duplicates": 0
+  },
+  "records_sha256": "49d8f9969bb2b01ef9fef6973994717b9c0e4fe0fdc38a28af8ab3ac958f2380",
+  "sources": [
+    "runs\\g45-h168-diag"
+  ]
+}
