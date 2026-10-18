@@ -153,3 +153,12 @@ def test_code_identity_change_forces_rerun(repo_root, tmp_path, monkeypatch):
 def test_code_sha256_is_stable_hex():
     assert matrix.code_sha256() == matrix.code_sha256()
     assert len(matrix.code_sha256()) == 64
+
+
+def test_identity_binds_pinned_data_and_package_versions(repo_root, tmp_path):
+    rt = matrix.runtime_inputs(repo_root)
+    assert "data/ephemeris/de421.bsp" in rt["pinned_data_sha256"]
+    assert any(k.startswith("data/eop/") for k in rt["pinned_data_sha256"])
+    assert {"numpy", "ortools", "sgp4", "skyfield"} <= set(rt["package_versions"])
+    with pytest.raises(RuntimeError, match="missing"):
+        matrix.runtime_inputs(tmp_path)
