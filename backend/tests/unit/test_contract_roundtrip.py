@@ -25,6 +25,16 @@ def contract_examples():
         sha256="0" * 64,
     )
     source = models.Source(id="s1", lon=0, lat=0)
+    dataset_ref = models.InputDatasetRef(
+        dataset_id="dataset",
+        manifest_path="data/manifests/example.json",
+        manifest_sha256="1" * 64,
+        normalized_sha256="2" * 64,
+        record_count=3,
+        in_region_count=2,
+        seeded_source_count=0,
+        uniform_fill_count=1,
+    )
     option = models.AcquisitionOption(
         option_id=OPTION_ID,
         window_id="w1",
@@ -178,7 +188,9 @@ def contract_examples():
             acquisitions=(acquisition,),
             beliefs=(belief,),
             events=(event,),
+            input_dataset=dataset_ref,
         ),
+        dataset_ref,
     ]
 
 

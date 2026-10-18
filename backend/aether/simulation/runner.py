@@ -19,6 +19,7 @@ from aether.contracts.models import (
     BeliefSnapshot,
     CandidateUtility,
     FrozenDict,
+    InputDatasetRef,
     ObservationWindow,
     Plan,
     PlumeObservation,
@@ -50,6 +51,67 @@ from aether.simulation.truth_types import TruthHistory
 from aether.weather.synthetic import ForecastView, build_synthetic_weather
 
 _WINDOW_CACHE: dict[tuple, tuple[ObservationWindow, ...]] = {}
+_DATASET_CACHE: dict[tuple[str, str], Any] = {}
+
+
+def repo_root() -> Path:
+    return Path(__file__).resolve().parents[3]
+
+
+def load_configured_dataset(cfg: ScenarioConfig):
+    """Load and verify the config's pinned plume dataset, or return None in synthetic-only mode.
+
+    Verification (every listed hash, size and record) belongs to ``aether.ingestion``; a missing
+    or altered dataset raises rather than falling back to uniform placement. Cached per process
+    by manifest path and expected hash, so policies in one process share the same records.
+    """
+    spec = cfg.sources.plume_dataset
+    if spec is None:
+        return None
+    key = (spec.manifest, spec.manifest_sha256)
+    if key not in _DATASET_CACHE:
+        from aether.ingestion import load_pinned_plume_dataset
+
+        root = repo_root()
+        _DATASET_CACHE[key] = load_pinned_plume_dataset(
+            root / spec.manifest,
+            expected_manifest_sha256=spec.manifest_sha256,
+            repo_root=root,
+        )
+    return _DATASET_CACHE[key]
+
+
+def resolve_sources(
+    cfg: ScenarioConfig,
+    seed: int,
+    plume_observations: Iterable[PlumeObservation] | None = None,
+) -> tuple[tuple[Source, ...], InputDatasetRef | None]:
+    """Build the run's sources from exactly one plume input: the configured dataset or the caller.
+
+    Policy-independent: the result depends only on the model config, the plumes and the seed.
+    Caller-supplied plumes are an unpinned input (tests and diagnostics); they are refused when
+    the config already names a dataset, so a run never mixes two inputs.
+    """
+    dataset = load_configured_dataset(cfg)
+    if dataset is None:
+        return generate_sources(cfg, seed, plume_observations or ()), None
+    if plume_observations is not None:
+        raise ValueError(
+            "the config names a pinned plume dataset; do not also pass plume_observations"
+        )
+    sources = generate_sources(cfg, seed, dataset.plumes)
+    seeded = sum(source.seeded_from_plume_id is not None for source in sources)
+    ref = InputDatasetRef(
+        dataset_id=dataset.dataset_id,
+        manifest_path=cfg.sources.plume_dataset.manifest,
+        manifest_sha256=dataset.manifest_sha256,
+        normalized_sha256=dataset.normalized_sha256,
+        record_count=len(dataset.plumes),
+        in_region_count=len(plumes_in_region(dataset.plumes, cfg.region)),
+        seeded_source_count=seeded,
+        uniform_fill_count=len(sources) - seeded,
+    )
+    return sources, ref
 
 
 def generate_sources(
@@ -283,7 +345,7 @@ def run_policy(
     policy_id: PolicyId | str,
     seed: int,
     *,
-    plume_observations: Iterable[PlumeObservation] = (),
+    plume_observations: Iterable[PlumeObservation] | None = None,
 ) -> RunRecord:
     """Run one deterministic, closed-loop policy; truth remains inside this function.
 
@@ -295,7 +357,7 @@ def run_policy(
         raise TypeError("seed must be an integer")
     effective = _effective_bundle(bundle, seed)
     cfg, truth_cfg = effective.model, effective.truth
-    sources = generate_sources(cfg, seed, plume_observations)
+    sources, dataset_ref = resolve_sources(cfg, seed, plume_observations)
     truth = generate_truth(truth_cfg, sources, seed=seed)
     weather = build_synthetic_weather(truth_cfg, sources, model_cfg=cfg, seed=seed)
     forecast = weather.forecast_view()
@@ -363,6 +425,7 @@ def run_policy(
             "placement": cfg.sources.placement,
             "seeded_from_verified_plumes": sum(s.seeded_from_plume_id is not None for s in sources),
             "uniform_fallback_count": sum(s.seeded_from_plume_id is None for s in sources),
+            "input_dataset": None if dataset_ref is None else dataset_ref.model_dump(mode="json"),
         },
     )
     emit(
@@ -740,6 +803,7 @@ def run_policy(
         acquisitions=tuple(acquisitions),
         beliefs=tuple(recorded_beliefs),
         events=tuple(events),
+        input_dataset=dataset_ref,
     )
     return revalidate_contract(run)
 
@@ -774,7 +838,7 @@ def forecast_time_text(when: datetime) -> str:
 
 
 def _ephemeris_sha256() -> str:
-    manifest_path = Path(__file__).resolve().parents[3] / "data/ephemeris/manifest.json"
+    manifest_path = repo_root() / "data/ephemeris/manifest.json"
     try:
         data = json.loads(manifest_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
@@ -785,4 +849,10 @@ def _ephemeris_sha256() -> str:
     return digest
 
 
-__all__ = ["generate_sources", "run_policy"]
+__all__ = [
+    "generate_sources",
+    "load_configured_dataset",
+    "repo_root",
+    "resolve_sources",
+    "run_policy",
+]

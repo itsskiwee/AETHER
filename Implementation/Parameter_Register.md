@@ -103,6 +103,7 @@ Computed with `scripts/feasibility/pass_budget.py` (sgp4 2.27 + Skyfield 1.55, D
 | PR-P01 | Source count | 20 (P0), 60 (P1 / 168 h) | [D] | PRD §3.1. |
 | PR-P02 | Placement | Cluster EMIT V002 plume centroids in the bbox (500 m); fill with uniform-random points if fewer than 20 | [D] | Makes the real data shape the experiment. Each `Source.seeded_from_plume_id` records its origin. |
 | PR-P03 | Minimum separation | 500 m | [D] | Below the 18 km scene size, so co-imaging is possible but separate source hypotheses stay distinct. |
+| PR-P04 | Plume dataset input | `sources.plume_dataset`: repo-relative manifest path + its SHA-256, or `null` (synthetic-only, all uniform fill) | [D] | One pinned input for every policy and family; the hash enters `config_hash` so a protocol lock binds it. Historical plumes give locations only, never truth fluxes or the prior. Interface: `docs/dataset-interface.md`. |
 | PR-P10 | Flux prior, conditional on active | lognormal, median 300 kg/h, σ_ln 1.1, truncated [30, 30000] | [A] | Permian aircraft surveys show a heavy-tailed distribution with medians of a few hundred kg/h (Cusworth et al. 2021 [S16]). Puts much of the population near the VS-A detection threshold, which is where scheduling decisions matter. **[V] SCI-08:** compare with the EMIT fixture rates (note: EMIT only sees > ~1 t/h, so it is a biased sample of the tail). |
 | PR-P11 | Hourly flux variability | lognormal, σ_ln 0.30, i.i.d. | [A] | Folded into measurement noise by the belief model (deliberately mild misspecification). |
 
