@@ -92,6 +92,11 @@ def _fraction(value: float) -> Fraction:
     return Fraction(str(value))
 
 
+def _require_now(now_utc: datetime) -> None:
+    if not isinstance(now_utc, datetime):
+        raise TypeError("now_utc must be the replan time (a UTC datetime), not None")
+
+
 def can_add(
     window: ObservationWindow,
     option: AcquisitionOption,
@@ -100,7 +105,7 @@ def can_add(
     planner_cfg: PlannerConfig,
     committed: tuple[ObservationWindow, ...],
     committed_selections: tuple[Selection, ...],
-    now_utc: datetime | None = None,
+    now_utc: datetime,
 ) -> bool:
     """Return whether adding one option preserves the same hard limits as CP-SAT."""
     same = [(w, o) for w, o in selected if w.spacecraft_id == window.spacecraft_id]
@@ -121,15 +126,12 @@ def _source_limit_ok(
     selected: list[tuple[ObservationWindow, AcquisitionOption]],
     fixed: tuple[tuple[ObservationWindow, AcquisitionOption], ...],
     planner_cfg: PlannerConfig,
-    now_utc: datetime | None = None,
+    now_utc: datetime,
 ) -> bool:
     visits = 1 + sum(w.source_id == candidate.source_id for w, _ in selected)
     # PR-O03 is a per-solve cap: completed acquisitions retain resource/temporal
     # effects, but no longer double-count this solve's information gain.
-    visits += sum(
-        w.source_id == candidate.source_id and (now_utc is None or o.end_utc > now_utc)
-        for w, o in fixed
-    )
+    visits += sum(w.source_id == candidate.source_id and o.end_utc > now_utc for w, o in fixed)
     return visits <= planner_cfg.max_visits_per_source_per_solve
 
 
@@ -191,9 +193,16 @@ def greedy_insert(
     planner_cfg: PlannerConfig,
     committed: tuple[ObservationWindow, ...] | list[ObservationWindow],
     committed_selections: tuple[Selection, ...] | list[Selection] = (),
-    now_utc: datetime | None = None,
+    *,
+    now_utc: datetime,
 ) -> tuple[tuple[Selection, ...], dict[str, datetime]]:
-    """Try windows in the supplied order, choosing the earliest feasible option per window."""
+    """Try windows in the supplied order, choosing the earliest feasible option per window.
+
+    ``now_utc`` (the replan time) is required: without it every completed commitment would count
+    against this solve's per-source cap (PR-O03), which capped the oracle at one look per source
+    for a whole run (C2-04).
+    """
+    _require_now(now_utc)
     by_id = {window.id: window for window in windows if window.feasible}
     committed = tuple(committed)
     selected: list[tuple[ObservationWindow, AcquisitionOption]] = []
@@ -264,9 +273,11 @@ def rejection_reasons(
     spacecraft: dict[str, SpacecraftProfile] | None = None,
     committed: Iterable[ObservationWindow] = (),
     committed_selections: Iterable[Selection] = (),
-    now_utc: datetime | None = None,
+    *,
+    now_utc: datetime,
 ) -> dict[str, str]:
     """Explain each unselected candidate using the planner's closed explanation vocabulary."""
+    _require_now(now_utc)
     windows = tuple(windows)
     selections = tuple(selections)
     committed = tuple(committed)

@@ -629,6 +629,7 @@ def test_solver_matches_oracle_and_random_schedules_on_500_instances(bundle, geo
             bundle.model.spacecraft,
             bundle.model.planner,
             (),
+            now_utc=T0,
         )
         greedy_plan = build_heuristic_plan(
             run_id=f"l8-greedy-{instance}",

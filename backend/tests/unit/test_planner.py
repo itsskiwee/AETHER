@@ -148,6 +148,7 @@ def test_committed_acquisition_counts_toward_source_limit(bundle):
         bundle.model.planner,
         [committed],
         [committed_selection],
+        now_utc=T0,
     )
 
     assert plan.selections == ()
@@ -393,6 +394,7 @@ def test_greedy_rechecks_later_energy_prefixes_after_earlier_insert(bundle):
         spacecraft,
         bundle.model.planner,
         (),
+        now_utc=T0,
     )
 
     assert [selection.window_id for selection in selections] == [later.id]
@@ -411,6 +413,7 @@ def test_rejection_reason_checks_temporal_conflict_and_lower_rank_fallback(bundl
         utilities,
         bundle.model.planner,
         bundle.model.spacecraft,
+        now_utc=T0,
     )
 
     assert reasons[candidate.id] == "NOT_SELECTED"
@@ -552,6 +555,7 @@ def test_cp_sat_objective_matches_independent_oracle_on_200_small_instances(bund
             spacecraft,
             bundle.model.planner,
             (),
+            now_utc=T0,
         )
         greedy_plan = build_heuristic_plan(
             run_id="planner-test",
@@ -571,3 +575,44 @@ def test_cp_sat_objective_matches_independent_oracle_on_200_small_instances(bund
             bundle.model.sensors["vs_a_point_source"],
             bundle.model,
         ).ok
+
+
+def test_greedy_helpers_require_the_replan_time(bundle):
+    """C2-04 bug class: a missing now_utc silently counted completed looks against the cap."""
+    window = make_window("only", option_starts=(0,))
+    utilities = {window.id: utility(window.id)}
+    args = ([window], [window.id], utilities, bundle.model.spacecraft, bundle.model.planner, ())
+    with pytest.raises(TypeError):
+        greedy_insert(*args)
+    with pytest.raises(TypeError, match="now_utc"):
+        greedy_insert(*args, now_utc=None)
+    with pytest.raises(TypeError, match="now_utc"):
+        rejection_reasons([window], (), utilities, bundle.model.planner, now_utc=None)
+
+
+def test_completed_commitment_keeps_resources_but_releases_the_source_cap(bundle):
+    """After a committed look ends it no longer counts toward PR-O03, but stays on the timeline."""
+    cap = bundle.model.planner.max_visits_per_source_per_solve
+    done = [
+        make_window(f"done-{i}", source_id="same-source", option_starts=(i * 200,))
+        for i in range(cap)
+    ]
+    done_selections = [Selection(window_id=w.id, option_id=w.options[0].option_id) for w in done]
+    candidate = make_window("next", source_id="same-source", option_starts=(cap * 200 + 100,))
+    overlapping = make_window("overlap", source_id="other-source", option_starts=(0,))
+    utilities = {w.id: utility(w.id) for w in (candidate, overlapping)}
+    args = (
+        [candidate, overlapping],
+        [candidate.id, overlapping.id],
+        utilities,
+        bundle.model.spacecraft,
+        bundle.model.planner,
+        done,
+        done_selections,
+    )
+    before = greedy_insert(*args, now_utc=T0)[0]
+    after = greedy_insert(*args, now_utc=T0 + timedelta(seconds=cap * 200))[0]
+    assert candidate.id not in {s.window_id for s in before}
+    assert candidate.id in {s.window_id for s in after}
+    # The completed acquisition still occupies its time slot for slew/overlap.
+    assert overlapping.id not in {s.window_id for s in after}
