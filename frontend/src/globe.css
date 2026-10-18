@@ -1,18 +1,21 @@
 /* Globe view: a plain sidebar beside the globe. One accent per meaning: white = real satellite,
-   amber = virtual satellite, orange = real plume site. No glow, no overlays on the globe. */
-.globe-shell{--g-bg:#0e1116;--g-side:#15191f;--g-ink:#e9edf1;--g-muted:#9aa4af;--g-line:#262c34;--g-sim:#e0a43a;--g-plume:#e8743b;
+   amber = virtual satellite, orange = real plume site. The decorative sky sits behind the globe. */
+.globe-shell{--g-bg:#0e1116;--g-side:#eeefea;--g-ink:#292e2b;--g-muted:#606861;--g-line:#daded7;--g-sim:#e0a43a;--g-plume:#e8743b;
   position:fixed;inset:0;display:grid;grid-template-columns:340px minmax(0,1fr);background:var(--g-bg);color:var(--g-ink);
-  font:14px/1.5 Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+  font:14px/1.5 'Segoe UI',-apple-system,BlinkMacSystemFont,sans-serif}
 html:has(.globe-shell),body:has(.globe-shell){background:#0e1116;margin:0}
-.globe-canvas{position:relative;min-width:0;overflow:hidden}
+.globe-stage{position:relative;min-width:0;overflow:hidden;background:#0e1116 url('/globe/stars.svg') center/cover no-repeat}
+.globe-canvas{position:relative;z-index:1;min-width:0;width:100%;height:100%;overflow:hidden}
+.globe-sky-note{position:absolute;z-index:2;right:16px;bottom:12px;margin:0;color:#aeb5bc;font:11px/1.5 'Segoe UI',sans-serif;pointer-events:none}
 .globe-side{background:var(--g-side);border-right:1px solid var(--g-line);overflow-y:auto;padding:20px 22px 28px}
 .globe-head{display:flex;justify-content:space-between;align-items:baseline}
 .globe-brand{color:var(--g-ink);text-decoration:none;font-weight:700;font-size:18px}
-.globe-console{color:#9fc3e8;font-size:13px}
+.globe-console{color:#365d50;font-size:13px;text-underline-offset:3px}
 .globe-intro{color:var(--g-muted);margin:8px 0 4px;font-size:13px}
 .globe-side section{border-top:1px solid var(--g-line);margin-top:18px;padding-top:16px}
 .globe-side h2{font-size:15px;font-weight:600;margin:0 0 4px}
 .globe-meta{color:var(--g-muted);font-size:12.5px;margin:0 0 10px}
+.globe-meta a{color:#365d50;text-underline-offset:3px}
 .globe-side table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
 .globe-shell .globe-side th,.globe-shell .globe-side td{background:transparent;color:inherit;font:inherit;font-size:13px;text-align:right;padding:6px 0 6px 8px;border-top:1px solid var(--g-line);white-space:nowrap;height:auto;letter-spacing:0}
 .globe-shell .globe-side thead th{color:var(--g-muted);font-size:12px;border-top:0}
@@ -22,9 +25,9 @@ html:has(.globe-shell),body:has(.globe-shell){background:#0e1116;margin:0}
 .globe-clock{font-variant-numeric:tabular-nums;font-size:13px;margin:8px 0 0}
 .globe-clock span{color:var(--g-muted)}
 .globe-label{display:block;font-size:12px;color:var(--g-muted);margin-bottom:4px}
-.globe-shell select,.globe-shell button{font:inherit;font-size:13px;color:var(--g-ink);background:#1d232b;border:1px solid #333b45;border-radius:6px;padding:6px 10px;cursor:pointer}
-.globe-shell button:hover,.globe-shell select:hover{border-color:#4a5562}
-.globe-shell button[aria-pressed=true]{background:#2a3340}
+.globe-shell select,.globe-shell button{font:inherit;font-size:13px;min-height:36px;max-width:100%;color:var(--g-ink);background:#fff;border:1px solid #a5aea3;border-radius:2px;padding:6px 10px;cursor:pointer;color-scheme:light}
+.globe-shell button:hover,.globe-shell select:hover{border-color:#365d50;background:#f5f5f2}
+.globe-shell button[aria-pressed=true]{background:#dfe6dd;border-color:#365d50}
 .globe-side>section>select{width:100%;margin-bottom:10px}
 .globe-controls{display:flex;gap:8px;margin:10px 0 8px}
 .globe-controls button{min-width:72px}
@@ -38,14 +41,14 @@ html:has(.globe-shell),body:has(.globe-shell){background:#0e1116;margin:0}
 .globe-views{display:flex;flex-wrap:wrap;gap:8px}
 .globe-key{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;color:var(--g-muted)}
 .globe-key li{display:flex;align-items:center;gap:6px}
-.globe-key i.real{background:#fff}.globe-key i.sim{background:var(--g-sim)}.globe-key i.plume{background:var(--g-plume);border-radius:1px}.globe-key i.fill{background:#8a929b}
+.globe-key i.real{background:#fff;border:1px solid #606861}.globe-key i.sim{background:var(--g-sim)}.globe-key i.plume{background:var(--g-plume);border-radius:1px}.globe-key i.fill{background:#8a929b}
 .globe-sat{display:flex;align-items:center;gap:5px;transform:translate(-4px,-4px);white-space:nowrap;pointer-events:auto}
 .globe-sat i{width:7px;height:7px;border-radius:50%}
 .globe-sat span{font-size:11.5px;text-shadow:0 0 3px #000,0 0 3px #000}
 .globe-sat.real{color:#fff}.globe-sat.real i{background:#fff}
 .globe-sat.sim{color:#f0c27a}.globe-sat.sim i{background:var(--g-sim)}
-.globe-error{color:#ffb4a8;font-size:13px}
-.globe-shell :focus-visible{outline:2px solid #9fc3e8;outline-offset:2px}
+.globe-error{color:#93493f;font-size:13px}
+.globe-shell :focus-visible{outline:2px solid #365d50;outline-offset:2px}
 .globe-loading{min-height:100vh;display:grid;place-items:center;margin:0;background:#0e1116;color:#e9edf1;font:14px Inter,-apple-system,'Segoe UI',sans-serif}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
-@media (max-width:900px){.globe-shell{position:static;display:flex;flex-direction:column-reverse;min-height:100vh}.globe-canvas{height:60vh}.globe-side{border-right:0;border-top:1px solid var(--g-line);padding:16px}}
+@media (max-width:900px){.globe-shell{position:static;display:flex;flex-direction:column-reverse;min-height:100vh}.globe-stage{height:60vh}.globe-side{border-right:0;border-top:1px solid var(--g-line);padding:16px}}

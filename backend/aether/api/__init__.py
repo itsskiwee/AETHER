@@ -11,13 +11,16 @@ import hashlib
 import json
 import math
 import os
+import tempfile
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import yaml
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import TypeAdapter, ValidationError
+from starlette.background import BackgroundTask
 
 from aether.contracts.models import PlumeObservation, RunRecord
 
@@ -378,6 +381,39 @@ def create_app(
         if path.parent.parent != root:
             raise HTTPException(status_code=404, detail="Run manifest is not available")
         return read_object(path, "Run manifest")
+
+    @app.get("/api/runs/{run_id}/export")
+    def export_run(run_id: str) -> FileResponse:
+        """Download the same lineage-checked, hash-pinned archive as the CLI exporter."""
+        # Validate the identifier and record before passing any paths to the archive builder.
+        record = read_run(run_id)
+        run_dir = (root / run_id).resolve()
+        if run_dir.parent != root:
+            raise HTTPException(status_code=404, detail="Run artifact not found")
+        handle = tempfile.NamedTemporaryFile(prefix="aether-export-", suffix=".zip", delete=False)
+        archive_path = Path(handle.name)
+        handle.close()
+        try:
+            from aether.cli import _export
+
+            status = _export(
+                SimpleNamespace(run_dir=root, run_id=record.run_id, output=archive_path)
+            )
+            if status != 0:
+                raise ValueError("exporter returned an unsuccessful status")
+        except FileNotFoundError as exc:
+            # A run without its archived manifest (e.g. the bundled example) has no lineage to pin.
+            archive_path.unlink(missing_ok=True)
+            raise HTTPException(status_code=404, detail="Run manifest is not available") from exc
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            archive_path.unlink(missing_ok=True)
+            raise HTTPException(status_code=422, detail="Run export could not be verified") from exc
+        return FileResponse(
+            archive_path,
+            media_type="application/zip",
+            filename=f"{record.run_id}.zip",
+            background=BackgroundTask(archive_path.unlink, missing_ok=True),
+        )
 
     @app.get("/api/runs/{run_id}/historical-context")
     def historical_context(run_id: str) -> dict[str, Any]:

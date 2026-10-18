@@ -10,16 +10,19 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "astronomy-engine": "2.1.19",
     "globe.gl": "2.46.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "satellite.js": "6.0.1"
+    "satellite.js": "6.0.1",
+    "three": "0.186.1"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.10.1",
     "@playwright/test": "1.49.1",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
+    "@types/three": "^0.186.0",
     "@vitejs/plugin-react": "^4.3.4",
     "typescript": "~5.7.2",
     "vite": "^6.0.5"
