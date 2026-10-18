@@ -162,3 +162,59 @@ def test_identity_binds_pinned_data_and_package_versions(repo_root, tmp_path):
     assert {"numpy", "ortools", "sgp4", "skyfield"} <= set(rt["package_versions"])
     with pytest.raises(RuntimeError, match="missing"):
         matrix.runtime_inputs(tmp_path)
+
+
+def _perf(run_id, plan_s=(0.1, 0.2, 0.3, 4.0), source="computed"):
+    from aether.contracts.enums import SolverStatus
+    from aether.contracts.models import PlanTiming, RunPerformance
+
+    return RunPerformance(
+        run_id=run_id, machine={"python": "x"}, total_run_wall_s=9.0, windows_wall_s=5.0,
+        windows_source=source,
+        plan_timings=tuple(PlanTiming(revision=i, checker_retry=0, candidate_window_count=3,
+                                      solver_status=SolverStatus.HEURISTIC, policy_plan_wall_s=s)
+                           for i, s in enumerate(plan_s)),
+    )  # fmt: skip
+
+
+def timed_fake_run(bundle, policy, seed):
+    run, truth = counting_fake_run(bundle, policy, seed)
+    return run, truth, _perf(run.run_id, source="disk_cache" if seed % 2 else "computed")
+
+
+def test_performance_block_is_measured_and_separate(repo_root, tmp_path):
+    run_gate(repo_root, tmp_path, ["m0_well_specified"], seed_subset=(1000, 1001),
+             run_fn=timed_fake_run)  # fmt: skip
+    rec = json.loads((tmp_path / "records/m0_well_specified/oracle/1000.json").read_text())
+    perf = rec["performance"]
+    assert perf["measured"] and perf["n_plan_calls"] == 4
+    assert perf["policy_plan_wall_p95_s"] == pytest.approx(np.percentile([0.1, 0.2, 0.3, 4.0], 95))
+    assert perf["orbit_geometry_wall_s"] == 5.0
+    assert rec["scores"]["solver_runtime_p95_s"] is None  # deterministic scores stay timing-free
+    odd = json.loads((tmp_path / "records/m0_well_specified/oracle/1001.json").read_text())
+    assert odd["performance"]["windows_source"] == "disk_cache"
+    assert odd["performance"]["orbit_geometry_wall_s"] is None  # a cache read is not geometry
+
+
+def test_performance_must_belong_to_its_run():
+    from aether.evaluation.benchmark import unpack_run_result
+
+    with pytest.raises(RuntimeError, match="paired"):
+        unpack_run_result((_Run("a"), None, _perf("b")))
+    assert unpack_run_result((_Run("a"), "t"))[2] is None
+
+
+class _Run:
+    def __init__(self, run_id):
+        self.run_id = run_id
+
+
+def test_benchmark_writes_separate_performance_csv(repo_root, tmp_path):
+    from aether.evaluation.benchmark import benchmark
+
+    exp = repo_root / "experiments"
+    rep = benchmark(exp / "protocol.yaml", exp / "seeds_dev.txt", tmp_path, run_fn=timed_fake_run)
+    rows = (tmp_path / "benchmark-performance.csv").read_text().splitlines()
+    assert rows[0].startswith("family,policy,seed,run_id,measured,policy_plan_wall_p95_s")
+    assert rep["performance"]["runs_measured"] == rep["performance"]["runs_total"] == len(rows) - 1
+    assert "policy_plan_wall_p95_s" not in (tmp_path / "benchmark-runs.csv").read_text()

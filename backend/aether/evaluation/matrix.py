@@ -29,6 +29,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from time import perf_counter
 
+import numpy as np
+
 import aether
 from aether import __version__
 from aether.config import ScenarioBundle, load_scenario
@@ -122,6 +124,33 @@ def runtime_inputs(repo: Path) -> dict:
     return _RUNTIME_INPUTS[key]
 
 
+def performance_summary(performance) -> dict | None:
+    """Measured, nondeterministic timing (PERF-01). None when the run function measured nothing.
+
+    ``policy_plan_wall_p95_s`` is the 95th percentile of ``policy.plan`` wall time (model build +
+    solve) and is what the protocol metric ``solver_runtime_p95_s`` reports. ``windows_wall_s``
+    is orbit geometry only when ``windows_source == "computed"``; otherwise it timed a cache read.
+    """
+    if performance is None:
+        return None
+    plan_s = [t.policy_plan_wall_s for t in performance.plan_timings]
+    return {
+        "measured": True,
+        "timer": performance.timer,
+        "machine": dict(performance.machine),
+        "total_run_wall_s": performance.total_run_wall_s,
+        "windows_source": performance.windows_source,
+        "windows_wall_s": performance.windows_wall_s,
+        "orbit_geometry_wall_s": (
+            performance.windows_wall_s if performance.windows_source == "computed" else None
+        ),
+        "n_plan_calls": len(plan_s),
+        "policy_plan_wall_p95_s": float(np.percentile(plan_s, 95)) if plan_s else None,
+        "policy_plan_wall_max_s": max(plan_s) if plan_s else None,
+        "policy_plan_wall_total_s": float(sum(plan_s)),
+    }
+
+
 def _identity(bundle: ScenarioBundle, family: str, policy: str, seed: int, repo: Path) -> dict:
     return {
         "family": family,
@@ -145,6 +174,7 @@ def _run_task(
     """Worker entry point (top level so it pickles by reference for the process pool)."""
     if run_fn is None:
         from aether.evaluation.benchmark import default_run_fn as run_fn
+    from aether.evaluation.benchmark import unpack_run_result
 
     repo_p, out_p = Path(repo), Path(out_dir)
     bundle = family_bundle(repo_p, base_config, task.family, task.seed)
@@ -155,7 +185,7 @@ def _run_task(
         if path.exists() and json.loads(path.read_text())["identity"] == identity:
             continue
         started = perf_counter()
-        run, truth = run_fn(bundle, PolicyId(policy), task.seed)
+        run, truth, performance = unpack_run_result(run_fn(bundle, PolicyId(policy), task.seed))
         elapsed = perf_counter() - started
         if run.policy_id.value != policy or run.seed != task.seed or run.family != task.family:
             raise RuntimeError(f"runner mislabelled run {run.run_id}")
@@ -168,6 +198,7 @@ def _run_task(
             "capacity": asdict(capacity_report(run, cfg.horizon_hours)),
             "input_dataset": None if dataset is None else dataset.model_dump(mode="json"),
             "calibration": calibration_points(run, truth, cfg),
+            "performance": performance_summary(performance),
         }
         path.parent.mkdir(parents=True, exist_ok=True)
         tmp = path.with_suffix(".tmp")
