@@ -22,7 +22,9 @@ sources:
   count: 20                                     # [D] PR-P01
   placement: emit_fixture_then_uniform          # [D] PR-P02
   min_separation_m: 500                         # [D] PR-P03
-  plume_dataset: null                           # [D] PR-P04 synthetic-only until DATA-01 pins the EMIT manifest
+  plume_dataset:                                # [D] PR-P04 historical EMIT locations only, never truth
+    manifest: data/manifests/emit_permian.json
+    manifest_sha256: 216cf916269f10e5a0dd0bd08b224cef2956bfa0d6990443eddf8c6a87982c55
   flux_prior:                                   # conditional on active, kg CH4/h  [A] PR-P10
     family: lognormal
     median_kg_h: 300.0
