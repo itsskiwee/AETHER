@@ -77,6 +77,8 @@ current default. A reviewer can change any of them **before** the protocol is lo
 | D6 | "Observed" | ≥ 1 DETECTION or VALID_NON_DETECTION | any attempted acquisition | INVALID/NOT_OBSERVED carry no emission evidence (AGENTS rule 3). |
 | D7 | Bootstrap p-value (for Holm) | two-sided percentile-bootstrap p with +1 correction | paired t-test p; Wilcoxon signed-rank | Same resampling distribution as the reported CI, so a CI and its Holm decision can't disagree for method reasons. |
 | D8 | Bootstrap stream | `keyed_rng(protocol_version, "bootstrap", "<family>\|<metric>\|<a>-<b>")` | — | Reproducible, and independent of the order comparisons run. |
+| D9 | G4.5 family scope (Claude-2, 18 Oct 2026; **needs human sign-off at the gate**) | Evaluate the gate in **all six protocol families** on all 30 tuning seeds. G4.5 passes only if every family passes; each family's verdict is reported | (i) m0 only, since the gate tests the scenario and m0 is the control; (ii) m0 plus at least 2 of m1–m4, mirroring the success criterion | The success criterion draws on m0 and on m1–m4 under Holm. A family where even the oracle-informed reference can't separate from random can't contribute a meaningful win or loss, so it would dilute Holm without informing it. Running all six costs only 360 reference runs. If only some families fail, the report names them and Claude-2 proposes a scenario change for review; no family is dropped silently. h168 is not a protocol family and is not gated. |
+| D10 | SCI-10 calibration inference | Seed-cluster percentile bootstrap (whole seeds resampled; 2,000 resamples, stream `keyed_rng(0, "bootstrap", "calibration", label)`) for coverage and reliability-bin residuals | Point-level binomial intervals | Points within a run share sources and are autocorrelated over 6 h steps. Point-level intervals would be far too narrow. |
 
 **Caveat on the `[observed=…]` breakdown.** Which sources get observed depends on the policy, so
 the subsets differ between policies. Treat the breakdown as descriptive and never as the primary
@@ -93,29 +95,58 @@ comparison.
   bootstrap under-covers slightly at small n. That's one more reason not to trust a single
   marginal family.
 
-## 3. Discriminability gate G4.5 (EVL-08): not yet run
+## 3. Discriminability gate G4.5 (EVL-08): driver ready, not yet run on the wired scenario
 
 Rule as written in `protocol.yaml`: mean(random − oracle Brier) > 2 × **SD** of the per-seed paired
-difference on the 30 tuning seeds.
+difference on the 30 tuning seeds. Family scope: D9 (all six protocol families must pass).
+
+**Procedure.** `python -m aether.evaluation.gate --repo . --output-dir runs/gate --workers N` runs
+`oracle` and `random_feasible` for each family × tuning seed through the runner (`run_policy`, the
+dataset named by the config, no explicit plume input). It refuses the holdout list. It writes:
+
+- `gate.json`: per-family verdict, gap, SD, SE (for information only), number of seeds where the
+  oracle is better, mean Brier per reference, capacity summary (passes, passes per 72 h,
+  acquisitions per pass, capacity/demand from the `random_feasible` runs), reference-run checker
+  violations, protocol and seed-file SHA-256, config hashes, `RunRecord.input_dataset` references,
+  git commit and dirty paths, and machine information;
+- `gate-seeds.csv`: per-seed paired values;
+- `records/<family>/<policy>/<seed>.json`: compact per-run scores, capacity and calibration points.
+  A rerun reuses a record only when its config hashes, code version, policy and seed all match;
+- `timing.jsonl`: measured wall time per run (nondeterministic sidecar, never in RunRecords).
+
+A pilot on the pre-wiring, synthetic-placement scenario is labelled as such and is superseded by the
+run on the wired scenario. **Order:** gate on the wired dataset → power calculation → lock.
 
 Notes for the reviewer:
 
 1. **The rule uses SD, not standard error.** It asks that the oracle beat random on almost every
-   seed, which is much stricter than "the mean gap is significant". I implemented it as written.
-   If the intent was SE, change it before locking.
+   seed, which is much stricter than "the mean gap is significant". I implemented it as written
+   (`test_gate_rule_uses_sd_not_se`). If the intent was SE, change it before locking.
 2. **The oracle is a greedy reference, not a proven bound.** `OraclePolicy` knows z_true at each
    option time and ranks windows by p_valid × (p_now − z_true)², but it plans myopically through
    the same greedy insertion as the baselines. A smarter policy could in principle beat it. Report
    it as "oracle-informed greedy reference".
 3. Capacity/demand is reported per tuning seed as acquisitions / (sources × passes). A ratio near
-   1 means the policies can differ only in ordering.
+   1 means the policies can differ only in ordering. Acquisitions per pass here are **executed**
+   acquisitions in the random reference runs. G1-F's "feasible acquisitions per pass" is Codex-2's
+   orbit evidence, independently confirmed by Codex-3, and these numbers don't replace it.
 4. **Seed-count procedure:** `seed_count_rule` uses the approved **minimum effect** (absolute paired
    Brier difference). The user approved **0.01 Brier points** for 80% power on 17 Oct 2026; this is
-   now recorded in the still-unlocked protocol. `stats.seeds_for_power(sd, min_effect)` can compute
-   the required count after valid tuning-seed paired SD is available.
+   now recorded in the still-unlocked protocol. `stats.seeds_for_power(sd, min_effect)` computes
+   the required count from the tuning-seed paired SD of the **primary comparison**
+   (adaptive_eig − largest_first) per family. The binding family is the one with the largest SD. If
+   the requirement exceeds the default budget of 100, the report says so and the decision goes to
+   the user before lock. It is never silently capped.
+5. If the gate fails, the remedy is a registered **scenario** change (sources, capacity, horizon)
+   proposed for human review (Work_Plan G4.5 is "L3 + human"). The planner is never tuned to pass.
 
 ## 4. Known caveats that apply to any future result
 
+- **EMIT flux comparison (SCI-08) is uninformative about the population prior.** The 73
+  quantified Permian EMIT V002 rates (median 1,701 kg/h vs prior median 308) are detection- and
+  quantification-selected. `NA` rates coincide exactly with missing wind. The provider's rate
+  uncertainty has no public statistical definition and stays `UNKNOWN`. Details:
+  `model-card-source-state.md`, `experiments/results/sci08_emit_flux.json`.
 - **Persistence is uncalibrated to Cusworth's 26% statistic.** The user decided to retain current
   m0 assumptions and benchmark scope, with the regime values explicitly treated as unverified.
   Cusworth's statistic is detected-plume counts per overflight for selected sources with at least

@@ -74,11 +74,60 @@ grid (PR-B06). This removes the endpoint atoms caused by clipping. Deterministic
 evidence is in `tests/unit/test_simulation_science.py`: a 5,000-source keyed sample is checked with
 a one-sample KS test against the truncated CDF, endpoint equality is rejected, repeated seeds are
 compared exactly, and reordering source inputs must not change a source's draw. These tests have
-been added but could not be executed in this environment because pytest is not installed.
+been added and are part of the recorded backend suite.
 
-### EMIT fixture comparison (flux prior PR-P10)
+### EMIT V002 comparison (flux prior PR-P10): descriptive, not a validation
 
-**Not possible yet.** `data/fixtures/` holds only fabricated, EMIT-shaped parser fixtures (`EXAMPLE_ONLY_NOT_SOURCE_VERIFIED`). Their rates are invented and must not be compared with the prior. ING-02 (real V002 Permian granules, needs an Earthdata login) is the dependency. Even then, EMIT detects only above ~1 t/h at 3 m/s [S08], so the comparison is limited to the upper tail. Planned check: P(Q > 1000 kg/h) under the prior is 1 − Φ((ln 1000 − ln 300)/1.1) = 1 − Φ(1.09) ≈ 0.14. That's the fraction to compare with the EMIT-detectable share of a complete aircraft inventory, not with EMIT rates alone.
+**Data (18 Oct 2026).** Local download `data/raw/EMITL2BCH4PLM_002-20261018_042728/` (1,686 plume-complex
+metadata JSONs). Script `experiments/sci08_emit_flux.py` (read-only, deterministic) writes
+`experiments/results/sci08_emit_flux.json`, which includes per-record file SHA-256s. It filters on the
+Permian bbox PR-R01 using the provider's *location of maximum concentration*. These are historical
+`REAL_OBSERVATION` metadata from 2022-08-26 to 2025-09-22. They are not a run input and say nothing
+about 2026 activity.
+
+| Quantity | Value |
+|---|---|
+| Plume complexes in bbox / unique `Plume ID`s | 155 / 155 |
+| Numeric `Emissions Rate Estimate (kg/hr)` | 73 (47 %) |
+| `NA` rate | 82; **every** `NA` rate also has `Wind Speed (m/s)` = `NA`, and every numeric rate has a numeric wind (source: `HRRR`) |
+| Approx. spatial clusters at 500 m (single linkage, this analysis only; Codex-1 owns the official count) | 144 (70 with ≥ 1 numeric rate) |
+| EMIT rates: 5 / 25 / 50 / 75 / 95 % | 305 / 997 / **1,701** / 2,859 / 5,347 kg/h (min 106, max 7,475; SD of ln 0.91) |
+| Prior PR-P10: 5 / 25 / 50 / 75 / 95 % | 58 / 150 / **308** / 640 / 1,850 kg/h (truncated SD of ln 1.05) |
+| EMIT rates below the prior median | 5.5 % |
+| Prior mass ≥ 1,000 kg/h | 0.139 (EMIT: 74 % of quantified rates are ≥ 1,000) |
+| Median of per-cluster median rates | 1,602 kg/h (so repeat plumes from one site don't drive the shift) |
+| `Uncertainty / rate`, 5 / 50 / 95 % | 0.037 / **0.072** / 0.177 |
+
+**Interpretation.**
+
+1. Quantified EMIT plumes are a sample selected by **detection** (plume complexes exist only where a
+   reviewer accepted a detection) and by **quantification** (`NA` coincides exactly with missing wind,
+   so a rate is published only where the provider had wind and the plume passed its screen). With
+   EMIT's ~1 t/h detection limit at 3 m/s [S08], a median about 5.5 × the population prior median is
+   what selection predicts. **The comparison neither validates nor refutes PR-P10.** A two-sample
+   KS test on ln Q (p ≈ 3 × 10⁻²⁹) is reported only as a description of the difference.
+2. Even conditioned on Q ≥ 1,000 kg/h, the prior's conditional median (1,541 kg/h) is below EMIT's
+   (2,078 kg/h, n = 54; KS p ≈ 7 × 10⁻⁴). This fits a soft detection curve (POD rising with Q)
+   and does **not** demonstrate an under-weighted upper tail. It is a domain-review item for
+   PR-P10's σ_ln, not a basis for changing it.
+3. `NA` rows are not low emitters and not non-detections. They are plumes the provider did not
+   quantify. They are excluded from the rate distribution and counted (82).
+4. **Uncertainty semantics: `UNKNOWN`.** The publicly retrieved EMIT GHG ATBD (JPL D-107866 v0.2,
+   April 2025, SHA-256 `9e36e500…5c4`) and L2B GHG User Guide (JPL D-107867 draft v02, April 2025,
+   SHA-256 `3fce3dfc…9b9`) describe per-pixel and scene-wide *concentration* uncertainty only. The
+   Earthdata collection page refers to ATBD §4.2.5 for rate screening, but v0.2 has no §4.2.5 and no
+   definition of `Emissions Rate Estimate Uncertainty (kg/hr)`. Whether it is a 1σ, an interval
+   half-width, or which terms it includes (wind, IME, fetch) cannot be established. The median
+   relative value of 7 % is far below typical IME-method total uncertainties (tens of percent), which
+   suggests it may omit some terms. That is a suspicion, not a finding. **Ingestion must keep
+   `uncertainty_kind = UNKNOWN`. No belief update, prior or metric may treat it as a standard
+   deviation.**
+
+**Decision proposed (no parameter changed):** keep PR-P10 as **[A]**. Record in the register that the
+EMIT comparison is uninformative about the population prior because of selection. Add PR-P10's upper
+tail and the EMIT uncertainty definition to the domain-review list (Register §10). Historical rates do
+not set truth, the prior, or any seeded source's flux (agreed with Claude-1,
+`docs/dataset-interface.md`).
 
 ## Limitations
 

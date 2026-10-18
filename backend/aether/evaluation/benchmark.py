@@ -29,7 +29,7 @@ import numpy as np
 from aether.config import ScenarioBundle, load_scenario
 from aether.contracts.enums import PolicyId
 from aether.contracts.models import RunRecord
-from aether.evaluation.metrics import Score, score_run
+from aether.evaluation.metrics import Score
 from aether.evaluation.protocol import check_seed_access, file_sha256, load_protocol, read_seeds
 from aether.evaluation.stats import PairedBootstrap, holm, paired_bootstrap, success_verdict
 from aether.simulation.truth_types import TruthHistory
@@ -131,7 +131,13 @@ def benchmark(
     seeds_path: str | Path,
     out_dir: str | Path,
     run_fn: RunFn = default_run_fn,
+    workers: int = 1,
 ) -> dict:
+    """Run (or resume) the protocol matrix and write the three result files.
+
+    Per-run records are cached under ``out_dir/records`` by ``matrix.run_matrix`` and reused only
+    when their config hashes, code version, policy and seed match.
+    """
     protocol_path, seeds_path, out_dir = Path(protocol_path), Path(seeds_path), Path(out_dir)
     proto = load_protocol(protocol_path)
     lock_tag = check_seed_access(proto, protocol_path, seeds_path)
@@ -140,24 +146,29 @@ def benchmark(
     scenarios = repo / "configs" / "scenarios"
     base = repo / proto.base_config
 
-    rows: list[dict] = []
-    score_keys: list[str] = []
+    from aether.evaluation.matrix import execution_environment, run_matrix
+
     config_hashes: dict[str, dict[str, str]] = {}
     for family in proto.families:
         bundle = load_scenario(base, scenarios / f"{family}.yaml")
         config_hashes[family] = {"model": bundle.model.config_hash(),
                                  "truth": bundle.truth.config_hash()}  # fmt: skip
+    policies = [p.value for p in proto.policies]
+    records = run_matrix(repo, proto.base_config, proto.families, policies, seeds, out_dir,
+                         workers, run_fn=run_fn)  # fmt: skip
+    rows: list[dict] = []
+    score_keys: list[str] = []
+    for family in proto.families:
         for seed in seeds:
-            for policy in proto.policies:
-                run, truth = run_fn(bundle, policy, seed)
-                if run.policy_id is not policy or run.family != family or run.seed != seed:
-                    raise RuntimeError(f"runner mislabelled run {run.run_id}")
-                scores: dict[str, Score] = score_run(run, truth, bundle.model)
+            for policy in policies:
+                rec = records[(family, policy, seed)]
+                scores: dict[str, Score] = rec["scores"]
                 for k in scores:
                     if k not in score_keys:
                         score_keys.append(k)
-                rows.append({"family": family, "policy": policy.value, "seed": seed,
-                             "run_id": run.run_id} | scores)  # fmt: skip
+                rows.append({"family": family, "policy": policy, "seed": seed,
+                             "run_id": rec["run_id"]} | scores)  # fmt: skip
+    datasets = sorted({json.dumps(r["input_dataset"], sort_keys=True) for r in records.values()})
 
     out_dir.mkdir(parents=True, exist_ok=True)
     _write_csv(out_dir / "benchmark-runs.csv", rows, ["family", "policy", "seed", "run_id",
@@ -198,6 +209,8 @@ def benchmark(
         "seeds_sha256": file_sha256(seeds_path),
         "n_seeds": len(seeds),
         "config_hashes": config_hashes,
+        "input_datasets": [json.loads(d) for d in datasets],
+        "environment": execution_environment(repo),
         "total_checker_violations": violations,
         "comparisons": comparisons,
         "holm_primary": holm_primary,  # primary comparison, m1..m4, family-wise alpha 0.05
