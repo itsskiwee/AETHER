@@ -52,6 +52,10 @@ class OraclePolicy:
             ctx.cfg.planner,
             ctx.committed,
             ctx.committed_selections,
+            # Same as every planning-side greedy policy: completed acquisitions keep their
+            # resource/slew effects but do not count against this solve's per-source cap (PR-O03).
+            # Omitting it limited the oracle to one look per source for the whole run.
+            now_utc=ctx.now_utc,
         )
         return build_heuristic_plan(
             run_id=ctx.run_id,

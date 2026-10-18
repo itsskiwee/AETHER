@@ -121,3 +121,21 @@ def test_gate_report_text(cfg):
     rep = gate_report("m0_well_specified", [0.10, 0.11, 0.09], [0.20, 0.21, 0.19], [], 72.0)
     assert rep.gate.passed
     assert rep.verdict_text().startswith("G4.5 PASS on m0_well_specified")
+
+
+def test_oracle_can_revisit_a_source_observed_in_an_earlier_solve(cfg, truth):
+    """Regression: a completed acquisition must not count against the per-solve cap (PR-O03).
+
+    Without ``now_utc`` the oracle could look at each source only once per run, so G4.5 compared
+    random against a crippled reference.
+    """
+    t0 = cfg.simulation_epoch_utc
+    past = _window("wa_past", "A", t0 + timedelta(hours=2), pass_id="p0")
+    new = _window("wa_new", "A", t0 + timedelta(hours=20), pass_id="p1")
+    ctx = PlanningContext(
+        run_id="r", revision=3, now_utc=t0 + timedelta(hours=19), cause="test", cfg=cfg,
+        windows=(new,), committed=(past,), utilities={"wa_new": _utility("wa_new", 0.8)},
+        posterior_mean_flux_kg_h={}, p_active_by_source={"A": 0.5},
+        committed_selections=(Selection(window_id="wa_past", option_id=past.options[0].option_id),),
+    )  # fmt: skip
+    assert OraclePolicy(truth).plan(ctx).selected_window_ids == ("wa_new",)
