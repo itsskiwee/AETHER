@@ -3,6 +3,8 @@ A research prototype: we developed and tested a **simulated** methane observatio
 
 **SIMULATED MISSION · offline replay.** NASA EMIT provided real observed methane plume records. The checked-in pinned sample is 20 EMIT L2B CH4PLM V002 Permian plume records from 2023–2024, together with their provider metadata and raster files. These records place the simulated source hypotheses. They are historical location context only. They never set simulated truth, present-day activity or the flux prior. Spacecraft, sensor responses, weather, acquisitions and ground truth are all simulated. AETHER does not task real satellites, and it does not verify emissions or reductions.
 
+**The virtual fleet.** The four simulated satellites are shown as **Pip** (`vsat_a`), **Wren** (`vsat_b`), **Juniper** (`vsat_c`) and **Mochi** (`vsat_d`). The names are display names only (`frontend/src/fleet.ts`); configs, run records and export hashes keep the IDs.
+
 ## View the saved demonstration
 
 The repository includes both accepted pinned-data demo records. View them without

@@ -136,10 +136,13 @@ test('missing real-data bundle is reported while simulation pages keep working',
   await expect(page.getByRole('heading', { level: 1, name: 'Planner' })).toBeVisible()
 })
 
-test('globe links back to the console and labels real versus simulated layers', async ({ page }) => {
+test('globe links back to the console, separates real from simulated, and names the fleet', async ({ page }) => {
   await page.goto('/?view=globe')
-  await expect(page.getByRole('link', { name: 'Open the console →' })).toHaveAttribute('href', '/?view=overview')
-  await expect(page.getByText('REAL · NOW')).toBeVisible()
-  await expect(page.getByText('SIMULATED MISSION · REPLAY')).toBeVisible()
-  await expect(page.getByText('Not live telemetry.')).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Open the console' })).toHaveAttribute('href', '/?view=overview')
+  await expect(page.getByRole('heading', { name: 'Real satellites' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Simulated mission' })).toBeVisible()
+  await expect(page.getByText(/Not live telemetry/)).toBeVisible()
+  for (const name of ['Pip', 'Wren', 'Juniper', 'Mochi']) await expect(page.locator('.globe-fleet')).toContainText(name)
+  await expect(page.getByRole('button', { name: 'Play' })).toBeVisible()
+  await expect(page.getByLabel('Replay speed')).toHaveValue('60')
 })

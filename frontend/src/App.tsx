@@ -4,6 +4,7 @@ import { ScreenContent } from './ArchiveViews'
 import { RunManifest } from './ArtifactEvidence'
 import type { BenchmarkProtocol, BenchmarkReport, BenchmarkRow, ProjectSnapshot, RunIndexItem, RunRecord } from './types'
 import { parseRun } from './types'
+import { craftName } from './fleet'
 import './console.css'
 
 export { readInterval } from './ArchiveViews'
@@ -363,7 +364,7 @@ function PlannerStory({ run }: { run: RunRecord }) {
       <ol className="cx-timeline">{plans.map(p => {
         const picks = p.selected_window_ids.map(id => ({ id, src: id.split(':')[2], sc: id.split(':')[0], gain: gains.get(`${p.revision}|${id}`), outcome: outcomes.get(id) })).sort((a, b) => (b.gain ?? 0) - (a.gain ?? 0))
         return <li key={p.revision}><div className="cx-tl-head"><span className="mono">T+{num((parse(p.created_at_sim_utc) - epoch) / 3600000, 1)} h</span><b>{cause(p.cause)}</b><span className="cx-muted">considered {p.candidate_window_ids.length} looks · chose {picks.length} · {p.solver_status === 'OPTIMAL' ? 'proven optimal' : p.solver_status.toLowerCase()}{p.repeats > 1 && ` · ${p.repeats - 1} further re-plans kept this schedule`}</span></div>
-          <div className="cx-picks">{picks.slice(0, 6).map(k => <span key={k.id} className={`cx-pick ${(k.outcome ?? 'planned').toLowerCase()}`} title={k.id}>site {sourceNo.get(k.src) ?? '?'} · {k.sc}{k.gain !== undefined && ` · ${num(k.gain, 2)} bits`}<i>{k.outcome ? k.outcome.replaceAll('_', ' ').toLowerCase() : 'superseded by a later plan'}</i></span>)}{picks.length > 6 && <span className="cx-muted">+{picks.length - 6} more</span>}</div></li>
+          <div className="cx-picks">{picks.slice(0, 6).map(k => <span key={k.id} className={`cx-pick ${(k.outcome ?? 'planned').toLowerCase()}`} title={k.id}>site {sourceNo.get(k.src) ?? '?'} · {craftName(k.sc)}{k.gain !== undefined && ` · ${num(k.gain, 2)} bits`}<i>{k.outcome ? k.outcome.replaceAll('_', ' ').toLowerCase() : 'superseded by a later plan'}</i></span>)}{picks.length > 6 && <span className="cx-muted">+{picks.length - 6} more</span>}</div></li>
       })}</ol>
     </Card>
   </Page>
@@ -389,7 +390,7 @@ function Setup({ project, failed }: { project: ProjectSnapshot | null; failed: b
   return <Page kind="sim" kicker="Scenario" title="Setup" intro={`The simulated mission in one page: ${project.scenario.horizon_hours} hours over the Permian Basin, ${project.scenario.sources_count} source sites placed from the real EMIT records, and a virtual fleet.`}>
     <div className="cx-three">
       <Card title={`${project.spacecraft.length} virtual satellites`}>
-        <ul className="cx-list">{project.spacecraft.map(sc => <li key={sc.id}><b>{sc.id}</b> · {String(sc.orbit.altitude_km)} km up · {String(sc.orbit.inclination_deg)}° orbit · up to {sc.resources.max_acquisitions_per_orbit} looks per orbit</li>)}</ul>
+        <ul className="cx-list">{project.spacecraft.map(sc => <li key={sc.id}><b>{craftName(sc.id)}</b> <span className="cx-muted">({sc.id})</span> · {String(sc.orbit.altitude_km)} km up · {String(sc.orbit.inclination_deg)}° orbit · up to {sc.resources.max_acquisitions_per_orbit} looks per orbit</li>)}</ul>
       </Card>
       {s && <Card title="One virtual methane sensor">
         <ul className="cx-list"><li>Detects about <b>half</b> of plumes of <b>{s.q50_ref_kg_h} kg/h</b>, and 90% of plumes of {s.q90_ref_kg_h} kg/h, at {s.ref_wind_m_s} m/s wind</li><li>Pixel size {s.gsd_nadir_m} m; needs the sun above {s.min_sun_elevation_deg}°</li><li>Status: {s.calibration_status.replaceAll('_', ' ').toLowerCase()}, an engineering assumption, not a real instrument</li></ul>

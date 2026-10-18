@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Globe, { type GlobeInstance } from 'globe.gl'
 import { degreesLat, degreesLong, eciToGeodetic, gstime, json2satrec, propagate, type OMMJsonObject, type SatRec } from 'satellite.js'
+import { craftName } from './fleet'
 import './globe.css'
 
 // Presentation view (UI-10). Two clocks, never mixed:
@@ -21,13 +22,16 @@ type Path = { kind: 'real' | 'sim' | 'look'; points: [number, number, number][];
 
 const EARTH_KM = 6371
 const LOOK_WINDOW_S = 1200
-const SPEEDS = [300, 900, 3600]
-const OUTCOME_COLOR: Record<string, string> = { DETECTION: '#ff7a45', VALID_NON_DETECTION: '#7fb2ff', INVALID_ACQUISITION: '#c9a74a', NOT_OBSERVED: '#8792a2' }
-const POLICY_NAME: Record<string, string> = { adaptive_eig: 'Adaptive EIG planner', largest_first: 'Largest-first baseline' }
+// Replay speeds. 60x shows one ~95 min orbit in about 1.5 minutes; 1x is real time.
+const SPEEDS: [number, string][] = [[1, 'Real time'], [10, '10×'], [60, '60×'], [300, '300×']]
+const OUTCOME_COLOR: Record<string, string> = { DETECTION: '#e8743b', VALID_NON_DETECTION: '#7aa7e0', INVALID_ACQUISITION: '#a89a6a', NOT_OBSERVED: '#7d848c' }
+const OUTCOME_LABEL: Record<string, string> = { DETECTION: 'Plume found', VALID_NON_DETECTION: 'Nothing found', INVALID_ACQUISITION: 'Look failed (cloud or geometry)', NOT_OBSERVED: 'Not observed' }
+const SHORT_ROLE: Record<number, string> = { 25544: 'Carries NASA EMIT', 39084: 'Land imaging', 49260: 'Land imaging', 42969: 'Daily methane maps' }
+const POLICY_NAME: Record<string, string> = { adaptive_eig: 'Adaptive planner (information gain)', largest_first: 'Baseline: largest source first' }
 
 const utc = (iso: string) => Date.parse(/[zZ]|[+-]\d\d:\d\d$/.test(iso) ? iso : `${iso}Z`)
 const fmt = (n: number, d = 1) => n.toFixed(d)
-const clock = (ms: number) => new Date(ms).toISOString().replace('T', ' ').slice(0, 19) + ' UTC'
+const clock = (ms: number) => new Date(ms).toLocaleString('en-GB', { timeZone: 'UTC', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' UTC'
 
 function geodetic(rec: SatRec, at: Date): [number, number, number] | null {
   const pv = propagate(rec, at)
@@ -48,8 +52,8 @@ export default function GlobeView() {
   const [error, setError] = useState('')
   const [now, setNow] = useState(() => Date.now())
   const [simS, setSimS] = useState(0)
-  const [playing, setPlaying] = useState(true)
-  const [speed, setSpeed] = useState(900)
+  const [playing, setPlaying] = useState(false)
+  const [speed, setSpeed] = useState(60)
   const [runIndex, setRunIndex] = useState(0)
   const [follow, setFollow] = useState(false)
 
@@ -79,8 +83,9 @@ export default function GlobeView() {
     const g = new Globe(host.current)
       .globeImageUrl('/globe/earth-blue-marble.jpg')
       .bumpImageUrl('/globe/earth-topology.png')
-      .backgroundColor('#02060d')
-      .atmosphereColor('#7fc8ff')
+      .backgroundColor('#0e1116')
+      .atmosphereColor('#9db7d3')
+      .atmosphereAltitude(0.1)
       .pointOfView({ lat: 28, lng: -100, altitude: 2.4 })
       .htmlTransitionDuration(0)
       .pathTransitionDuration(0)
@@ -90,20 +95,19 @@ export default function GlobeView() {
         const m = d as Marker
         const el = document.createElement('div')
         el.className = `globe-sat ${m.kind}`
-        el.innerHTML = `<i></i><span>${m.label}</span>`
-        el.title = `${m.kind === 'real' ? 'REAL (propagated from published elements)' : 'SIMULATED virtual spacecraft'}: ${m.label}`
+        el.innerHTML = '<i></i><span></span>'
+        el.querySelector('span')!.textContent = m.label
+        el.title = m.kind === 'real' ? `${m.label}: real satellite, position calculated from published orbital elements` : `${m.label}: virtual satellite in the recorded simulation`
         return el
       })
       .pathPoints((d: object) => (d as Path).points)
       .pathPointLat((p: [number, number, number]) => p[0])
       .pathPointLng((p: [number, number, number]) => p[1])
       .pathPointAlt((p: [number, number, number]) => p[2] / EARTH_KM)
-      .pathColor((d: object) => { const p = d as Path; return p.kind === 'real' ? 'rgba(120,220,255,0.55)' : p.kind === 'sim' ? 'rgba(255,196,92,0.7)' : OUTCOME_COLOR[p.outcome ?? ''] ?? '#fff' })
-      .pathStroke((d: object) => ((d as Path).kind === 'look' ? 1.6 : 0.6))
-      .pathDashLength((d: object) => ((d as Path).kind === 'sim' ? 0.02 : 1))
-      .pathDashGap((d: object) => ((d as Path).kind === 'sim' ? 0.01 : 0))
-      .pointLat('lat').pointLng('lon').pointColor(() => '#ff9d3c').pointAltitude(0.004).pointRadius(0.12)
-      .pointLabel((d: object) => { const s = d as GlobeData['plume_sources'][number]; return `EMIT plume location (historical, real)<br>${s.plume_id ?? 'unattributed'}<br>${fmt(s.lat, 3)}°, ${fmt(s.lon, 3)}°` })
+      .pathColor((d: object) => { const p = d as Path; return p.kind === 'real' ? 'rgba(255,255,255,0.35)' : p.kind === 'sim' ? 'rgba(224,164,58,0.55)' : OUTCOME_COLOR[p.outcome ?? ''] ?? '#fff' })
+      .pathStroke((d: object) => ((d as Path).kind === 'look' ? 1.2 : 0.5))
+      .pointLat('lat').pointLng('lon').pointColor(() => '#e8743b').pointAltitude(0.004).pointRadius(0.12)
+      .pointLabel((d: object) => { const s = d as GlobeData['plume_sources'][number]; return `Real EMIT plume site<br>${s.plume_id ?? 'unattributed'}<br>${fmt(s.lat, 3)}°, ${fmt(s.lon, 3)}°` })
     g.controls().autoRotate = false
     globe.current = g
     const resize = () => { if (host.current) g.width(host.current.clientWidth).height(host.current.clientHeight) }
@@ -139,7 +143,7 @@ export default function GlobeView() {
     for (const f of data.simulation.fleet) {
       const i = simIndex(f, simS, step)
       const [lat, lng, alt] = f.track[i]
-      markers.push({ kind: 'sim', id: f.id, label: `${f.id} · SIM`, lat, lng, alt_km: alt })
+      markers.push({ kind: 'sim', id: f.id, label: craftName(f.id), lat, lng, alt_km: alt })
       paths.push({ kind: 'sim', points: f.track.slice(Math.max(0, i - 40), i + 1) })
     }
     const counts: Record<string, number> = {}
@@ -170,60 +174,65 @@ export default function GlobeView() {
   const elementAgeH = (s: RealSat) => (s.omm ? (now - utc(String(s.omm.EPOCH))) / 3600000 : NaN)
   const totalLooks = Object.values(sim.counts).reduce((a, b) => a + b, 0)
 
+  const view = (pov: { lat: number; lng: number; altitude: number }) => { setFollow(false); globe.current?.pointOfView(pov, 1500) }
+  const retrieved = data?.real_satellites.find(sat => sat.retrieved_at_utc)?.retrieved_at_utc
+
   return (
     <div className="globe-shell">
-      <div className="globe-canvas" ref={host} role="img" aria-label="3D Earth with real satellite positions propagated from published orbital elements, historical EMIT plume locations in the Permian Basin, and the simulated AETHER fleet replay. The panels list the same information as text." />
-      <header className="globe-top">
-        <a className="globe-brand" href="/?view=overview"><b>AETHER</b><span>Earth observation planning research</span></a>
-        <div className="globe-actions">
-          <button onClick={() => { setFollow(false); globe.current?.pointOfView({ lat: 32, lng: -102.8, altitude: 0.9 }, 1500) }}>Focus Permian Basin</button>
-          <button aria-pressed={follow} onClick={() => setFollow(f => !f)}>{follow ? 'Following ISS' : 'Follow ISS (EMIT)'}</button>
-          <button onClick={() => { setFollow(false); globe.current?.pointOfView({ lat: 20, lng: -100, altitude: 2.6 }, 1500) }}>Whole Earth</button>
-          <a className="globe-primary" href="/?view=overview">Open the console →</a>
-        </div>
-      </header>
+      <aside className="globe-side" aria-label="Globe controls and data">
+        <header className="globe-head">
+          <a className="globe-brand" href="/?view=overview">AETHER</a>
+          <a className="globe-console" href="/?view=overview">Open the console</a>
+        </header>
+        <p className="globe-intro">Methane observation planning over the Permian Basin. Real satellites and real plume sites, with a recorded simulation of four virtual satellites.</p>
+        {error && <p className="globe-error" role="alert">Globe data unavailable ({error}). Run <code>python -m scripts.build_globe_data</code> and rebuild the console.</p>}
 
-      {error && <div className="globe-error" role="alert">Globe data unavailable ({error}). Run <code>python -m scripts.build_globe_data</code> and rebuild the console.</div>}
+        <section aria-labelledby="g-real">
+          <h2 id="g-real">Real satellites</h2>
+          <p className="globe-meta">Positions now, calculated from CelesTrak orbital elements{retrieved ? ` retrieved ${clock(utc(retrieved))}` : ''}. Not live telemetry, and AETHER does not control these spacecraft.</p>
+          <table>
+            <caption className="sr-only">Real satellite positions calculated for the current time</caption>
+            <thead><tr><th scope="col">Satellite</th><th scope="col">Lat</th><th scope="col">Lon</th><th scope="col">Alt</th></tr></thead>
+            <tbody>{data?.real_satellites.map(s => { const r = realNow.find(x => x.sat.norad_id === s.norad_id); return (
+              <tr key={s.norad_id}><th scope="row">{s.name}<small>{SHORT_ROLE[s.norad_id] ?? s.role}{s.omm ? ` · elements ${fmt(elementAgeH(s), 0)} h old` : ''}</small></th>{r ? <><td>{fmt(r.lat)}°</td><td>{fmt(r.lng)}°</td><td>{fmt(r.alt_km, 0)} km</td></> : <td colSpan={3}>{s.refresh_status}</td>}</tr>) })}</tbody>
+          </table>
+          <p className="globe-clock">{clock(now)}</p>
+        </section>
 
-      <aside className="globe-panel globe-real" aria-label="Real satellites">
-        <div className="globe-tag real">REAL · NOW</div>
-        <h2>Real Earth-observation satellites</h2>
-        <p className="globe-clock">{clock(now)}</p>
-        <table>
-          <caption className="sr-only">Real satellite positions propagated to the current time</caption>
-          <thead><tr><th scope="col">Satellite</th><th scope="col">Lat</th><th scope="col">Lon</th><th scope="col">Alt km</th></tr></thead>
-          <tbody>{data?.real_satellites.map(s => { const r = realNow.find(x => x.sat.norad_id === s.norad_id); return (
-            <tr key={s.norad_id}><th scope="row" title={s.role}>{s.name}<small>{s.role}</small></th>{r ? <><td>{fmt(r.lat)}°</td><td>{fmt(r.lng)}°</td><td>{fmt(r.alt_km, 0)}</td></> : <td colSpan={3}>{s.refresh_status}</td>}</tr>) })}</tbody>
-        </table>
-        <p className="globe-note">Positions are SGP4 estimates from CelesTrak GP elements{data?.real_satellites[0]?.retrieved_at_utc ? `, retrieved ${clock(utc(data.real_satellites[0].retrieved_at_utc))}` : ''}. Element age {data ? data.real_satellites.map(s => `${s.name.split(' ')[0]} ${fmt(elementAgeH(s), 0)} h`).join(' · ') : '—'}. <strong>Not live telemetry.</strong> AETHER does not task these spacecraft.</p>
-      </aside>
-
-      <aside className="globe-panel globe-sim" aria-label="Simulated mission replay">
-        <div className="globe-tag sim">SIMULATED MISSION · REPLAY</div>
-        <h2>Virtual AETHER fleet</h2>
-        <p className="globe-clock">{data ? clock(epochMs + simS * 1000) : '—'}<small> · T+{fmt(simS / 3600)} h of {data?.simulation.horizon_hours ?? '—'} h</small></p>
-        <div className="globe-controls">
-          <button onClick={() => setPlaying(p => !p)} aria-label={playing ? 'Pause replay' : 'Play replay'}>{playing ? '❚❚' : '▶'}</button>
+        <section aria-labelledby="g-sim">
+          <h2 id="g-sim">Simulated mission</h2>
+          <p className="globe-meta">A recorded {data?.simulation.horizon_hours ?? 72}-hour run. Satellites, sensor, weather and outcomes are all simulated.</p>
+          <label className="globe-label" htmlFor="globe-run">Planner</label>
+          <select id="globe-run" value={runIndex} onChange={e => setRunIndex(Number(e.target.value))}>{data?.simulation.runs.map((r, i) => <option key={r.run_id} value={i}>{POLICY_NAME[r.policy_id] ?? r.policy_id}</option>)}</select>
+          <div className="globe-controls">
+            <button onClick={() => setPlaying(p => !p)}>{playing ? 'Pause' : 'Play'}</button>
+            <label className="sr-only" htmlFor="globe-speed">Replay speed</label>
+            <select id="globe-speed" value={speed} onChange={e => setSpeed(Number(e.target.value))}>{SPEEDS.map(([v, label]) => <option key={v} value={v}>{label}</option>)}</select>
+          </div>
           <label className="sr-only" htmlFor="globe-scrub">Replay time</label>
           <input id="globe-scrub" type="range" min={0} max={horizonS} step={60} value={simS} onChange={e => setSimS(Number(e.target.value))} />
-          <label className="sr-only" htmlFor="globe-speed">Replay speed</label>
-          <select id="globe-speed" value={speed} onChange={e => setSpeed(Number(e.target.value))}>{SPEEDS.map(s => <option key={s} value={s}>{s}×</option>)}</select>
-        </div>
-        <label className="globe-caption" htmlFor="globe-run">Recorded policy run</label>
-        <select id="globe-run" value={runIndex} onChange={e => setRunIndex(Number(e.target.value))}>{data?.simulation.runs.map((r, i) => <option key={r.run_id} value={i}>{POLICY_NAME[r.policy_id] ?? r.policy_id} · seed 1000</option>)}</select>
-        <dl className="globe-counts">
-          <div><dt>Simulated looks so far</dt><dd>{totalLooks}</dd></div>
-          {Object.entries(OUTCOME_COLOR).map(([k, c]) => <div key={k}><dt><i style={{ background: c }} />{k.replaceAll('_', ' ').toLowerCase()}</dt><dd>{sim.counts[k] ?? 0}</dd></div>)}
-        </dl>
-        <p className="globe-note">{data?.simulation.fleet.length ?? 4} virtual spacecraft (dashed tracks), orbits computed with the project's Skyfield/SGP4 model. Lines show each simulated look for {LOOK_WINDOW_S / 60} min. Spacecraft, sensors, weather and outcomes are simulated.</p>
-      </aside>
+          <p className="globe-clock">{data ? clock(epochMs + simS * 1000) : '—'} <span>hour {fmt(simS / 3600)} of {data?.simulation.horizon_hours ?? '—'}</span></p>
+          <ul className="globe-fleet">{data?.simulation.fleet.map(f => <li key={f.id}><i />{craftName(f.id)}<span>{f.id} · {fmt(f.altitude_km, 0)} km</span></li>)}</ul>
+          <p className="globe-looks"><strong>{totalLooks}</strong> looks so far</p>
+          <ul className="globe-outcomes">{Object.entries(OUTCOME_COLOR).map(([k, c]) => <li key={k}><i style={{ background: c }} />{OUTCOME_LABEL[k]}<span>{sim.counts[k] ?? 0}</span></li>)}</ul>
+          <p className="globe-meta">A line joins a satellite to a site for {LOOK_WINDOW_S / 60} minutes after each look.</p>
+        </section>
 
-      <footer className="globe-legend" aria-label="Legend">
-        <span><i className="real" />Real satellite (modelled position)</span>
-        <span><i className="sim" />Virtual AETHER spacecraft</span>
-        <span><i className="plume" />Historical EMIT plume location (20, Permian Basin)</span>
-        <span><i className="look" />Simulated look (colour = outcome)</span>
-      </footer>
+        <section aria-labelledby="g-view">
+          <h2 id="g-view">View</h2>
+          <div className="globe-views">
+            <button onClick={() => view({ lat: 32, lng: -102.8, altitude: 0.9 })}>Permian Basin</button>
+            <button onClick={() => view({ lat: 20, lng: -100, altitude: 2.6 })}>Whole Earth</button>
+            <button aria-pressed={follow} onClick={() => setFollow(f => !f)}>{follow ? 'Stop following' : 'Follow the ISS'}</button>
+          </div>
+          <ul className="globe-key">
+            <li><i className="real" />Real satellite</li>
+            <li><i className="sim" />Virtual satellite</li>
+            <li><i className="plume" />Real EMIT plume site (20)</li>
+          </ul>
+        </section>
+      </aside>
+      <div className="globe-canvas" ref={host} role="img" aria-label="3D Earth showing real satellite positions, the 20 real EMIT plume sites in the Permian Basin, and the recorded simulation of four virtual satellites. The sidebar lists the same information as text." />
     </div>
   )
 }
