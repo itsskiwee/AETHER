@@ -20,7 +20,9 @@ from aether.evaluation.benchmark import (
     _compare,
     _write_csv,
     default_run_fn,
+    unpack_run_result,
 )
+from aether.evaluation.matrix import performance_summary
 from aether.evaluation.metrics import score_run
 from aether.evaluation.protocol import file_sha256, load_protocol, read_seeds
 
@@ -62,7 +64,7 @@ def development_comparison(
                 f"Running {policy.value}, development seed {seed}, configs/base.yaml…", flush=True
             )
             run_started = perf_counter()
-            run, truth = run_fn(bundle, policy, seed)
+            run, truth, performance = unpack_run_result(run_fn(bundle, policy, seed))
             elapsed_s = perf_counter() - run_started
             if run.policy_id is not policy or run.seed != seed or run.family != bundle.model.family:
                 raise RuntimeError(f"runner mislabelled run {run.run_id}")
@@ -82,7 +84,13 @@ def development_comparison(
                 {"family": run.family, "policy": policy.value, "seed": seed, "run_id": run.run_id}
                 | scores
             )
-            timings.append({"run_id": run.run_id, "complete_run_elapsed_s": elapsed_s})
+            timings.append(
+                {
+                    "run_id": run.run_id,
+                    "complete_run_elapsed_s": elapsed_s,
+                    "performance": performance_summary(performance),
+                }
+            )
             print(
                 f"{policy.value} seed {seed}: {elapsed_s:.3f} s, "
                 f"Brier {scores['brier_active_state']:.6f}, "

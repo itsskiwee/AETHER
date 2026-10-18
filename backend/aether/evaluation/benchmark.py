@@ -34,7 +34,8 @@ from aether.evaluation.protocol import check_seed_access, file_sha256, load_prot
 from aether.evaluation.stats import PairedBootstrap, holm, paired_bootstrap, success_verdict
 from aether.simulation.truth_types import TruthHistory
 
-RunFn = Callable[[ScenarioBundle, PolicyId, int], tuple[RunRecord, TruthHistory]]
+# Returns (run, truth) or (run, truth, RunPerformance | None).
+RunFn = Callable[[ScenarioBundle, PolicyId, int], tuple[RunRecord, TruthHistory] | tuple]
 
 _KEY = re.compile(r"^(?P<metric>[^\[]+)(?:\[(?P<breakdown>[^\]]+)\])?$")
 RECALL_METRIC = "high_impact_recall_at_5"
@@ -42,6 +43,8 @@ RECALL_METRIC = "high_impact_recall_at_5"
 LOWER_IS_BETTER = {"brier_active_state", "log_loss_active_state", "ece_active_state",
                    "time_to_corroboration_hours", "solver_runtime_p95_s"}  # fmt: skip
 HIGHER_IS_BETTER = {RECALL_METRIC, "valid_acquisition_fraction"}
+PERFORMANCE_FIELDS = ("policy_plan_wall_p95_s", "policy_plan_wall_max_s", "n_plan_calls",
+                      "total_run_wall_s", "windows_source", "orbit_geometry_wall_s")  # fmt: skip
 MISSPECIFIED_FAMILIES = (
     "m1_persistence_wrong", "m2_pod_optimistic", "m3_forecast_overconfident", "m4_false_positives",
 )  # fmt: skip
@@ -60,15 +63,27 @@ def default_run_fn(bundle: ScenarioBundle, policy_id: PolicyId, seed: int):
     """Run through the L1 runner, then regenerate the run's truth from the same seed.
 
     Truth is a deterministic function of (truth config, sources, seed), so it does not need to
-    travel inside the RunRecord. The run must report the seed it was asked for.
+    travel inside the RunRecord. The run must report the seed it was asked for. Returns
+    ``(run, truth, performance)``: the RunRecord is byte-identical to ``run_policy``'s and the
+    measured ``RunPerformance`` (PERF-01) travels separately. Test doubles may return 2-tuples.
     """
-    from aether.simulation.runner import run_policy
+    from aether.simulation.runner import run_policy_with_performance
     from aether.simulation.truth import generate_truth
 
-    run = run_policy(bundle, policy_id, seed)
+    run, performance = run_policy_with_performance(bundle, policy_id, seed)
     if run.seed != seed:
         raise RuntimeError(f"runner returned seed {run.seed}, expected {seed}")
-    return run, generate_truth(bundle.truth, run.sources, seed=seed)
+    return run, generate_truth(bundle.truth, run.sources, seed=seed), performance
+
+
+def unpack_run_result(result) -> tuple:
+    """``(run, truth[, performance])`` -> ``(run, truth, performance or None)``."""
+    if len(result) == 2:
+        return (*result, None)
+    run, truth, performance = result
+    if performance is not None and performance.run_id != run.run_id:
+        raise RuntimeError(f"performance for {performance.run_id} paired with run {run.run_id}")
+    return run, truth, performance
 
 
 def _split(key: str) -> tuple[str, str]:
@@ -169,6 +184,12 @@ def benchmark(
                 rows.append({"family": family, "policy": policy, "seed": seed,
                              "run_id": rec["run_id"]} | scores)  # fmt: skip
     datasets = sorted({json.dumps(r["input_dataset"], sort_keys=True) for r in records.values()})
+    perf_rows = []
+    for (family, policy, seed), rec in sorted(records.items()):
+        perf = rec.get("performance") or {}
+        perf_rows.append({"family": family, "policy": policy, "seed": seed,
+                          "run_id": rec["run_id"], "measured": bool(perf)}
+                         | {k: perf.get(k) for k in PERFORMANCE_FIELDS})  # fmt: skip
 
     out_dir.mkdir(parents=True, exist_ok=True)
     _write_csv(out_dir / "benchmark-runs.csv", rows, ["family", "policy", "seed", "run_id",
@@ -177,6 +198,9 @@ def benchmark(
     _write_csv(out_dir / "benchmark-results.csv", agg,
                ["family", "policy", "metric", "breakdown", "mean", "sd", "n_seeds",
                 "n_defined", "n_undefined"])  # fmt: skip
+
+    _write_csv(out_dir / "benchmark-performance.csv", perf_rows,
+               ["family", "policy", "seed", "run_id", "measured", *PERFORMANCE_FIELDS])  # fmt: skip
 
     res, level = proto.analysis.resamples, proto.analysis.level
     boot_seed = proto.protocol_version
@@ -211,6 +235,15 @@ def benchmark(
         "config_hashes": config_hashes,
         "input_datasets": [json.loads(d) for d in datasets],
         "environment": execution_environment(repo),
+        "performance": {
+            "file": "benchmark-performance.csv",
+            "note": "Measured wall time (time.perf_counter), machine- and load-dependent, not "
+            "reproducible. solver_runtime_p95_s is reported there as policy_plan_wall_p95_s "
+            "(policy.plan: model build + solve). Plan.runtime_s stays None, so the score column "
+            "solver_runtime_p95_s is empty by design.",
+            "runs_measured": sum(r["measured"] for r in perf_rows),
+            "runs_total": len(perf_rows),
+        },
         "total_checker_violations": violations,
         "comparisons": comparisons,
         "holm_primary": holm_primary,  # primary comparison, m1..m4, family-wise alpha 0.05

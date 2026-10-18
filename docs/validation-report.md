@@ -54,7 +54,7 @@ checks the options in the problematic pass; the UTC correction follows the
 | `corroborated_sources`, `censored_sources` | counts behind the line above | — | never |
 | `high_impact_recall_at_5` | \|top-5 ∩ high-impact\| / \|high-impact\| at the last evaluation time (PR-E02, PR-E10) | higher | seed has no high-impact source (excluded, counted) |
 | `valid_acquisition_fraction` | (DETECTION + VALID_NON_DETECTION) / attempted acquisitions | — | no acquisitions |
-| `solver_runtime_p95_s` | 95th percentile of `Plan.runtime_s` | lower | no plans |
+| `solver_runtime_p95_s` | 95th percentile of measured `policy.plan` wall time (model build + solve), reported as `policy_plan_wall_p95_s` in `benchmark-performance.csv` from the runner's separate `RunPerformance` artifact (PERF-01). The deterministic score column stays empty because `Plan.runtime_s` is None by design. Measured values depend on machine and load and are not reproducible | lower | run has no measured performance (reported as `measured=False`, never 0) |
 | `feasibility_checker_violations` | total violations across all validations; must be **0** | — | never |
 | `plans_without_validation` | plans with no checker record; must be **0** | — | never |
 
