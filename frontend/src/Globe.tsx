@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Globe, { type GlobeInstance } from 'globe.gl'
 import { degreesLat, degreesLong, eciToGeodetic, gstime, json2satrec, propagate, type OMMJsonObject, type SatRec } from 'satellite.js'
 import { craftName } from './fleet'
+import { addMoon, EARTH_RADIUS_KM as EARTH_KM, type LunarFocus } from './moon'
 import './globe.css'
 
 // Presentation view (UI-10). Two clocks, never mixed:
@@ -23,7 +24,6 @@ type GlobeData = {
 type Marker = { kind: 'real' | 'sim'; id: string; label: string; lat: number; lng: number; alt_km: number }
 type Path = { kind: 'real' | 'sim' | 'look'; points: [number, number, number][]; outcome?: string }
 
-const EARTH_KM = 6371
 const LOOK_WINDOW_S = 1200
 // Replay speeds. 60x shows one ~95 min orbit in about 1.5 minutes; 1x is real time.
 const SPEEDS: [number, string][] = [[1, 'Real time'], [10, '10×'], [60, '60×'], [300, '300×']]
@@ -51,6 +51,15 @@ function simIndex(fleet: Fleet, seconds: number, step: number) {
 export default function GlobeView() {
   const host = useRef<HTMLDivElement>(null)
   const globe = useRef<GlobeInstance | null>(null)
+  const lunar = useRef<ReturnType<typeof addMoon> | null>(null)
+  const lunarEpoch = useRef(new Date())
+  const [lunarFocus, setLunarFocus] = useState<LunarFocus>(() => {
+    const focus = new URLSearchParams(location.search).get('focus')
+    return focus === 'moon' || focus === 'system' ? focus : 'earth'
+  })
+  const [lunarDays, setLunarDays] = useState(0)
+  const [lunarPlaying, setLunarPlaying] = useState(false)
+  const [lunarDistanceKm, setLunarDistanceKm] = useState(0)
   const [data, setData] = useState<GlobeData | null>(null)
   const [error, setError] = useState('')
   const [now, setNow] = useState(() => Date.now())
@@ -91,7 +100,7 @@ export default function GlobeView() {
     const g = new Globe(host.current)
       .globeImageUrl('/globe/earth-blue-marble.jpg')
       .bumpImageUrl('/globe/earth-topology.png')
-      .backgroundColor('#0e1116')
+      .backgroundColor('rgba(14,17,22,0)')
       .atmosphereColor('#9db7d3')
       .atmosphereAltitude(0.1)
       .pointOfView({ lat: 28, lng: -100, altitude: 2.4 })
@@ -118,12 +127,33 @@ export default function GlobeView() {
       .pointLabel((d: object) => { const s = d as Site; return `${s.plume_id ? 'Real EMIT plume site' : 'Simulated site (no EMIT record)'}<br>${s.plume_id ?? 'placed by the simulation'}<br>${fmt(s.lat, 3)}°, ${fmt(s.lon, 3)}°` })
     g.controls().autoRotate = false
     globe.current = g
+    const moon = addMoon(g, lunarEpoch.current)
+    lunar.current = moon
     const resize = () => { if (host.current) g.width(host.current.clientWidth).height(host.current.clientHeight) }
     resize()
+    moon.focus(lunarFocus)
     const observer = new ResizeObserver(resize)
     observer.observe(host.current)
-    return () => { observer.disconnect(); g._destructor(); globe.current = null }
+    return () => { observer.disconnect(); moon.dispose(); lunar.current = null; g._destructor(); globe.current = null }
   }, [])
+
+  useEffect(() => {
+    const at = new Date(lunarEpoch.current.getTime() + lunarDays * 86400000)
+    const distance = lunar.current?.update(at, lunarFocus)
+    if (distance !== undefined) setLunarDistanceKm(distance)
+  }, [lunarDays, lunarFocus])
+
+  useEffect(() => {
+    if (!lunarPlaying) return
+    let previous = performance.now()
+    const timer = window.setInterval(() => {
+      const current = performance.now()
+      const days = (current - previous) / 1000 // PR-LUNAR02: one preview day per viewing second.
+      previous = current
+      setLunarDays(value => value + days)
+    }, 100)
+    return () => window.clearInterval(timer)
+  }, [lunarPlaying])
 
   const realNow = useMemo(() => recs.flatMap(({ sat, rec }) => {
     const p = geodetic(rec, new Date(now))
@@ -182,7 +212,8 @@ export default function GlobeView() {
   const elementAgeH = (s: RealSat) => (s.omm ? (now - utc(String(s.omm.EPOCH))) / 3600000 : NaN)
   const totalLooks = Object.values(sim.counts).reduce((a, b) => a + b, 0)
 
-  const view = (pov: { lat: number; lng: number; altitude: number }) => { setFollow(false); globe.current?.pointOfView(pov, 1500) }
+  const view = (pov: { lat: number; lng: number; altitude: number }) => { setFollow(false); setLunarFocus('earth'); globe.current?.pointOfView(pov, 1500) }
+  const focusMoon = (mode: LunarFocus) => { setFollow(false); setLunarFocus(mode); lunar.current?.focus(mode) }
   const retrieved = data?.real_satellites.find(sat => sat.retrieved_at_utc)?.retrieved_at_utc
 
   return (
@@ -233,7 +264,7 @@ export default function GlobeView() {
           <div className="globe-views">
             <button onClick={() => view({ lat: 32, lng: -102.8, altitude: 0.9 })}>Permian Basin</button>
             <button onClick={() => view({ lat: 20, lng: -100, altitude: 2.6 })}>Whole Earth</button>
-            <button aria-pressed={follow} onClick={() => setFollow(f => !f)}>{follow ? 'Stop following' : 'Follow the ISS'}</button>
+            <button aria-pressed={follow} onClick={() => { setLunarFocus('earth'); setFollow(f => !f) }}>{follow ? 'Stop following' : 'Follow the ISS'}</button>
           </div>
           <ul className="globe-key">
             <li><i className="real" />Real satellite</li>
@@ -242,8 +273,27 @@ export default function GlobeView() {
             {simulatedSites.length > 0 && <li><i className="fill" />Simulated site</li>}
           </ul>
         </section>
+        <section aria-labelledby="g-moon">
+          <h2 id="g-moon">Earth’s natural satellite</h2>
+          <p className="globe-meta">A 3D Moon at its calculated distance, with both bodies at the same physical scale. Synchronous rotation keeps the same hemisphere facing Earth.</p>
+          <div className="globe-views">
+            <button aria-pressed={lunarFocus === 'system'} onClick={() => focusMoon('system')}>Earth–Moon view</button>
+            <button aria-pressed={lunarFocus === 'moon'} onClick={() => focusMoon('moon')}>Moon close-up</button>
+          </div>
+          <p className="globe-clock">{new Intl.NumberFormat('en', { maximumFractionDigits: 0 }).format(lunarDistanceKm)} km <span>centre to centre</span></p>
+          <p className="globe-meta">Lunar time: {clock(lunarEpoch.current.getTime() + lunarDays * 86400000)}</p>
+          <div className="globe-views">
+            <button aria-pressed={lunarPlaying} onClick={() => setLunarPlaying(value => !value)}>{lunarPlaying ? 'Pause lunar motion' : 'Animate lunar orbit'}</button>
+            <button onClick={() => { setLunarPlaying(false); setLunarDays(0) }}>Reset lunar time</button>
+          </div>
+          <p className="globe-meta">Orbit preview: 1 day per second. Only the Moon advances; Earth’s viewing frame, satellite clock and mission replay stay separate. Surface orientation approximates tidal locking.</p>
+          <p className="globe-meta">Position: <a href="https://github.com/cosinekitty/astronomy" target="_blank" rel="noreferrer">Astronomy Engine</a>. Surface: <a href="https://svs.gsfc.nasa.gov/4720/" target="_blank" rel="noreferrer">NASA’s Scientific Visualization Studio</a>.</p>
+        </section>
       </aside>
-      <div className="globe-canvas" ref={host} role="img" aria-label="3D Earth showing real satellite positions, the 20 real EMIT plume sites in the Permian Basin, and the recorded simulation of four virtual satellites. The sidebar lists the same information as text." />
+      <div className={`globe-stage ${lunarFocus !== 'earth' ? 'lunar-view' : ''}`}>
+        <div className="globe-canvas" ref={host} role="img" aria-label="3D Earth and Moon at physical scale, real satellite positions, the 20 real EMIT plume sites in the Permian Basin, and the recorded simulation of four virtual satellites. The sidebar lists the same information as text." />
+        <p className="globe-sky-note">Earth and Moon: physical scale · stars: decorative{lunarPlaying ? ' · lunar preview: 1 day/s' : ''}</p>
+      </div>
     </div>
   )
 }

@@ -99,7 +99,7 @@ export default function App() {
   const [failed, setFailed] = useState<string[]>([])
   const [evaluationLoaded, setEvaluationLoaded] = useState(false)
   const needsRealData = view === 'overview' || view === 'observations' || view === 'passes'
-  const needsRunData = view === 'overview' || view === 'planner' || view === 'beliefs' || view === 'comparison' || view === 'evidence'
+  const needsRunData = view === 'overview' || view === 'planner' || view === 'beliefs' || view === 'comparison' || view === 'evidence' || view === 'setup'
   const needsEvaluation = view === 'beliefs' || view === 'comparison' || view === 'evidence'
   const needsProject = view === 'setup'
   const needsClock = view === 'overview' || view === 'passes'
@@ -221,7 +221,7 @@ export default function App() {
           {view === 'planner' && needRun(r => <PlannerStory run={r} />)}
           {view === 'beliefs' && needRun(r => <Page kind="sim" kicker="How the planner's knowledge changes" title="Beliefs" intro={<>For every source, the model keeps a probability that it is emitting now and a range for how much. A detection pushes the probability up, a valid non-detection pushes it down, and a missing or cloudy look changes nothing. Pick a source below to follow its history.</>}><div className="cx-legacy"><ScreenContent screen="D" run={r} benchmarks={rows} benchmarkState={rows.length ? 'ready' : 'empty'} report={report} reportState={report ? 'ready' : 'empty'} protocol={protocol} /></div></Page>)}
           {view === 'comparison' && needRun(r => <PolicyTest run={r} rows={rows} report={report} protocol={protocol} failed={failed.includes('benchmark')} />)}
-          {view === 'setup' && <Setup project={project} failed={failed.includes('project')} />}
+          {view === 'setup' && <Setup project={project} failed={failed.includes('project')} runs={index} activeRunId={runId} onChooseRun={chooseRun} navigate={navigate} />}
           {view === 'evidence' && needRun(r => <Page kind="sim" kicker="Reproducibility" title="Evidence & exports" intro="Every recorded run can be downloaded as a hashed archive and re-verified offline. The manifest lists every input file and its SHA-256."><a className="cx-primary" href={`/api/runs/${encodeURIComponent(r.run_id)}/export`}><Icon name="download" /> Download verified run export</a><div className="cx-legacy"><ScreenContent screen="G" run={r} benchmarks={rows} benchmarkState={rows.length ? 'ready' : 'empty'} report={report} reportState={report ? 'ready' : 'empty'} protocol={protocol} /><RunManifest run={r} /></div></Page>)}
           <footer className="cx-footer"><span>AETHER · research prototype</span><span>Times in UTC · real-data bundle built {utc(real?.built_at_utc)}</span></footer>
         </main>
@@ -384,10 +384,28 @@ function PolicyTest({ run, rows, report, protocol, failed }: { run: RunRecord; r
   </Page>
 }
 
-function Setup({ project, failed }: { project: ProjectSnapshot | null; failed: boolean }) {
+function Setup({ project, failed, runs, activeRunId, onChooseRun, navigate }: { project: ProjectSnapshot | null; failed: boolean; runs: RunIndexItem[]; activeRunId: string; onChooseRun: (id: string) => void; navigate: (view: View) => void }) {
+  const [family, setFamily] = useState('')
+  const [policy, setPolicy] = useState('adaptive_eig')
+  const [seed, setSeed] = useState(1000)
+  const [copied, setCopied] = useState(false)
+  const command = `python -m aether.cli simulate --config ../configs/base.yaml${family ? ` --family ../configs/scenarios/${family}.yaml` : ''} --seed ${seed} --policies ${policy} --output-dir ../runs`
   if (!project) return <div className="cx-empty" role={failed ? 'alert' : 'status'}>{failed ? 'The scenario configuration could not be loaded from /api/project. Check that the API server is running.' : 'Loading the scenario configuration…'}</div>
   const s = project.sensors[0]
-  return <Page kind="sim" kicker="Scenario" title="Setup" intro={`The simulated mission in one page: ${project.scenario.horizon_hours} hours over the Permian Basin, ${project.scenario.sources_count} source sites placed from the real EMIT records, and a virtual fleet.`}>
+  return <Page kind="sim" kicker="Configure and reproduce" title="Setup" intro="Choose a registered scenario family, policy and seed to build the exact offline command for a new run. Or open a run already in this deployment. Setup controls the simulated planner; it does not configure real satellites or edit the scientific assumptions in the checked-in config files.">
+    <Card title="Prepare a reproducible run" aside={<span className="cx-muted">Uses registered project configuration</span>}>
+      <div className="cx-setup-controls">
+        <label>Scenario family<select value={family} onChange={e => setFamily(e.target.value)}><option value="">Base scenario</option>{project.scenario_families.map(name => <option key={name} value={name}>{name.replaceAll('_', ' ')}</option>)}</select></label>
+        <label>Policy<select value={policy} onChange={e => setPolicy(e.target.value)}>{project.scenario.policies.map(name => <option key={name} value={name}>{policyName(name)}</option>)}</select></label>
+        <label>Random seed<input type="number" min="0" step="1" value={seed} onChange={e => setSeed(Math.max(0, Number(e.target.value) || 0))} /></label>
+      </div>
+      <p className="cx-muted">Run from the <code>backend</code> directory after installing the project dependencies:</p>
+      <div className="cx-command"><code>{command}</code><button className="cx-secondary" onClick={() => { void navigator.clipboard?.writeText(`cd backend\n${command}`).then(() => setCopied(true)) }}>Copy command</button></div>
+      <p className="cx-muted" role="status">{copied ? 'Command copied.' : 'This console is an artifact viewer. Running the command creates a run artifact; refresh the deployment archive to make it appear below.'}</p>
+    </Card>
+    <Card title="Open an archived run" aside={<span className="cx-muted">{runs.length} available</span>}>
+      {runs.length ? <div className="cx-setup-controls"><label>Recorded run<select value={activeRunId} onChange={e => onChooseRun(e.target.value)}>{runs.map(item => <option key={item.run_id} value={item.run_id}>{policyName(item.policy_id)} · {item.scenario_id} · seed {item.seed}</option>)}</select></label><button className="cx-secondary" onClick={() => navigate('planner')}>Open in planner</button><button className="cx-secondary" onClick={() => navigate('evidence')}>Open evidence</button></div> : <p className="cx-muted">No archived runs are available. Create one with the command above, then add its output to the run archive.</p>}
+    </Card>
     <div className="cx-three">
       <Card title={`${project.spacecraft.length} virtual satellites`}>
         <ul className="cx-list">{project.spacecraft.map(sc => <li key={sc.id}><b>{craftName(sc.id)}</b> <span className="cx-muted">({sc.id})</span> · {String(sc.orbit.altitude_km)} km up · {String(sc.orbit.inclination_deg)}° orbit · up to {sc.resources.max_acquisitions_per_orbit} looks per orbit</li>)}</ul>

@@ -295,6 +295,46 @@ def test_run_manifest_is_archived_not_current_config(client, project):
     assert client.get("/api/runs/missing/manifest.json").status_code == 404
 
 
+def _synthetic_lineage(repo_root, record):
+    from aether import cli
+
+    return {
+        "lineage_version": cli.LINEAGE_VERSION,
+        "synthetic_only": True,
+        "plume_dataset": None,
+        "input_dataset": None,
+        "model_config_hash": record.model_config_hash,
+        "truth_config_hash": record.truth_config_hash,
+        "input_sha256": {
+            rel: hashlib.sha256((repo_root / rel).read_bytes()).hexdigest()
+            for rel in cli.PINNED_INPUTS
+        },
+    }
+
+
+def test_run_export_is_the_verified_cli_archive(client, project, repo_root, tmp_path_factory):
+    from aether.cli import verify_export
+
+    path = project / "runs/run-a/manifest.json"
+    assert client.get("/api/runs/run-a/export").status_code == 404
+    record = RunRecord.model_validate_json((project / "runs/run-a/run.json").read_bytes())
+    path.write_text(json.dumps(_synthetic_lineage(repo_root, record)))
+    response = client.get("/api/runs/run-a/export")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/zip"
+    assert 'filename="run-a.zip"' in response.headers["content-disposition"]
+    archive = tmp_path_factory.mktemp("download") / "run-a.zip"
+    archive.write_bytes(response.content)
+    assert verify_export(archive)["run_id"] == "run-a"
+    # A manifest whose pinned input hashes disagree is refused, never exported unverified.
+    tampered = _synthetic_lineage(repo_root, record)
+    first = next(iter(tampered["input_sha256"]))
+    tampered["input_sha256"][first] = "0" * 64
+    path.write_text(json.dumps(tampered))
+    assert client.get("/api/runs/run-a/export").status_code == 422
+    assert client.get("/api/runs/missing/export").status_code == 404
+
+
 def test_measured_timing_reloads_without_changing_run(client, project):
     path = project / "runs/benchmark/development-timing.json"
     path.parent.mkdir()

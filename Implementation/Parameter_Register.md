@@ -246,6 +246,13 @@ So the base scenario is probably **more persistent than the Permian**, perhaps b
 | PR-E09 | ECE bins | 10 equal-width bins on [0, 1], weighted by count; p = 1 goes in the top bin | [D] | Standard reliability-diagram binning. With ~240 points per run, finer bins would be mostly empty. |
 | PR-E10 | High-impact recall cut-off | top k = 5 sources, ranked by Σ_r P(r) · π_r · flux median (planner-side long-run mean rate) at the last evaluation time; ties by source id | [D] | k = 5 is in the metric name (protocol.yaml). The ranking score estimates the same long-run mean rate that PR-E02 thresholds. Alternatives are in `docs/validation-report.md`. |
 
+### Lunar presentation context (user-requested, 18 October 2026)
+
+| ID | Parameter | Value | Tag / rationale |
+|---|---|---|---|
+| PR-LUNAR01 | Earth and Moon display radii and lunar position | Earth mean radius 6,371 km; Moon mean radius 1,737.4 km. Lunar geocentric position from Astronomy Engine 2.1.19; AU conversion, sidereal time and frame rotation use the library. | [E/D] Radii: NASA Moon Fact Sheet, https://nssdc.gsfc.nasa.gov/planetary/factsheet/moonfact.html. Rendering uses a common physical scale and a sphere with 64 by 32 segments. Surface orientation approximates synchronous rotation; no lunar libration model. Presentation context only, never a simulation or planner input. |
+| PR-LUNAR02 | Lunar preview clock and camera | Optional acceleration: 1 Earth day (86,400 s) per viewing second; 100 ms update interval using elapsed monotonic time. Close-up camera 4 Moon radii beyond its centre; system framing 10% margin, zoom limit at least twice the framing distance. | [D] User-requested visible lunar motion. Earth's frame is held at preview start; satellite and mission clocks are independent. No randomized lunar motion or inferred operational capability. |
+
 ## 10. Remaining gaps that need a human
 
 ### Read-only current-data context (user-requested scope extension, 18 October 2026)
