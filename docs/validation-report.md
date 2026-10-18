@@ -274,6 +274,12 @@ Command: `python -m aether.evaluation.calibration --output-dir runs/gate-pinned 
 - The actual base-config development batch has six RunRecords and zero checker violations. This is
   execution and display evidence for one family and two development seeds, not a research verdict.
 
+### 5.1 Pinned-data demo and development comparison (18 Oct 2026)
+
+`scripts/demo.sh` on the integrated build (`runs/demo-pinned/`, regenerated on the final revision in `runs/demo-final/`). Both demo records (`configs/demo.yaml`, seed 1000) have one independent validation per plan and zero violations: `largest_first` has 41 plans and 37 acquisitions; `adaptive_eig` has 47 plans and 51 acquisitions. Replay in a separate process is byte-identical, and both exports reload with all 46 input hashes re-verified. The scripted hour-20 forecast logs a revision but changes no selection; `docs/demo-console.md` step 5 gives the reason.
+
+The development comparison (base config, m0, development seeds 1000 and 1001, 3 policies, 0 checker violations) is **two seeds**. Paired differences are listed only to show the pipeline works. Adaptive − largest-first Brier: −0.0145. Adaptive − greedy: −0.0032. Recall@5: +0.1 and −0.4. **Bootstrap intervals from n = 2 carry no inferential weight.** No claim about adaptive_eig follows from them. G4.5 (§3.2) shows that this scenario cannot separate even an oracle-informed reference from random.
+
 ## 6. Scientific gates and pending decisions (18 Oct 2026)
 
 | Gate / scope | Status | Evidence and what remains |
