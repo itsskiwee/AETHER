@@ -256,12 +256,29 @@ def replay_runs(directory: Path = REPLAY) -> tuple[list[dict], list[dict]]:
     return sources or [], runs
 
 
-def mission(label: str, run_dir: Path, family: Path | None = None) -> dict | None:
-    """One recorded simulated mission: its fleet tracks, every source and each policy's looks."""
+def mission(
+    label: str, run_dir: Path, family: Path | None = None, previous: dict | None = None
+) -> dict | None:
+    """One recorded simulated mission: its fleet tracks, every source and each policy's looks.
+
+    The 168 h runs live in runs/, which a fresh clone does not have. Then the mission already in
+    the committed bundle is kept as it is (same run_ids and run.json SHA-256), never dropped.
+    """
     sources, runs = replay_runs(run_dir)
     if not runs:
-        print(f"mission skipped (no runs in {run_dir.relative_to(ROOT)}): {label}")
-        return None
+        kept = next(
+            (
+                m
+                for m in (previous or {}).get("missions", [])
+                if m.get("label") == label
+            ),
+            None,
+        )
+        where = run_dir.relative_to(ROOT).as_posix()
+        print(
+            f"mission {'kept from the existing bundle' if kept else 'skipped'} ({where} has no runs): {label}"
+        )
+        return kept
     cfg = load_scenario(ROOT / "configs/demo.yaml", family).model
     return {
         "label": label,
@@ -316,11 +333,12 @@ def main() -> None:
         "missions": [
             m
             for m in (
-                mission("72-hour demo · 20 sites", REPLAY),
+                mission("72-hour demo · 20 sites", REPLAY, previous=previous),
                 mission(
                     "168-hour demo · 60 sites",
                     ROOT / "runs/demo-h168",
                     ROOT / "configs/scenarios/h168_long_horizon.yaml",
+                    previous,
                 ),
             )
             if m is not None
