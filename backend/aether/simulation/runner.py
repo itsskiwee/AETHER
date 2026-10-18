@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import functools
 import hashlib
 import json
 import math
+import os
+import platform
+import time
 from collections import defaultdict
 from collections.abc import Iterable
 from datetime import datetime, timedelta
@@ -22,8 +26,10 @@ from aether.contracts.models import (
     InputDatasetRef,
     ObservationWindow,
     Plan,
+    PlanTiming,
     PlumeObservation,
     RunEvent,
+    RunPerformance,
     RunRecord,
     ScheduleValidation,
     Selection,
@@ -182,22 +188,99 @@ def _effective_bundle(bundle: ScenarioBundle, seed: int) -> ScenarioBundle:
     )
 
 
+WINDOW_CACHE_ENV = "AETHER_WINDOW_CACHE_DIR"
+_ORBIT_CODE_SHA256: str | None = None
+
+
+@functools.cache
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def _orbit_code_sha256() -> str:
+    """SHA-256 over the ``aether.orbit`` sources, so a disk cache never outlives a code change."""
+    global _ORBIT_CODE_SHA256
+    if _ORBIT_CODE_SHA256 is None:
+        import aether.orbit
+
+        root = Path(aether.orbit.__file__).resolve().parent
+        files = sorted(p for p in root.rglob("*.py") if "__pycache__" not in p.parts)
+        if not files:
+            raise RuntimeError(f"cannot hash orbit sources under {root}")
+        digest = hashlib.sha256()
+        for path in files:
+            rel = path.relative_to(root).as_posix().encode()
+            data = path.read_bytes()
+            digest.update(len(rel).to_bytes(8, "little") + rel)
+            digest.update(len(data).to_bytes(8, "little") + data)
+        _ORBIT_CODE_SHA256 = digest.hexdigest()
+    return _ORBIT_CODE_SHA256
+
+
+def _window_cache_key(
+    cfg: ScenarioConfig, sources: tuple[Source, ...], start: datetime, end: datetime
+) -> str:
+    """Hash of exactly what ``generate_windows`` reads, so families and seeds share geometry.
+
+    The orbit package reads only ``spacecraft``, ``sensors`` and ``window_search`` from the
+    config. ``family``, ``random_seed`` and truth-only fields are deliberately absent; the pinned
+    ephemeris and EOP bytes and the orbit code are present.
+    """
+    root = repo_root()
+    payload = {
+        "spacecraft": {k: v.model_dump(mode="json") for k, v in cfg.spacecraft.items()},
+        "sensors": {k: v.model_dump(mode="json") for k, v in cfg.sensors.items()},
+        "window_search": cfg.window_search.model_dump(mode="json"),
+        "sources": [source.model_dump(mode="json") for source in sources],
+        "start_utc": start.isoformat(),
+        "end_utc": end.isoformat(),
+        "ephemeris_sha256": _ephemeris_sha256(),
+        "eop_sha256": _sha256_file(root / "data/eop/finals2000A.all"),
+        "orbit_code_sha256": _orbit_code_sha256(),
+    }
+    return hashlib.sha256(_canonical_json(payload)).hexdigest()
+
+
+def _disk_cache_dir() -> Path | None:
+    value = os.environ.get(WINDOW_CACHE_ENV)
+    return Path(value) if value else None
+
+
 def _windows_for(cfg: ScenarioConfig, sources: tuple[Source, ...], start: datetime, end: datetime):
-    """Reuse geometry across policies in one process; the cache key covers every input."""
-    key = (
-        cfg.config_hash(),
-        tuple((source.id, source.lon, source.lat) for source in sources),
-        start,
-        end,
-        _ephemeris_sha256(),
-    )
+    """Reuse geometry across policies, families and (optionally) processes.
+
+    The in-process cache always applies. Setting ``AETHER_WINDOW_CACHE_DIR`` adds an on-disk
+    cache shared by benchmark workers; entries are canonical JSON written atomically and are
+    revalidated through the contract on load. Output is identical with or without either cache.
+    """
+    key = _window_cache_key(cfg, sources, start, end)
     cached = _WINDOW_CACHE.get(key)
+    origin = "process_cache"
+    disk = _disk_cache_dir()
+    path = None if disk is None else disk / f"windows-{key}.json"
+    if cached is None and path is not None and path.is_file():
+        origin = "disk_cache"
+        cached = tuple(
+            ObservationWindow.model_validate(item)
+            for item in json.loads(path.read_text(encoding="utf-8"))
+        )
     if cached is None:
+        origin = "computed"
         cached = tuple(generate_windows(cfg, list(sources), start, end))
+        if path is not None:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
+            tmp.write_bytes(_canonical_json([w.model_dump(mode="json") for w in cached]))
+            os.replace(tmp, path)
+    if key not in _WINDOW_CACHE:
         if len(_WINDOW_CACHE) >= 4:
             _WINDOW_CACHE.pop(next(iter(_WINDOW_CACHE)))
         _WINDOW_CACHE[key] = cached
-    return tuple(revalidate_contract(window) for window in cached)
+    return tuple(revalidate_contract(window) for window in cached), origin
 
 
 def _make_run_id(
@@ -349,9 +432,38 @@ def run_policy(
 ) -> RunRecord:
     """Run one deterministic, closed-loop policy; truth remains inside this function.
 
-    Every persisted contract is revalidated at its boundary. Reproducible solver wall time is
-    recorded as unavailable (``None``), since measuring it would make RunRecord bytes differ.
+    Every persisted contract is revalidated at its boundary. ``Plan.runtime_s`` is None so
+    RunRecord bytes never depend on wall time; use ``run_policy_with_performance`` for timing.
     """
+    return run_policy_with_performance(
+        bundle, policy_id, seed, plume_observations=plume_observations
+    )[0]
+
+
+def machine_description() -> dict[str, str]:
+    """What the timing was measured on. Descriptive only; nothing here enters a RunRecord."""
+    return {
+        "platform": platform.platform(),
+        "machine": platform.machine(),
+        "processor": platform.processor() or "unknown",
+        "python": platform.python_version(),
+        "cpu_count": str(os.cpu_count() or "unknown"),
+    }
+
+
+def run_policy_with_performance(
+    bundle: ScenarioBundle,
+    policy_id: PolicyId | str,
+    seed: int,
+    *,
+    plume_observations: Iterable[PlumeObservation] | None = None,
+) -> tuple[RunRecord, RunPerformance]:
+    """``run_policy`` plus measured wall times in a separate ``RunPerformance`` (PERF-01).
+
+    The RunRecord is identical to ``run_policy``'s: timings never flow into it.
+    """
+    run_started = time.perf_counter()
+    plan_timings: list[PlanTiming] = []
     policy_id = PolicyId(policy_id)
     if isinstance(seed, bool) or not isinstance(seed, int):
         raise TypeError("seed must be an integer")
@@ -364,7 +476,9 @@ def run_policy(
 
     start_utc = cfg.simulation_epoch_utc
     end_utc = start_utc + timedelta(hours=cfg.horizon_hours)
-    windows = _windows_for(cfg, sources, start_utc, end_utc)
+    windows_started = time.perf_counter()
+    windows, windows_source = _windows_for(cfg, sources, start_utc, end_utc)
+    windows_wall_s = time.perf_counter() - windows_started
     by_window = {window.id: window for window in windows}
     pass_groups = _pass_groups(tuple(window for window in windows if window.feasible))
     pass_starts = {pass_id: bounds[0] for pass_id, bounds in pass_groups.items()}
@@ -510,9 +624,21 @@ def run_policy(
                 "simulation",
                 {"revision": current_revision, "cause": cause, "checker_retry": retry},
             )
-            proposed = revalidate_contract(policy.plan(context))
+            plan_started = time.perf_counter()
+            proposed = policy.plan(context)
+            plan_wall_s = time.perf_counter() - plan_started
+            proposed = revalidate_contract(proposed)
             if not isinstance(proposed, Plan):
                 raise TypeError("policy returned a non-Plan value")
+            plan_timings.append(
+                PlanTiming(
+                    revision=current_revision,
+                    checker_retry=retry,
+                    candidate_window_count=len(candidate_windows),
+                    solver_status=proposed.solver_status,
+                    policy_plan_wall_s=plan_wall_s,
+                )
+            )
             # Wall-clock solver time is not reproducible output and is deliberately unavailable.
             proposed = revalidate_contract(proposed.model_copy(update={"runtime_s": None}))
             if proposed.run_id != run_id or proposed.policy_id is not policy_id:
@@ -805,7 +931,16 @@ def run_policy(
         events=tuple(events),
         input_dataset=dataset_ref,
     )
-    return revalidate_contract(run)
+    run = revalidate_contract(run)
+    performance = RunPerformance(
+        run_id=run_id,
+        machine=machine_description(),
+        total_run_wall_s=time.perf_counter() - run_started,
+        windows_wall_s=windows_wall_s,
+        windows_source=windows_source,
+        plan_timings=tuple(plan_timings),
+    )
+    return run, performance
 
 
 def _forecast_event_times(cfg: ScenarioConfig) -> list[tuple[datetime, dict]]:
@@ -853,6 +988,8 @@ __all__ = [
     "generate_sources",
     "load_configured_dataset",
     "repo_root",
+    "machine_description",
     "resolve_sources",
     "run_policy",
+    "run_policy_with_performance",
 ]

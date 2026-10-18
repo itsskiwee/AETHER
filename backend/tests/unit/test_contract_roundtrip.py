@@ -25,6 +25,13 @@ def contract_examples():
         sha256="0" * 64,
     )
     source = models.Source(id="s1", lon=0, lat=0)
+    timing = models.PlanTiming(
+        revision=0,
+        checker_retry=0,
+        candidate_window_count=1,
+        solver_status="OPTIMAL",
+        policy_plan_wall_s=0.01,
+    )
     dataset_ref = models.InputDatasetRef(
         dataset_id="dataset",
         manifest_path="data/manifests/example.json",
@@ -191,6 +198,15 @@ def contract_examples():
             input_dataset=dataset_ref,
         ),
         dataset_ref,
+        timing,
+        models.RunPerformance(
+            run_id="run",
+            machine={"python": "3.14"},
+            total_run_wall_s=2.0,
+            windows_wall_s=1.5,
+            windows_source="computed",
+            plan_timings=(timing,),
+        ),
     ]
 
 

@@ -4,6 +4,9 @@
     python -m aether.cli windows  --config ... --output runs/windows.json
     python -m aether.cli simulate --config ... --policies largest_first,adaptive_eig --seed 1000
 
+``simulate`` writes ``run.json`` (deterministic bytes), ``manifest.json`` and
+``performance.json`` (measured wall times; machine-dependent, never part of the RunRecord).
+
 ``windows`` and ``simulate`` place sources from the config's pinned plume dataset
 (``sources.plume_dataset``, docs/dataset-interface.md). ``--synthetic-only`` is the explicit
 uniform-placement mode; it changes the config hash. A named dataset that is missing or altered
@@ -163,7 +166,7 @@ def _windows(args: argparse.Namespace) -> int:
 
 def _simulate(args: argparse.Namespace) -> int:
     from aether.contracts.enums import PolicyId
-    from aether.simulation.runner import run_policy
+    from aether.simulation.runner import run_policy_with_performance
 
     config = Path(args.config).resolve()
     bundle = load_scenario(config, args.family, seed=args.seed, synthetic_only=args.synthetic_only)
@@ -179,9 +182,11 @@ def _simulate(args: argparse.Namespace) -> int:
     for name in args.policies.split(","):
         policy = PolicyId(name.strip())
         print(f"Simulating {policy.value}, seed {bundle.model.random_seed}…", flush=True)
-        run = run_policy(bundle, policy, bundle.model.random_seed)
+        run, performance = run_policy_with_performance(bundle, policy, bundle.model.random_seed)
         run_dir = output_dir / run.run_id
         _write_json(run_dir / "run.json", run.model_dump(mode="json"))
+        # Measured wall times live beside the deterministic record, never inside it (PERF-01).
+        _write_json(run_dir / "performance.json", performance.model_dump(mode="json"))
         family = Path(args.family).resolve() if args.family else None
         _write_json(
             run_dir / "manifest.json", _manifest(bundle, _config_paths(config, family), inputs)
@@ -220,11 +225,23 @@ def _export(args: argparse.Namespace) -> int:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     manifest["run_json_sha256"] = hashlib.sha256(record_bytes).hexdigest()
     manifest["run_id"] = record.run_id
+    performance_bytes = None
+    performance_path = run_dir / "performance.json"
+    if performance_path.is_file():
+        from aether.contracts.models import RunPerformance
+
+        performance = RunPerformance.model_validate_json(performance_path.read_bytes())
+        if performance.run_id != record.run_id:
+            raise ValueError("performance.json belongs to a different run")
+        performance_bytes = performance_path.read_bytes()
+        manifest["performance_json_sha256"] = hashlib.sha256(performance_bytes).hexdigest()
     target = Path(args.output)
     target.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(target, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         archive.writestr("run.json", record_bytes)
         archive.writestr("manifest.json", json.dumps(manifest, sort_keys=True, indent=2) + "\n")
+        if performance_bytes is not None:
+            archive.writestr("performance.json", performance_bytes)
     return 0
 
 
