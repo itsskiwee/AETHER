@@ -1,0 +1,353 @@
+{
+  "adapter_version": "aether-ingestion/0.1.0",
+  "catalog_url": "https://data.nasa.gov/dataset/emit-l2b-estimated-methane-plume-complexes-60-m-v002",
+  "citation_text": "Green, R. O., et al. EMIT L2B Estimated Methane Plume Complexes 60 m V002. NASA Land Processes Distributed Active Archive Center. https://doi.org/10.5067/EMIT/EMITL2BCH4PLM.002",
+  "dataset": "EMITL2BCH4PLM",
+  "dataset_id": "emit-l2b-ch4plm-002-permian-v1",
+  "known_limitations": [
+    "EMIT V002 is a plume product; missing plume rows are not non-detections.",
+    "These 2022-2025 records provide historical location context only and never set 2026 simulated truth or activity.",
+    "Native rate uncertainty values are retained, but uncertainty_kind remains UNKNOWN pending scientific review.",
+    "The 20-record deterministic time-stratified sample is not a probability sample of all Permian sources.",
+    "Exact file retrieval URLs and retrieval time are unavailable; see retrieval.evidence."
+  ],
+  "license_url": "https://www.usa.gov/government-works",
+  "normalized": {
+    "path": "data/normalized/emit_permian_plumes.json",
+    "record_count": 20,
+    "sha256": "ba4305b3876abfca607cb8a994918a945fbd168291466dc169712b5973c94343",
+    "size_bytes": 127928
+  },
+  "provider": "NASA LP DAAC",
+  "raw_files": [
+    {
+      "native_id": "CH4_PlumeComplex-1451",
+      "path": "data/raw/pinned_emit_permian_v1/EMIT_L2B_CH4PLMMETA_002_20231004T174744_001451.json",
+      "role": "metadata",
+      "sha256": "32de555f86ce0140d622f96ebd1fa259e1b0b0e8da5cd348b155dcdfddcf990b",
+      "size_bytes": 6878
+    },
+    {
+      "native_id": "CH4_PlumeComplex-1451",
+      "path": "data/raw/pinned_emit_permian_v1/EMIT_L2B_CH4PLM_002_20231004T174744_001451.tif",
+      "role": "raster",
+      "sha256": "5493e9b638d09e45fa9438fc4cb37f21a4248fa3826fe506178168f63e62af70",
+      "size_bytes": 18545
+    },
+    {
+      "native_id": "CH4_PlumeComplex-1534",
+      "path": "data/raw/pinned_emit_permian_v1/EMIT_L2B_CH4PLMMETA_002_20231008T161127_001534.json",
+      "role": "metadata",
+      "sha256": "594136cff0a92218a499f8c17af49c34fe057b6d40227188d35994706724904f",
+      "size_bytes": 8425
+    },
+    {
+      "native_id": "CH4_PlumeComplex-1534",
+      "path": "data/raw/pinned_emit_permian_v1/EMIT_L2B_CH4PLM_002_20231008T161127_001534.tif",
+      "role": "raster",
+      "sha256": "f87987fe2edc6f6244eabf8e7eb5a2c18e206cb7a78759cc3e96db5c56a065d3",
+      "size_bytes": 19956
+    },
+    {
+      "native_id": "CH4_PlumeComplex-1782",
+      "path": "data/raw/pinned_emit_permian_v1/EMIT_L2B_CH4PLMMETA_002_20230927T201114_001782.json",
+      "role": "metadata",
+      "sha256": "432586f1ce86644883fc35ed14fab7b3c40d5923e381fe9fdd8042c26faa8917",
+      "size_bytes": 4529
+    },
+    {
+      "native_id": "CH4_PlumeComplex-1782",
+      "path": "data/raw/pinned_emit_permian_v1/EMIT_L2B_CH4PLM_002_20230927T201114_001782.tif",
+      "role": "raster",
+      "sha256": "dab7a454b6a77c6af5606e849a0ad5cb1974e407823c47e4182d7cdec0665e24",
+      "size_bytes": 17857
+    },
+    {
+      "native_id": "CH4_PlumeComplex-1893",
+      "path": "data/raw/pinned_emit_permian_v1/EMIT_L2B_CH4PLMMETA_002_20231028T161900_001893.json",
+      "role": "metadata",
+      "sha256": "1742312a7bdc2e32638163539d0bf73b8b512638a8a8ce8f1cd60216af0280a6",
+      "size_bytes": 4006
+    },
+    {
+      "native_id": "CH4_PlumeComplex-1893",
+      "path": "data/raw/pinned_emit_permian_v1/EMIT_L2B_CH4PLM_002_20231028T161900_001893.tif",
+      "role": "raster",
+      "sha256": "4608e97934b03e11ba079bc8d88cf5e4635911385f402e03e0bfa9920e2b80fd",
+      "size_bytes": 17495
+    },
+    {
+      "native_id": "CH4_PlumeComplex-2138",
+      "path": "data/raw/pinned_emit_permian_v1/EMIT_L2B_CH4PLMMETA_002_20231205T165825_002138.json",
+      "role": "metadata",
+      "sha256": "051188710066b6acd7240c7195cf18db60ee94c61980f19ee330e455031cded6",
+      "size_bytes": 18378
+    },
+    {
+      "native_id": "CH4_PlumeComplex-2138",
+      "path": "data/raw/pinned_emit_permian_v1/EMIT_L2B_CH4PLM_002_20231205T165825_002138.tif",
+      "role": "raster",
+      "sha256": "1a55e89b791eaac1547eee9a1e53a283a51b588754d5c202f871977fa7481639",
+      "size_bytes": 35573
+    },
+    {
+      "native_id": "CH4_PlumeComplex-219",
+      "path": "data/raw/pinned_emit_permian_v1/EMIT_L2B_CH4PLMMETA_002_20230604T180205_000219.json",
+      "role": "metadata",
+      "sha256": "b90abb902d103a9ad73a0a620b5c09927b31216b84f0a719267f47228cdd0f54",
+      "size_bytes": 6358
+    },
+    {
+      "native_id": "CH4_PlumeComplex-219",
+      "path": "data/raw/pinned_emit_permian_v1/EMIT_L2B_CH4PLM_002_20230604T180205_000219.tif",
+      "role": "raster",
+      "sha256": "d43171f32c7018c09133436534af13a855c6873a2bb0fb0818200b98863441b3",
+      "size_bytes": 18786
+    },
+    {
+      "native_id": "CH4_PlumeComplex-2230",
+      "path": "data/raw/pinned_emit_permian_v1/EMIT_L2B_CH4PLMMETA_002_20230820T192855_002230.json",
+      "role": "metadata",
+      "sha256": "376848e788e236b53f20dc854d430b226c87cd151bcf0e02147807803ef03e08",
+      "size_bytes": 13368
+    },
+    {
+      "native_id": "CH4_PlumeComplex-2230",
+      "path": "data/raw/pinned_emit_permian_v1/EMIT_L2B_CH4PLM_002_20230820T192855_002230.tif",
+      "role": "raster",
+      "sha256": "39d21516c2ae39fc4a281b8ef3a6d0dc06a3e671888d6da7aba091694e61c318",
+      "size_bytes": 22519
+    },
+    {
+      "native_id": "CH4_PlumeComplex-2249",
+      "path": "data/raw/pinned_emit_permian_v1/EMIT_L2B_CH4PLMMETA_002_20231224T174533_002249.json",
+      "role": "metadata",
+      "sha256": "3175eb69d9ce51fffbab7d6d1ce95472d11ab087298e09f0410f28c0b32a6675",
+      "size_bytes": 8677
+    },
+    {
+      "native_id": "CH4_PlumeComplex-2249",
+      "path": "data/raw/pinned_emit_permian_v1/EMIT_L2B_CH4PLM_002_20231224T174533_002249.tif",
+      "role": "raster",
+      "sha256": "4945934fb33424095370a5c442792df157d517c24b7b74fb9ebfd7bae87a5235",
+      "size_bytes": 19962
+    },
+    {
+      "native_id": "CH4_PlumeComplex-2266",
+      "path": "data/raw/pinned_emit_permian_v1/EMIT_L2B_CH4PLMMETA_002_20231224T174533_002266.json",
+      "role": "metadata",
+      "sha256": "977770d437e8a8755a219afebf7500f6105f69b0de13d3e08c3194581192eb1d",
+      "size_bytes": 5062
+    },
+    {
+      "native_id": "CH4_PlumeComplex-2266",
+      "path": "data/raw/pinned_emit_permian_v1/EMIT_L2B_CH4PLM_002_20231224T174533_002266.tif",
+      "role": "raster",
+      "sha256": "ab616597980593de73b1110787a32f8ba9f1fc291abbb0a152598a6fe5ccdc34",
+      "size_bytes": 17590
+    },
+    {
+      "native_id": "CH4_PlumeComplex-2703",
+      "path": "data/raw/pinned_emit_permian_v1/EMIT_L2B_CH4PLMMETA_002_20240212T214808_002703.json",
+      "role": "metadata",
+      "sha256": "80e1bb98831264de3bf76ddc04e2b1dbbef52475b690697593576b119208bd85",
+      "size_bytes": 6600
+    },
+    {
+      "native_id": "CH4_PlumeComplex-2703",
+      "path": "data/raw/pinned_emit_permian_v1/EMIT_L2B_CH4PLM_002_20240212T214808_002703.tif",
+      "role": "raster",
+      "sha256": "cebddaaecaa74f23d93c4bdcd68fafdc0a39cbae27f89956347247147ac7c03f",
+      "size_bytes": 19269
+    },
+    {
+      "native_id": "CH4_PlumeComplex-2705",
+      "path": "data/raw/pinned_emit_permian_v1/EMIT_L2B_CH4PLMMETA_002_20240212T214820_002705.json",
+      "role": "metadata",
+      "sha256": "1f1727829d07e2b9a1e80becc7ed00f92f967045950df11f85471c7fe9c58105",
+      "size_bytes": 7917
+    },
+    {
+      "native_id": "CH4_PlumeComplex-2705",
+      "path": "data/raw/pinned_emit_permian_v1/EMIT_L2B_CH4PLM_002_20240212T214820_002705.tif",
+      "role": "raster",
+      "sha256": "deb1f437d94a8e9d9f867815a820e700dcc3732c86368942d048c122000f9a93",
+      "size_bytes": 18825
+    },
+    {
+      "native_id": "CH4_PlumeComplex-337",
+      "path": "data/raw/pinned_emit_permian_v1/EMIT_L2B_CH4PLMMETA_002_20230608T162322_000337.json",
+      "role": "metadata",
+      "sha256": "04ab9e9efae667776c6719e8fb7ee8269d030b2cf9f502a087e71fa8686e29c0",
+      "size_bytes": 8417
+    },
+    {
+      "native_id": "CH4_PlumeComplex-337",
+      "path": "data/raw/pinned_emit_permian_v1/EMIT_L2B_CH4PLM_002_20230608T162322_000337.tif",
+      "role": "raster",
+      "sha256": "81d1b79ba57fe5369357b19d188574f4ce45ec35adc0023ff6c61a76b40ad967",
+      "size_bytes": 21528
+    },
+    {
+      "native_id": "CH4_PlumeComplex-3372",
+      "path": "data/raw/pinned_emit_permian_v1/EMIT_L2B_CH4PLMMETA_002_20240727T195505_003372.json",
+      "role": "metadata",
+      "sha256": "cb8d1e5cc8a14e7821b87212781eecc4be118ad900bef5798368daf2c5d72c9b",
+      "size_bytes": 12046
+    },
+    {
+      "native_id": "CH4_PlumeComplex-3372",
+      "path": "data/raw/pinned_emit_permian_v1/EMIT_L2B_CH4PLM_002_20240727T195505_003372.tif",
+      "role": "raster",
+      "sha256": "e2065737b32277ab3f5fc8fa25abdeda6719fccf86be19f8b6f5cd0ff97f2723",
+      "size_bytes": 24412
+    },
+    {
+      "native_id": "CH4_PlumeComplex-3462",
+      "path": "data/raw/pinned_emit_permian_v1/EMIT_L2B_CH4PLMMETA_002_20240823T173410_003462.json",
+      "role": "metadata",
+      "sha256": "aa8f4edb2309ecd0a115b1bb5dcafb9a4e890201c798b66d0a88cfe17728830e",
+      "size_bytes": 10765
+    },
+    {
+      "native_id": "CH4_PlumeComplex-3462",
+      "path": "data/raw/pinned_emit_permian_v1/EMIT_L2B_CH4PLM_002_20240823T173410_003462.tif",
+      "role": "raster",
+      "sha256": "56e6b494162b83368a972eb5f0c7c4c52413019e375278eeb5e86b2d4a66475e",
+      "size_bytes": 22283
+    },
+    {
+      "native_id": "CH4_PlumeComplex-350",
+      "path": "data/raw/pinned_emit_permian_v1/EMIT_L2B_CH4PLMMETA_002_20230608T162346_000350.json",
+      "role": "metadata",
+      "sha256": "4ca037b374f8c1bbfc8cb059d4b24330505c1f7ffe5b7a9a104e40d71ed89a9a",
+      "size_bytes": 28691
+    },
+    {
+      "native_id": "CH4_PlumeComplex-350",
+      "path": "data/raw/pinned_emit_permian_v1/EMIT_L2B_CH4PLM_002_20230608T162346_000350.tif",
+      "role": "raster",
+      "sha256": "1dbcd4f01550b187e06728ce2b0e53c2ac366808e781e6641096a7aec1147f44",
+      "size_bytes": 76314
+    },
+    {
+      "native_id": "CH4_PlumeComplex-353",
+      "path": "data/raw/pinned_emit_permian_v1/EMIT_L2B_CH4PLMMETA_002_20230608T162346_000353.json",
+      "role": "metadata",
+      "sha256": "7ab7ebcd267a8ecf680ea4aaef83d433b773933df7d19f533108d2baff25e1a4",
+      "size_bytes": 4522
+    },
+    {
+      "native_id": "CH4_PlumeComplex-353",
+      "path": "data/raw/pinned_emit_permian_v1/EMIT_L2B_CH4PLM_002_20230608T162346_000353.tif",
+      "role": "raster",
+      "sha256": "20c2efd07227407c5002312ae90fc7a8efd21c8b2695c1d751c430b8684a7dc1",
+      "size_bytes": 17593
+    },
+    {
+      "native_id": "CH4_PlumeComplex-3638",
+      "path": "data/raw/pinned_emit_permian_v1/EMIT_L2B_CH4PLMMETA_002_20241004T165227_003638.json",
+      "role": "metadata",
+      "sha256": "ced00f9659c4b7b3dd3e6b26b9f9700cf375651281b7d86cf48a947cf278f2a8",
+      "size_bytes": 6601
+    },
+    {
+      "native_id": "CH4_PlumeComplex-3638",
+      "path": "data/raw/pinned_emit_permian_v1/EMIT_L2B_CH4PLM_002_20241004T165227_003638.tif",
+      "role": "raster",
+      "sha256": "ffbb15a5b0dba8df23a39fd86933709fef4c6e1ad47adc9e182be76d09d2abc1",
+      "size_bytes": 18243
+    },
+    {
+      "native_id": "CH4_PlumeComplex-399",
+      "path": "data/raw/pinned_emit_permian_v1/EMIT_L2B_CH4PLMMETA_002_20230731T191834_000399.json",
+      "role": "metadata",
+      "sha256": "dbb31038a95d2879090f2b0a854655cea30708eb07c2d0b59fc9d48d350a50a4",
+      "size_bytes": 11804
+    },
+    {
+      "native_id": "CH4_PlumeComplex-399",
+      "path": "data/raw/pinned_emit_permian_v1/EMIT_L2B_CH4PLM_002_20230731T191834_000399.tif",
+      "role": "raster",
+      "sha256": "67a58e19a1d7aff032569f1480b350f1434cf404b05775419b109d405e695fe1",
+      "size_bytes": 20298
+    },
+    {
+      "native_id": "CH4_PlumeComplex-404",
+      "path": "data/raw/pinned_emit_permian_v1/EMIT_L2B_CH4PLMMETA_002_20230731T191822_000404.json",
+      "role": "metadata",
+      "sha256": "e667b8100c0e39496319e4744c502ece9bdd4b70b0ec705aa90c4fe1f8556ab1",
+      "size_bytes": 11522
+    },
+    {
+      "native_id": "CH4_PlumeComplex-404",
+      "path": "data/raw/pinned_emit_permian_v1/EMIT_L2B_CH4PLM_002_20230731T191822_000404.tif",
+      "role": "raster",
+      "sha256": "d1b12f19bdb9cd45dd44e61fb16510af5ddb1bf1d74177187e748571afc0d084",
+      "size_bytes": 22437
+    },
+    {
+      "native_id": "CH4_PlumeComplex-627",
+      "path": "data/raw/pinned_emit_permian_v1/EMIT_L2B_CH4PLMMETA_002_20230205T171255_000627.json",
+      "role": "metadata",
+      "sha256": "45bdc140853f3c19caafec7c5bb82aa09c811468df659d51c60ec98d6f498835",
+      "size_bytes": 10489
+    },
+    {
+      "native_id": "CH4_PlumeComplex-627",
+      "path": "data/raw/pinned_emit_permian_v1/EMIT_L2B_CH4PLM_002_20230205T171255_000627.tif",
+      "role": "raster",
+      "sha256": "23a83efe0f1430410a5eae0e5150470c1c1db62cbbaacdf9305f2bac5bf0042a",
+      "size_bytes": 24246
+    }
+  ],
+  "retrieval": {
+    "evidence": "The product DOI and NASA catalog URL are known, but exact per-file download URLs and the actual retrieval timestamp were not retained. Git history shows these input bytes were present by commit a70976e8306e82e99d055eadfa6056f12022b125 (2026-10-18T04:59:19Z); that is repository-inclusion evidence only, not a retrieval timestamp. Filename and filesystem timestamps are not used to fill the gap.",
+    "retrieved_at_utc": null,
+    "source_urls": [],
+    "status": "PARTIAL"
+  },
+  "schema_version": 1,
+  "selection": {
+    "inventory_path": "data/manifests/emit_inventory.json",
+    "inventory_sha256": "c7f591ad79fd1f33fad2d30ffc0225642730d038ccfeeac6cb28c31fad24ff74",
+    "region_bbox_wgs84": [
+      -104.5,
+      30.8,
+      -101.0,
+      33.5
+    ],
+    "regional_500_m_cluster_count": 144,
+    "regional_inventory_count": 155,
+    "regional_na_rate_count": 82,
+    "regional_numeric_rate_count": 73,
+    "rule": "Use accepted unique metadata/raster pairs whose representative coordinates fall inside the registered Permian bbox. Partition by finite numeric rate versus provider literal NA. Sort each stratum by (UTC Time Observed, Plume ID); for each of ten positions i=0..9, select index floor((i + 0.5) * stratum_count / 10). Merge the strata and normalize by id.",
+    "selected_500_m_cluster_count": 20,
+    "selected_na_rate_count": 10,
+    "selected_native_ids": [
+      "CH4_PlumeComplex-1451",
+      "CH4_PlumeComplex-1534",
+      "CH4_PlumeComplex-1782",
+      "CH4_PlumeComplex-1893",
+      "CH4_PlumeComplex-2138",
+      "CH4_PlumeComplex-219",
+      "CH4_PlumeComplex-2230",
+      "CH4_PlumeComplex-2249",
+      "CH4_PlumeComplex-2266",
+      "CH4_PlumeComplex-2703",
+      "CH4_PlumeComplex-2705",
+      "CH4_PlumeComplex-337",
+      "CH4_PlumeComplex-3372",
+      "CH4_PlumeComplex-3462",
+      "CH4_PlumeComplex-350",
+      "CH4_PlumeComplex-353",
+      "CH4_PlumeComplex-3638",
+      "CH4_PlumeComplex-399",
+      "CH4_PlumeComplex-404",
+      "CH4_PlumeComplex-627"
+    ],
+    "selected_numeric_rate_count": 10
+  },
+  "transformation_version": "aether-geojson-normalization/1",
+  "version": "002"
+}
