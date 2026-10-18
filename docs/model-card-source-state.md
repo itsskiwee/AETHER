@@ -9,6 +9,8 @@ Represent what the planner believes about each source hypothesis (provenance `MO
 
 **Not for:** statements about whether a real facility is or was emitting.
 
+**Source locations (18 Oct 2026).** Since the pinned dataset was integrated (`configs/base.yaml`, PR-P04), the 20 base source hypotheses sit at the locations of 20 historical EMIT V002 Permian plume records (2023–2024). No uniform fill is needed for the base config; `h168_long_horizon` adds 40 fill sources. These records set **locations only**. Every source starts from the same regime and flux prior as before. No historical rate, uncertainty or detection date enters truth, the prior or the belief, so the model is unchanged. The calibration evidence on the pinned scenario is in `docs/validation-report.md` §3.3.
+
 ## Model
 
 - **Regime** r ∈ {PERSISTENT, INTERMITTENT, EPISODIC}, static per source, prior weights 0.15 / 0.45 / 0.40 (PR-P20..P22).
