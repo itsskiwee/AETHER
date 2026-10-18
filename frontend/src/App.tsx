@@ -1,43 +1,66 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { ScreenContent } from './ArchiveViews'
 import { RunManifest } from './ArtifactEvidence'
-import LiveContext from './LiveContext'
 import type { BenchmarkProtocol, BenchmarkReport, BenchmarkRow, ProjectSnapshot, RunIndexItem, RunRecord } from './types'
 import { parseRun } from './types'
-import './mission-control.css'
+import './console.css'
 
 export { readInterval } from './ArchiveViews'
 
+// UI-11 console. Pages are grouped by what they show: REAL provider data (EMIT records, NASA
+// catalogue, CelesTrak passes) or the SIMULATED mission (virtual fleet, planner, beliefs, tests).
 const views = [
-  ['overview', 'Mission overview', 'grid'], ['live', 'Satellite context', 'satellite'],
-  ['sources', 'Sources & observations', 'pin'], ['windows', 'Observation windows', 'calendar'],
-  ['planner', 'Mission planner', 'route'], ['beliefs', 'Belief history', 'wave'],
-  ['comparison', 'Policy comparison', 'bars'], ['configuration', 'Scenario & instruments', 'satellite'], ['evidence', 'Evidence & exports', 'shield'],
+  ['overview', 'Overview', 'grid', 'real'],
+  ['observations', 'Real observations', 'pin', 'real'],
+  ['passes', 'Real satellite passes', 'calendar', 'real'],
+  ['planner', 'Planner', 'route', 'sim'],
+  ['beliefs', 'Beliefs', 'wave', 'sim'],
+  ['comparison', 'Policy test', 'bars', 'sim'],
+  ['setup', 'Setup', 'satellite', 'sim'],
+  ['evidence', 'Evidence & exports', 'shield', 'sim'],
 ] as const
 type View = typeof views[number][0]
-type LiveSummary = { status: string; computed_at_utc: string; satellites: { name: string }[]; feeds: { id: string; stale: boolean; retrieved_at_utc: string }[] }
-type Performance = { run_id: string; measured: boolean; total_run_wall_s: number; windows_source: string }
-type Research = { protocol_locked: boolean; capacity: { verdict: string; failing_pass: string } | null; synthetic_discriminability_pilot: { overall_passed: boolean } | null }
-const policyName = (id: string) => ({ adaptive_eig: 'Adaptive information gain', largest_first: 'Largest source first', greedy_eig: 'Greedy information gain' }[id] ?? id.replaceAll('_', ' '))
-const format = (value: number | undefined, digits = 0) => value === undefined || !Number.isFinite(value) ? '—' : new Intl.NumberFormat('en', { maximumFractionDigits: digits }).format(value)
-const utc = (value: string | undefined) => value && Number.isFinite(Date.parse(value)) ? new Date(value).toISOString().replace('T', ' ').replace('.000Z', ' UTC') : 'Unavailable'
+const LEGACY: Record<string, View> = { live: 'passes', sources: 'observations', windows: 'passes', configuration: 'setup' }
 
-function Icon({ name, className = '' }: { name: string; className?: string }) {
+type RealSat = { norad_id: number; name: string; role: string; retrieved_at_utc?: string; refresh_status: string; omm?: { EPOCH: string } }
+type EmitRecord = { id: string; native_id: string; acquisition_time_utc: string; lat: number; lon: number; emission_rate_kg_h: number | null; emission_rate_uncertainty_kg_h: number | null; missing_rate_reason: string | null; provider: string; dataset_version: string }
+type Granule = { title: string; time_start: string; updated: string; data_url: string | null }
+type Pass = { norad_id: number; satellite: string; start_utc: string; end_utc: string; closest_utc: string; sites_in_swath: string[]; min_ground_distance_km: number; sun_elevation_deg: number; daylit: boolean }
+type RealBundle = {
+  built_at_utc: string
+  real_satellites: RealSat[]
+  emit_records: EmitRecord[]
+  emit_recent: { url: string; retrieved_at_utc?: string; refresh_status: string; granules: Granule[] }
+  real_passes: { from_utc: string; lookahead_hours: number; swath_km: Record<string, number>; note: string; passes: Pass[] }
+}
+
+const policyName = (id: string) => ({ adaptive_eig: 'Adaptive information gain', largest_first: 'Largest source first', greedy_eig: 'Greedy information gain', random_feasible: 'Random (reference)', oracle: 'Oracle-informed reference' }[id] ?? id.replaceAll('_', ' '))
+const num = (value: number | null | undefined, digits = 0) => value === null || value === undefined || !Number.isFinite(value) ? '—' : new Intl.NumberFormat('en', { maximumFractionDigits: digits, minimumFractionDigits: digits }).format(value)
+const parse = (iso: string) => Date.parse(/[zZ]|[+-]\d\d:\d\d$/.test(iso) ? iso : `${iso}Z`)
+const utc = (iso: string | undefined) => iso && Number.isFinite(parse(iso)) ? new Date(parse(iso)).toISOString().replace('T', ' ').slice(0, 16) + ' UTC' : '—'
+const day = (iso: string) => new Date(parse(iso)).toISOString().slice(0, 10)
+function relative(ms: number) {
+  const m = Math.round(Math.abs(ms) / 60000)
+  const text = m < 60 ? `${m} min` : m < 48 * 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${Math.round(m / 1440)} days`
+  return ms >= 0 ? `in ${text}` : `${text} ago`
+}
+
+function Icon({ name }: { name: string }) {
   const paths: Record<string, ReactNode> = {
+    globe: <><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" /></>,
     grid: <><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></>,
     satellite: <><path d="m9 9 6 6m-9-3-3 3 6 6 3-3m0-12 3-3 6 6-3 3M8 8l8 8-4 4-8-8z" /><path d="M16 17a5 5 0 0 0 5-5" /></>,
     pin: <><path d="M20 10c0 6-8 11-8 11S4 16 4 10a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="2.5" /></>,
-    calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4m8-4v4M7 14h3m4 0h3m-10 4h3" /></>,
-    route: <><circle cx="5" cy="5" r="2" /><circle cx="19" cy="19" r="2" /><path d="M5 7v8a4 4 0 0 0 4 4h8M7 5h8a4 4 0 0 1 4 4v3m-3-3 3 3 3-3" /></>,
+    calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4m8-4v4" /></>,
+    route: <><circle cx="5" cy="5" r="2" /><circle cx="19" cy="19" r="2" /><path d="M5 7v8a4 4 0 0 0 4 4h8M7 5h8a4 4 0 0 1 4 4v3" /></>,
     wave: <path d="M2 12h4l3-8 5 16 3-8h5" />,
     bars: <><path d="M4 21V11m8 10V3m8 18V7" /><path d="M2 21h20" /></>,
     shield: <><path d="m12 2 9 4v6c0 5-9 10-9 10S3 17 3 12V6z" /><path d="m8 12 3 3 5-6" /></>,
     arrow: <path d="M4 12h16m-6-6 6 6-6 6" />,
-    download: <><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5" /></>,
-    refresh: <><path d="M20 7v5h-5M4 17v-5h5" /><path d="M6 6a8 8 0 0 1 14 6M4 12a8 8 0 0 0 14 6" /></>,
+    download: <path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5" />,
   }
-  return <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name] ?? paths.grid}</svg>
+  return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name] ?? paths.grid}</svg>
 }
 
 async function get<T>(url: string, signal?: AbortSignal): Promise<T> {
@@ -46,9 +69,17 @@ async function get<T>(url: string, signal?: AbortSignal): Promise<T> {
   return response.json() as Promise<T>
 }
 function currentView(): View {
-  const value = new URLSearchParams(location.search).get('view')
+  const value = new URLSearchParams(location.search).get('view') ?? ''
+  if (value in LEGACY) return LEGACY[value]
   return views.some(([key]) => key === value) ? value as View : 'overview'
 }
+
+const Tag = ({ kind }: { kind: 'real' | 'sim' }) => <span className={`cx-tag ${kind}`}>{kind === 'real' ? 'REAL DATA' : 'SIMULATION'}</span>
+function Page({ kind, kicker, title, intro, children }: { kind: 'real' | 'sim'; kicker: string; title: string; intro: ReactNode; children: ReactNode }) {
+  return <div className="cx-page"><header className="cx-page-head"><div><Tag kind={kind} /><span className="cx-kicker">{kicker}</span></div><h1>{title}</h1><p>{intro}</p></header>{children}</div>
+}
+const Card = ({ title, aside, children, className = '' }: { title?: string; aside?: ReactNode; children: ReactNode; className?: string }) => <section className={`cx-card ${className}`}>{(title || aside) && <div className="cx-card-head">{title && <h2>{title}</h2>}{aside}</div>}{children}</section>
+const Stat = ({ label, value, note, kind }: { label: string; value: string; note: string; kind: 'real' | 'sim' }) => <div className={`cx-stat ${kind}`}><span>{label}</span><strong>{value}</strong><small>{note}</small></div>
 
 export default function App() {
   const [view, setView] = useState<View>(currentView)
@@ -56,146 +87,243 @@ export default function App() {
   const [index, setIndex] = useState<RunIndexItem[]>([])
   const [runId, setRunId] = useState(new URLSearchParams(location.search).get('run') ?? '')
   const [run, setRun] = useState<RunRecord | null>(null)
-  const [runLoading, setRunLoading] = useState(true)
   const [runError, setRunError] = useState('')
   const [project, setProject] = useState<ProjectSnapshot | null>(null)
-  const [live, setLive] = useState<LiveSummary | null>(null)
   const [rows, setRows] = useState<BenchmarkRow[]>([])
   const [report, setReport] = useState<BenchmarkReport | null>(null)
   const [protocol, setProtocol] = useState<BenchmarkProtocol | null>(null)
-  const [performance, setPerformance] = useState<Performance | null>(null)
-  const [resourceError, setResourceError] = useState<string[]>([])
-  const [refreshing, setRefreshing] = useState(false)
-  const [runVersion, setRunVersion] = useState(0)
-  const [research, setResearch] = useState<Research | null>(null)
+  const [real, setReal] = useState<RealBundle | null>(null)
+  const [realError, setRealError] = useState('')
+  const [now, setNow] = useState(() => Date.now())
 
-  const navigate = useCallback((next: View, sourceId?: string) => {
+  const navigate = useCallback((next: View) => {
     setView(next); setMenu(false)
-    const url = new URL(location.href); url.searchParams.set('view', next)
-    if (sourceId) url.searchParams.set('source', sourceId)
-    else if (next !== 'sources' && next !== 'beliefs') url.searchParams.delete('source')
+    const url = new URL(location.href); url.searchParams.set('view', next); url.searchParams.delete('source')
     history.pushState(null, '', url)
-    document.getElementById('mission-main')?.focus()
+    document.getElementById('cx-main')?.focus()
   }, [])
-  const refresh = useCallback(async (signal?: AbortSignal) => {
-    setRefreshing(true)
-    const endpoints = ['/api/runs', '/api/project', '/api/live-context', '/api/benchmark-results.csv', '/api/benchmark-confidence-intervals.json', '/api/benchmark-protocol', '/api/research-status']
-    const results = await Promise.allSettled(endpoints.map(url => get<unknown>(url, signal)))
-    if (signal?.aborted) return
-    const failures: string[] = []
-    results.forEach((result, i) => { if (result.status === 'rejected') failures.push(endpoints[i]) })
-    const value = <T,>(i: number): T | null => results[i].status === 'fulfilled' ? (results[i] as PromiseFulfilledResult<T>).value : null
-    const runs = value<RunIndexItem[]>(0)
-    if (Array.isArray(runs) && runs.every(item => typeof item.run_id === 'string' && typeof item.policy_id === 'string')) {
+
+  useEffect(() => {
+    const controller = new AbortController()
+    const { signal } = controller
+    get<RealBundle>('/globe/globe-data.json', signal).then(setReal).catch(e => { if (!signal.aborted) setRealError(String(e.message ?? e)) })
+    get<RunIndexItem[]>('/api/runs', signal).then(runs => {
       setIndex(runs)
       setRunId(previous => previous || runs.find(item => item.policy_id === 'adaptive_eig')?.run_id || runs[0]?.run_id || '')
-      if (!runs.length) { setRunLoading(false); setRunError('No recorded runs are available in this deployment.') }
-    } else { setRunError('The run archive is unavailable. Satellite context can still be opened.'); setRunLoading(false) }
-    const snapshot = value<ProjectSnapshot>(1); setProject(snapshot?.scenario?.id ? snapshot : null)
-    const feeds = value<LiveSummary>(2); setLive(feeds && Array.isArray(feeds.satellites) && Array.isArray(feeds.feeds) ? feeds : null)
-    const benchmark = value<BenchmarkRow[]>(3); setRows(Array.isArray(benchmark) ? benchmark : [])
-    const intervals = value<BenchmarkReport>(4); setReport(intervals && Array.isArray(intervals.comparisons) && typeof intervals.protocol_locked === 'boolean' ? intervals : null)
-    const spec = value<BenchmarkProtocol>(5); setProtocol(spec && Array.isArray(spec.primary_comparison) ? spec : null)
-    const gates = value<Research>(6); setResearch(gates && typeof gates.protocol_locked === 'boolean' ? gates : null)
-    setResourceError(failures); setRefreshing(false); setRunVersion(previous => previous + 1)
+      if (!runs.length) setRunError('No recorded simulation runs in this deployment.')
+    }).catch(() => { if (!signal.aborted) setRunError('The simulation archive is unavailable. Real-data pages still work.') })
+    get<ProjectSnapshot>('/api/project', signal).then(p => setProject(p?.scenario?.id ? p : null)).catch(() => undefined)
+    get<BenchmarkRow[]>('/api/benchmark-results.csv', signal).then(r => setRows(Array.isArray(r) ? r : [])).catch(() => undefined)
+    get<BenchmarkReport>('/api/benchmark-confidence-intervals.json', signal).then(r => setReport(Array.isArray(r?.comparisons) ? r : null)).catch(() => undefined)
+    get<BenchmarkProtocol>('/api/benchmark-protocol', signal).then(p => setProtocol(Array.isArray(p?.primary_comparison) ? p : null)).catch(() => undefined)
+    return () => controller.abort()
   }, [])
-
-  useEffect(() => { const controller = new AbortController(); void refresh(controller.signal); return () => controller.abort() }, [refresh])
   useEffect(() => {
     if (!runId) return
     const controller = new AbortController()
-    setRunLoading(true); setRunError(''); setRun(null); setPerformance(null)
-    get<unknown>(`/api/runs/${encodeURIComponent(runId)}`, controller.signal).then(value => {
-      const parsed = parseRun(value)
-      if (!controller.signal.aborted) { setRun(parsed); setRunLoading(false) }
-    }).catch(error => { if (!controller.signal.aborted) { setRunError(error.message); setRunLoading(false) } })
-    get<Performance>(`/api/runs/${encodeURIComponent(runId)}/performance.json`, controller.signal).then(value => {
-      if (!controller.signal.aborted && value.run_id === runId && value.measured === true && Number.isFinite(value.total_run_wall_s)) setPerformance(value)
-    }).catch(() => { /* A missing performance sidecar stays unavailable. */ })
+    setRun(null)
+    get<unknown>(`/api/runs/${encodeURIComponent(runId)}`, controller.signal).then(value => { if (!controller.signal.aborted) setRun(parseRun(value)) })
+      .catch(error => { if (!controller.signal.aborted) setRunError(error.message) })
     return () => controller.abort()
-  }, [runId, runVersion])
-  useEffect(() => {
-    const onPop = () => { setView(currentView()); const requested = new URLSearchParams(location.search).get('run'); if (requested) setRunId(requested) }
-    window.addEventListener('popstate', onPop); return () => window.removeEventListener('popstate', onPop)
-  }, [])
+  }, [runId])
+  useEffect(() => { const id = window.setInterval(() => setNow(Date.now()), 30000); return () => window.clearInterval(id) }, [])
+  useEffect(() => { const onPop = () => setView(currentView()); window.addEventListener('popstate', onPop); return () => window.removeEventListener('popstate', onPop) }, [])
   useEffect(() => { document.title = `${views.find(([key]) => key === view)?.[1]} · AETHER` }, [view])
-  useEffect(() => { const close = (event: KeyboardEvent) => { if (event.key === 'Escape') setMenu(false) }; window.addEventListener('keydown', close); return () => window.removeEventListener('keydown', close) }, [])
-  const chooseRun = (id: string) => {
-    setRunId(id)
-    const url = new URL(location.href); url.searchParams.set('run', id); history.replaceState(null, '', url)
-  }
-  const selectedView = views.find(([key]) => key === view)!
-  const screen = ({ sources: 'B', windows: 'C', planner: 'E', beliefs: 'D', comparison: 'F', evidence: 'G', configuration: 'A' } as const)[view as Exclude<View, 'overview' | 'live'>]
-  const violations = run?.validations.reduce((sum, item) => sum + item.violations.length, 0)
-  const feedsReady = !!live?.feeds.length && live.feeds.every(feed => !feed.stale)
 
-  return <div className="mc-shell">
-    <a className="skip-link" href="#mission-main">Skip to workspace</a>
-    <aside className={`mc-sidebar ${menu ? 'mc-menu-open' : ''}`} aria-label="Workspace navigation">
-      <a href="/?view=overview" className="mc-brand" onClick={event => { event.preventDefault(); navigate('overview') }}><span className="mc-brand-symbol">A</span><span>AETHER<small>EARTH OBSERVATION LAB</small></span></a>
-      <div className="mc-workspace-label">MISSION WORKSPACE <span>01</span></div>
-      <nav>{views.map(([key, label, icon]) => <button key={key} className={`mc-nav ${view === key ? 'is-active' : ''}`} aria-current={view === key ? 'page' : undefined} onClick={() => navigate(key)}><Icon name={icon} /><span>{label}</span>{key === 'live' && <span className="mc-nav-badge">FEEDS</span>}</button>)}</nav>
-      <div className="mc-sidebar-bottom"><div className="mc-lab-note"><Icon name="shield" /><strong>Traceable by design</strong><p>Every observation, plan and input keeps its provenance.</p></div><span className="mc-version">RESEARCH PROTOTYPE <span>v{run?.code_version ?? '0.1.0'}</span></span></div>
-    </aside>
-    <div className="mc-workspace">
-      <header className="mc-topbar"><button className="mc-menu-toggle" onClick={() => setMenu(!menu)} aria-label="Toggle navigation" aria-expanded={menu}>☰</button><div className="mc-breadcrumb">Workspace <span>/</span><strong>{selectedView[1]}</strong></div><div className="mc-topbar-actions"><span className={`mc-feed-status ${feedsReady ? 'ready' : ''}`}><span />{feedsReady ? 'Provider snapshot available' : 'Provider snapshot unavailable or stale'}</span><button className="mc-icon-button" aria-label="Reload deployed replay snapshot" disabled={refreshing} onClick={() => void refresh()}><Icon name="refresh" /></button><a className="mc-api-link" href="/api/docs" target="_blank" rel="noreferrer">API ↗</a></div></header>
-      <div className={`mc-mode-strip ${view === 'live' ? 'provider' : ''}`}><span>{view === 'live' ? 'REAL PROVIDER INPUTS' : 'SIMULATED MISSION'}</span><p>{view === 'live' ? 'Published orbital elements · modeled positions · catalogue metadata' : run?.input_dataset ? 'Historical EMIT locations · virtual spacecraft · recorded simulation' : 'Unpinned or synthetic source context · virtual spacecraft · recorded simulation'}</p><strong>{view === 'live' ? 'NO LIVE TELEMETRY' : 'NO REAL SATELLITE TASKING'}</strong></div>
-      <main id="mission-main" tabIndex={-1} className="mc-main">
-        {view === 'live' ? <LiveContext embedded /> : <>
-          <div className="mc-run-toolbar"><div><span className="mc-caption">ACTIVE REPLAY</span><label className="sr-only" htmlFor="mission-run">Select simulation policy run</label><select id="mission-run" value={runId} onChange={event => chooseRun(event.target.value)}>{!index.length && <option value="">No recorded runs</option>}{index.map(item => <option key={item.run_id} value={item.run_id}>{policyName(item.policy_id)} · seed {item.seed}</option>)}</select></div><div className="mc-run-meta"><span>{run?.family.replaceAll('_', ' ') ?? 'Loading scenario'}</span><span>{project?.scenario.horizon_hours ?? '—'} h horizon</span>{run && <a className="mc-export" href={`/api/runs/${encodeURIComponent(run.run_id)}/export`}><Icon name="download" />Export evidence</a>}</div></div>
-          {runLoading && <div className="mc-loading" role="status"><span className="mc-loading-bar" /><h2>Loading the recorded mission</h2><p>Reading sources, schedules and independent validations.</p></div>}
-          {runError && <div className="mc-error" role="alert"><h2>Run could not be loaded</h2><p>{runError}</p><button onClick={() => void refresh()}>Reconnect data</button></div>}
-          {!runLoading && run && (view === 'overview' ? <Dashboard run={run} project={project} live={live} performance={performance} report={report} research={research} navigate={navigate} violations={violations ?? 0} resourceError={resourceError} /> : view === 'configuration' ? <Configuration project={project} /> : <div className="mc-archive-view"><ScreenContent screen={screen} run={run} benchmarks={rows} benchmarkState={rows.length ? 'ready' : 'empty'} report={report} reportState={report ? 'ready' : 'empty'} protocol={protocol} />{view === 'evidence' && <><ResearchStatus research={research} /><section className="mc-evidence-actions"><a className="mc-primary" href={`/api/runs/${encodeURIComponent(run.run_id)}/export`}><Icon name="download" />Download verified run export</a><a href={`/api/runs/${encodeURIComponent(run.run_id)}/performance.json`} target="_blank" rel="noreferrer">Measured timing JSON ↗</a></section></>}</div>)}
-        </>}
-        <footer className="mc-footer"><span>AETHER / Observation planning research</span><span>{view === 'live' ? 'Provider metadata + propagated estimates' : 'Recorded evidence · UTC · reproducible inputs'}</span></footer>
-      </main>
+  const selected = views.find(([key]) => key === view)!
+  const kind = selected[3]
+  const chooseRun = (id: string) => { setRunId(id); const url = new URL(location.href); url.searchParams.set('run', id); history.replaceState(null, '', url) }
+  const runPicker = index.length > 0 && <label className="cx-run-picker"><span>Recorded simulation run</span><select value={runId} onChange={e => chooseRun(e.target.value)}>{index.map(item => <option key={item.run_id} value={item.run_id}>{policyName(item.policy_id)} · seed {item.seed}</option>)}</select></label>
+  const needRun = (body: (r: RunRecord) => ReactNode) => run ? body(run) : <div className="cx-empty">{runError || 'Loading the recorded simulation…'}</div>
+
+  return (
+    <div className={`cx-shell ${menu ? 'menu-open' : ''}`}>
+      <a className="skip-link" href="#cx-main">Skip to content</a>
+      <aside className="cx-sidebar" aria-label="Navigation">
+        <a className="cx-brand" href="/?view=globe"><b>AETHER</b><span>Earth observation planning research</span></a>
+        <a className="cx-globe-link" href="/?view=globe"><Icon name="globe" /><span>3D globe</span><small>LIVE VIEW</small></a>
+        {(['real', 'sim'] as const).map(group => <nav key={group} aria-label={group === 'real' ? 'Real data' : 'Simulation'}>
+          <div className={`cx-nav-group ${group}`}>{group === 'real' ? 'Real data' : 'Simulation'}</div>
+          {views.filter(v => v[3] === group).map(([key, label, icon]) => <button key={key} className={`cx-nav ${view === key ? 'active' : ''}`} aria-current={view === key ? 'page' : undefined} onClick={() => navigate(key)}><Icon name={icon} /><span>{label}</span></button>)}
+        </nav>)}
+        <p className="cx-sidebar-note">Real data comes from NASA EMIT, NASA CMR and CelesTrak. Every planning decision is made in a reproducible simulation. AETHER does not task real satellites.</p>
+      </aside>
+      <div className="cx-workspace">
+        <header className={`cx-strip ${kind}`}>
+          <button className="cx-menu" onClick={() => setMenu(m => !m)} aria-label="Toggle navigation" aria-expanded={menu}>☰</button>
+          <Tag kind={kind} />
+          <span>{kind === 'real' ? 'Provider records and modelled satellite positions. No live telemetry.' : 'Virtual spacecraft, simulated outcomes, recorded and reproducible. No real satellite tasking.'}</span>
+          {kind === 'sim' && runPicker}
+        </header>
+        <main id="cx-main" className="cx-main" tabIndex={-1}>
+          {view === 'overview' && <Overview real={real} realError={realError} run={run} now={now} navigate={navigate} />}
+          {view === 'observations' && <Observations real={real} realError={realError} />}
+          {view === 'passes' && <Passes real={real} realError={realError} now={now} />}
+          {view === 'planner' && needRun(r => <PlannerStory run={r} />)}
+          {view === 'beliefs' && needRun(r => <Page kind="sim" kicker="How the planner's knowledge changes" title="Beliefs" intro={<>For every source, the model keeps a probability that it is emitting now and a range for how much. A detection pushes the probability up, a valid non-detection pushes it down, and a missing or cloudy look changes nothing. Pick a source below to follow its history.</>}><div className="cx-legacy"><ScreenContent screen="D" run={r} benchmarks={rows} benchmarkState={rows.length ? 'ready' : 'empty'} report={report} reportState={report ? 'ready' : 'empty'} protocol={protocol} /></div></Page>)}
+          {view === 'comparison' && needRun(r => <PolicyTest run={r} rows={rows} report={report} protocol={protocol} />)}
+          {view === 'setup' && <Setup project={project} />}
+          {view === 'evidence' && needRun(r => <Page kind="sim" kicker="Reproducibility" title="Evidence & exports" intro="Every recorded run can be downloaded as a hashed archive and re-verified offline. The manifest lists every input file and its SHA-256."><a className="cx-primary" href={`/api/runs/${encodeURIComponent(r.run_id)}/export`}><Icon name="download" /> Download verified run export</a><div className="cx-legacy"><ScreenContent screen="G" run={r} benchmarks={rows} benchmarkState={rows.length ? 'ready' : 'empty'} report={report} reportState={report ? 'ready' : 'empty'} protocol={protocol} /><RunManifest run={r} /></div></Page>)}
+          <footer className="cx-footer"><span>AETHER · research prototype</span><span>Times in UTC · real-data bundle built {utc(real?.built_at_utc)}</span></footer>
+        </main>
+      </div>
     </div>
-  </div>
+  )
 }
 
-function Dashboard({ run, project, live, performance, report, research, navigate, violations, resourceError }: { run: RunRecord; project: ProjectSnapshot | null; live: LiveSummary | null; performance: Performance | null; report: BenchmarkReport | null; research: Research | null; navigate: (view: View, sourceId?: string) => void; violations: number; resourceError: string[] }) {
-  const [selected, setSelected] = useState('')
-  const source = run.sources.find(item => item.id === selected) ?? run.sources[0]
-  const bbox = project?.scenario.region.bbox_wgs84
-  const bounds = bbox ?? [Math.min(...run.sources.map(s => s.lon)) - 0.1, Math.min(...run.sources.map(s => s.lat)) - 0.1, Math.max(...run.sources.map(s => s.lon)) + 0.1, Math.max(...run.sources.map(s => s.lat)) + 0.1]
-  const latestBelief = source ? [...run.beliefs].reverse().find(item => item.source_id === source.id) : undefined
-  const outcomes = ['DETECTION', 'VALID_NON_DETECTION', 'INVALID_ACQUISITION', 'NOT_OBSERVED'] as const
-  const counts = outcomes.map(outcome => ({ outcome, count: run.acquisitions.filter(a => a.outcome === outcome).length }))
-  const validWindows = run.windows.filter(item => item.feasible).length
-  const recentEvents = run.events.slice(-4).reverse()
-  return <div className="mc-dashboard">
-    <section className="mc-page-heading"><div><div className="mc-kicker">PERMIAN BASIN / MISSION WORKSPACE</div><h1>A clearer view of what to observe next.</h1><p>Follow the evidence from historical methane observations to independently checked simulation plans.</p></div><button className="mc-primary" onClick={() => navigate('planner')}>Open mission planner <Icon name="arrow" /></button></section>
-    <section className="mc-stats" aria-label="Recorded mission metrics">
-      <Stat title="Plume-seeded locations" value={format(run.input_dataset?.seeded_source_count ?? run.sources.filter(s => s.seeded_from_plume_id !== null).length)} detail={`${format(run.input_dataset?.uniform_fill_count ?? run.sources.filter(s => s.seeded_from_plume_id === null).length)} uniform-fill locations`} kind="real" label="HISTORICAL INPUT" />
-      <Stat title="Feasible windows" value={format(validWindows)} detail={`of ${format(run.windows.length)} generated windows`} kind="model" label="MODELED GEOMETRY" />
-      <Stat title="Checked plan revisions" value={`${run.validations.length}/${run.plans.length}`} detail={`${violations} recorded checker violations`} kind="sim" label="SIMULATED PLANS" />
-      <Stat title="Recorded acquisitions" value={format(run.acquisitions.length)} detail={policyName(run.policy_id)} kind="sim" label="SIMULATED OUTCOMES" />
+function nextPass(real: RealBundle, now: number) {
+  return real.real_passes.passes.find(p => parse(p.closest_utc) > now && p.daylit)
+}
+
+function Overview({ real, realError, run, now, navigate }: { real: RealBundle | null; realError: string; run: RunRecord | null; now: number; navigate: (v: View) => void }) {
+  const records = real?.emit_records ?? []
+  const quantified = records.filter(r => r.emission_rate_kg_h !== null).length
+  const latest = real?.emit_recent.granules[0]
+  const next = real ? nextPass(real, now) : undefined
+  const looks = run?.acquisitions.length ?? 0
+  const violations = run ? run.validations.reduce((n, v) => n + v.violations.length, 0) : 0
+  return <div className="cx-page">
+    <section className="cx-hero">
+      <div><span className="cx-kicker">PERMIAN BASIN · METHANE</span><h1>Where should methane-hunting satellites look next?</h1>
+        <p>Methane leaks switch on and off, and each satellite pass can only look at a few places. AETHER starts from real NASA EMIT plume observations and real satellite orbits, then tests, in a reproducible simulation, a planner that decides which site to look at next to learn the most.</p></div>
+      <a className="cx-primary" href="/?view=globe"><Icon name="globe" /> Open the 3D globe</a>
     </section>
-    <div className="mc-main-grid">
-      <section className="mc-card mc-source-card"><div className="mc-card-heading"><div><span className="mc-kicker">REGIONAL CONTEXT</span><h2>The sources behind the scenario</h2></div><span className="mc-chip">{run.sources.length} locations</span></div><div className="mc-coordinate-map"><svg viewBox="0 0 760 340" role="group" aria-label="Interactive longitude-latitude source plot; use the source selector below as a table alternative"><rect width="760" height="340" fill="#edf2ed" />{[0, 1, 2, 3, 4, 5, 6].map(i => <g key={i}><line x1={55 + i * 108} x2={55 + i * 108} y1="24" y2="300" stroke="#d7e1d8" /><line x1="55" x2="703" y1={24 + i * 46} y2={24 + i * 46} stroke="#d7e1d8" /></g>)}<text x="62" y="49" className="mc-map-label">PERMIAN BASIN</text><text x="62" y="66" className="mc-map-subtitle">HISTORICAL PLUME-SEEDED HYPOTHESES</text><text x="55" y="325" className="mc-map-axis">{format(bounds[0], 2)}°</text><text x="650" y="325" className="mc-map-axis">{format(bounds[2], 2)}°</text>{run.sources.map((s, i) => { const x = 55 + (s.lon - bounds[0]) / (bounds[2] - bounds[0]) * 648; const y = 300 - (s.lat - bounds[1]) / (bounds[3] - bounds[1]) * 276; return <g key={s.id} role="button" tabIndex={0} aria-label={`Select ${s.id}`} onClick={() => setSelected(s.id)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelected(s.id) } }} className="mc-map-point">{source?.id === s.id && <circle cx={x} cy={y} r="15" fill="#166b5b" opacity=".12" />}<circle cx={x} cy={y} r={source?.id === s.id ? 6 : 4} fill={source?.id === s.id ? '#125c4f' : '#719586'} stroke="#fff" strokeWidth="2" /><title>{s.id}: {s.lat}°, {s.lon}°</title><text x={x + 9} y={y + 4}>{String(i + 1).padStart(2, '0')}</text></g> })}</svg><div className="mc-map-legend"><span><i />Plume-seeded source hypothesis</span><span>Coordinate plot · no facility attribution</span></div></div><div className="mc-selected-source"><div><label className="mc-caption" htmlFor="overview-source">EXPLORE A SOURCE</label><select id="overview-source" value={source?.id ?? ''} onChange={event => setSelected(event.target.value)}>{run.sources.map(s => <option value={s.id} key={s.id}>{s.id} · {format(s.lat, 3)}°, {format(s.lon, 3)}°</option>)}</select></div><div><span className="mc-caption">FINAL MODEL P(ACTIVE)</span><strong>{latestBelief ? `${format(latestBelief.p_active * 100, 1)}%` : 'Unavailable'}</strong></div><button className="mc-text-button" onClick={() => navigate('sources', source?.id)}>Inspect source lineage <Icon name="arrow" /></button></div></section>
-      <aside className="mc-right-stack"><section className="mc-card mc-connection-card"><div className="mc-card-heading"><div><span className="mc-kicker">DATA CONNECTIONS</span><h2>Know where every input comes from</h2></div></div><Connection icon="satellite" title="Satellite orbital context" subtitle={`${live?.satellites.length ?? 0} real spacecraft · propagated positions`} status={live?.status === 'available' ? live.feeds.some(f => f.stale) ? 'Stale cache' : 'Cached' : 'Unavailable'} onClick={() => navigate('live')} /><Connection icon="pin" title="NASA EMIT observations" subtitle={`${run.input_dataset?.record_count ?? '—'} pinned historical records`} status={run.input_dataset ? 'Hash-pinned' : 'Unpinned'} onClick={() => navigate('sources')} /><Connection icon="shield" title="Independent schedule checker" subtitle={`${run.validations.length} recorded validations`} status={violations ? 'Violations' : 'No violations'} onClick={() => navigate('evidence')} /><Connection icon="bars" title="Policy evaluation" subtitle={report ? `${report.n_seeds} seeds · development comparison` : 'Evaluator artifacts unavailable'} status={report ? report.preliminary ? 'Preliminary' : 'Available' : 'Unavailable'} onClick={() => navigate('comparison')} /></section><section className="mc-model-note"><span className="mc-kicker">A NOTE ON INTERPRETATION</span><h3>Real context. Simulated decisions.</h3><p>Historical observations supply locations. Satellite positions are estimates. The mission planner operates on a separate, reproducible virtual scenario.</p><button onClick={() => navigate('evidence')}>Read the method <Icon name="arrow" /></button></section></aside>
+    {realError && <div className="cx-empty" role="alert">Real-data bundle unavailable: {realError}</div>}
+    <div className="cx-stats">
+      <Stat kind="real" label="Real EMIT plume observations" value={String(records.length || '—')} note={records.length ? `${quantified} with a provider emission rate · ${day(records.map(r => r.acquisition_time_utc).sort()[0])} to ${day(records.map(r => r.acquisition_time_utc).sort().slice(-1)[0])}` : 'Loading'} />
+      <Stat kind="real" label="Newest EMIT plume granule over the Permian" value={latest ? day(latest.time_start) : '—'} note={latest ? `NASA CMR catalogue · ${real?.emit_recent.granules.length} newest listed` : real?.emit_recent.refresh_status ?? 'Loading'} />
+      <Stat kind="real" label="Next daylit real pass over a plume site" value={next ? next.satellite : '—'} note={next ? `${relative(parse(next.closest_utc) - now)} · ${next.sites_in_swath.length} of 20 sites in swath` : 'None in the look-ahead window'} />
+      <Stat kind="sim" label="Simulated looks by the planner" value={run ? String(looks) : '—'} note={run ? `${policyName(run.policy_id)} · ${violations} schedule-checker violations` : 'Loading'} />
     </div>
-    <div className="mc-bottom-grid"><section className="mc-card"><div className="mc-card-heading"><div><span className="mc-kicker">RECORDED EVIDENCE</span><h2>Every outcome keeps its meaning</h2></div><button className="mc-text-button" onClick={() => navigate('beliefs')}>Explore beliefs <Icon name="arrow" /></button></div><div className="mc-outcomes">{counts.map(({ outcome, count }) => <div key={outcome}><span className={`mc-outcome-dot ${outcome.toLowerCase()}`} /><strong>{count}</strong><span>{outcome.replaceAll('_', ' ').toLowerCase()}</span></div>)}</div><p className="mc-card-footnote">Invalid and unobserved acquisitions never become negative emission evidence.</p></section><section className="mc-card"><div className="mc-card-heading"><div><span className="mc-kicker">SIMULATION LOG</span><h2>Latest recorded events</h2></div><span className="mc-chip">UTC</span></div><div className="mc-events">{recentEvents.map(event => <div key={event.event_id}><span className="mc-event-mark" /><div><strong>{event.event_type.replaceAll('_', ' ').toLowerCase()}</strong><small>{event.actor}</small></div><time dateTime={event.event_time_sim_utc}>{utc(event.event_time_sim_utc).slice(11, 19)}</time></div>)}</div></section></div>
-    <section className="mc-run-receipt"><div><Icon name="shield" /><span>Input manifest <code>{run.input_dataset?.manifest_sha256.slice(0, 16) ?? 'Unavailable'}</code></span></div><div>Measured run time <strong>{performance ? `${format(performance.total_run_wall_s, 1)} s` : 'Unavailable'}</strong></div><button className="mc-text-button" onClick={() => navigate('evidence')}>Open evidence <Icon name="arrow" /></button></section>
-    <ResearchStatus research={research} />
-    {!!resourceError.length && <details className="mc-resource-errors"><summary>Some connected resources are unavailable ({resourceError.length})</summary><ul>{resourceError.map(url => <li key={url}>{url}</li>)}</ul><p>Missing resources stay unavailable; no replacement scientific values are generated.</p></details>}
-    <details className="mc-manifest-details"><summary>Inspect the complete input manifest</summary><RunManifest run={run} /></details>
+    <div className="cx-two">
+      <Card title="What is real" aside={<Tag kind="real" />}>
+        <ul className="cx-list">
+          <li><b>20 EMIT plume records</b> (NASA LP DAAC, V002, 2023–2024): times, locations, emission rates and uncertainties, pinned by SHA-256. <button className="cx-link" onClick={() => navigate('observations')}>See them →</button></li>
+          <li><b>Recent EMIT detections</b> over the Permian, listed live from NASA's catalogue.</li>
+          <li><b>Real satellites</b>: ISS (carries EMIT), Landsat 8 and 9, Sentinel-5P, propagated from CelesTrak elements, and their real upcoming passes over these sites. <button className="cx-link" onClick={() => navigate('passes')}>See passes →</button></li>
+        </ul>
+      </Card>
+      <Card title="What is simulated, and why" aside={<Tag kind="sim" />}>
+        <ul className="cx-list">
+          <li><b>Four virtual satellites</b> that can be pointed, with a modelled sensor. Nobody here can command real ones.</li>
+          <li><b>Hidden "true" emissions and weather.</b> Scoring a planner needs ground truth, which does not exist for real sites, so every planner is tested against the same simulated truth.</li>
+          <li><b>The planner and its beliefs</b>, solved with Google OR-Tools CP-SAT and checked by an independent schedule checker. <button className="cx-link" onClick={() => navigate('planner')}>Watch it decide →</button></li>
+        </ul>
+      </Card>
+    </div>
+    <Card title="Research status (18 Oct 2026)" aside={<button className="cx-link" onClick={() => navigate('comparison')}>Details →</button>}>
+      <ul className="cx-list cx-status">
+        <li><span className="cx-pill ok">PASSED</span>Data provenance, orbit geometry, an independent checker (0 violations), belief updates, byte-identical replay</li>
+        <li><span className="cx-pill fail">FAILED</span>Capacity on the 72 h scenario: one pass supports only 2 looks (the minimum is 4)</li>
+        <li><span className="cx-pill fail">FAILED</span>Discriminability: on the 72 h scenario, even a truth-informed reference cannot beat random looks, so no planner comparison would be informative yet. A 168 h scenario is being tested now</li>
+        <li><span className="cx-pill wait">PENDING</span>Locked protocol and held-out benchmark. No claim that one planner beats another is made</li>
+      </ul>
+    </Card>
   </div>
 }
 
-function Stat({ title, value, detail, kind, label }: { title: string; value: string; detail: string; kind: string; label: string }) {
-  return <article className="mc-stat"><span className="mc-stat-title">{title}</span><strong>{value}</strong><p>{detail}</p><span className={`mc-provenance ${kind}`}>{label}</span></article>
-}
-function Connection({ icon, title, subtitle, status, onClick }: { icon: string; title: string; subtitle: string; status: string; onClick: () => void }) {
-  const tone = status === 'Unavailable' || status === 'Stale cache' ? 'unavailable' : status === 'Preliminary' ? 'preliminary' : status === 'Violations' ? 'failed' : 'connected'
-  return <button className="mc-connection" onClick={onClick}><span className="mc-connection-icon"><Icon name={icon} /></span><span className="mc-connection-copy"><strong>{title}</strong><small>{subtitle}</small></span><span className={`mc-connection-status ${tone}`}>{status}</span></button>
+function Observations({ real, realError }: { real: RealBundle | null; realError: string }) {
+  const records = [...(real?.emit_records ?? [])].sort((a, b) => b.acquisition_time_utc.localeCompare(a.acquisition_time_utc))
+  return <Page kind="real" kicker="NASA EMIT · Earth Surface Mineral Dust Source Investigation, on the ISS" title="Real observations" intro="These are real methane plume detections by NASA's EMIT imaging spectrometer. AETHER uses the 20 pinned records to place its source sites; it never treats them as present-day activity or as simulated truth.">
+    {realError && <div className="cx-empty" role="alert">{realError}</div>}
+    <Card title="20 pinned EMIT plume records, Permian Basin" aside={<span className="cx-chip">EMIT L2B CH4PLM V002 · SHA-256 pinned</span>}>
+      <div className="cx-table" tabIndex={0} role="region" aria-label="Pinned EMIT plume records"><table>
+        <thead><tr><th>Observed (UTC)</th><th>Plume ID</th><th>Latitude</th><th>Longitude</th><th>Emission rate</th><th>Provider</th></tr></thead>
+        <tbody>{records.map(r => <tr key={r.id}><td>{utc(r.acquisition_time_utc)}</td><td className="mono">{r.native_id}</td><td>{num(r.lat, 4)}°</td><td>{num(r.lon, 4)}°</td>
+          <td>{r.emission_rate_kg_h === null ? <span className="cx-muted">Not quantified ({(r.missing_rate_reason ?? 'not provided').replaceAll('_', ' ').toLowerCase()})</span> : <>{num(r.emission_rate_kg_h)} kg/h{r.emission_rate_uncertainty_kg_h !== null && <span className="cx-muted"> ± {num(r.emission_rate_uncertainty_kg_h)}</span>}</>}</td><td>{r.provider}</td></tr>)}</tbody>
+      </table></div>
+      <p className="cx-foot">The provider does not define the "±" value statistically, so AETHER records it as an uncertainty of unknown kind. A missing rate stays missing; it is never read as zero.</p>
+    </Card>
+    <Card title="Newest EMIT plume granules over the Permian (NASA CMR)" aside={<span className="cx-chip">{real?.emit_recent.refresh_status === 'OK' ? `Retrieved ${utc(real.emit_recent.retrieved_at_utc)}` : real?.emit_recent.refresh_status ?? 'Loading'}</span>}>
+      <div className="cx-table" tabIndex={0} role="region" aria-label="Recent EMIT catalogue granules"><table>
+        <thead><tr><th>Observed (UTC)</th><th>Granule</th><th>Data</th></tr></thead>
+        <tbody>{real?.emit_recent.granules.map(g => <tr key={g.title}><td>{utc(g.time_start)}</td><td className="mono">{g.title}</td><td>{g.data_url ? <a href={g.data_url} target="_blank" rel="noreferrer">NASA file ↗</a> : '—'}</td></tr>)}</tbody>
+      </table></div>
+      <p className="cx-foot">Catalogue metadata only. A listed granule shows that EMIT reported a plume complex there on that date; downloading files needs a NASA Earthdata login.</p>
+    </Card>
+  </Page>
 }
 
-function ResearchStatus({ research }: { research: Research | null }) {
-  return <section className="mc-research-status"><strong>RESEARCH ACCEPTANCE</strong><span>Protocol: {research ? research.protocol_locked ? 'locked' : 'unlocked' : 'unavailable'}</span><span>Recorded capacity gate: {research?.capacity?.verdict ?? 'unavailable'}</span><span>Synthetic discriminability pilot: {research?.synthetic_discriminability_pilot ? research.synthetic_discriminability_pilot.overall_passed ? 'passed' : 'failed' : 'unavailable'}</span><p>Gate artifacts have their own recorded scope. Development comparisons do not establish policy superiority or completed holdout acceptance.</p></section>
+function Passes({ real, realError, now }: { real: RealBundle | null; realError: string; now: number }) {
+  const passes = (real?.real_passes.passes ?? []).filter(p => parse(p.end_utc) > now - 3600000)
+  const sats = real?.real_satellites ?? []
+  const swath = real?.real_passes.swath_km ?? {}
+  return <Page kind="real" kicker="CelesTrak orbital elements · SGP4 / Skyfield" title="Real satellite passes" intro={<>When will real Earth-observation satellites next fly over the 20 EMIT plume sites? A site counts when it falls inside the instrument's swath. Methane imaging in shortwave infrared needs sunlight, so night passes are marked. These are geometric opportunities from published orbits, not acquisitions and not tasking.</>}>
+    {realError && <div className="cx-empty" role="alert">{realError}</div>}
+    <div className="cx-sat-grid">{sats.map(s => {
+      const next = passes.find(p => p.norad_id === s.norad_id && parse(p.closest_utc) > now)
+      const age = s.omm ? (now - parse(s.omm.EPOCH)) / 3600000 : NaN
+      return <Card key={s.norad_id} className="cx-sat"><span className="cx-kicker">{s.role}</span><h3>{s.name}</h3>
+        <div className="cx-sat-next">{next ? <><strong>{relative(parse(next.closest_utc) - now)}</strong><span>{utc(next.closest_utc)} · {next.sites_in_swath.length} of 20 sites · {next.daylit ? 'daylight' : 'night'}</span></> : <><strong>No pass</strong><span>No site within {num((swath[String(s.norad_id)] ?? 0) / 2)} km of its ground track in the next {real?.real_passes.lookahead_hours} h</span></>}</div>
+        <small className="cx-muted">Swath {num(swath[String(s.norad_id)])} km · elements {Number.isFinite(age) ? `${num(age)} h old` : 'unavailable'} · {s.refresh_status.startsWith('OK') ? 'refreshed' : s.refresh_status.split(':')[0].toLowerCase()}</small></Card>
+    })}</div>
+    <Card title={`All passes in the next ${real?.real_passes.lookahead_hours ?? 72} h`} aside={<span className="cx-chip">computed {utc(real?.real_passes.from_utc)}</span>}>
+      <div className="cx-table" tabIndex={0} role="region" aria-label="Upcoming real satellite passes"><table>
+        <thead><tr><th>Satellite</th><th>Closest approach (UTC)</th><th>When</th><th>Sites in swath</th><th>Closest site</th><th>Sun</th></tr></thead>
+        <tbody>{passes.map(p => <tr key={`${p.norad_id}-${p.closest_utc}`} className={p.daylit ? '' : 'cx-night'}><td><b>{p.satellite}</b></td><td>{utc(p.closest_utc)}</td><td>{relative(parse(p.closest_utc) - now)}</td><td>{p.sites_in_swath.length} of 20</td><td>{num(p.min_ground_distance_km)} km</td><td>{p.daylit ? `daylight (${num(p.sun_elevation_deg)}°)` : 'night'}</td></tr>)}</tbody>
+      </table></div>
+      <p className="cx-foot">Whether an instrument actually records a scene is decided by its operators (EMIT follows its own observation plan on the ISS). Swath widths and rules: Parameter Register PR-LIVE02.</p>
+    </Card>
+  </Page>
 }
 
-function Configuration({ project }: { project: ProjectSnapshot | null }) {
-  if (!project) return <div className="mc-error"><h2>Project configuration unavailable</h2><p>The recorded run can still be inspected in the other views.</p></div>
-  return <div className="mc-archive-view"><div className="section-title"><div><div className="mc-kicker">PROJECT CONFIGURATION</div><h1>Scenario & instruments</h1><p>Current project profiles. Recorded run identity and input hashes remain in Evidence & exports.</p></div></div><section className="mc-card"><div className="mc-card-heading"><div><span className="mc-kicker">VIRTUAL FLEET</span><h2>{project.spacecraft.length} simulated spacecraft profiles</h2></div><span className="mc-provenance sim">VIRTUAL ONLY</span></div><div className="table-wrap" tabIndex={0} role="region" aria-label="Virtual spacecraft configuration"><table><caption className="sr-only">Current configured virtual spacecraft, separate from real Landsat context</caption><thead><tr><th scope="col">Spacecraft</th><th scope="col">Orbit altitude</th><th scope="col">Inclination</th><th scope="col">Sensors</th><th scope="col">Maximum acquisitions / orbit</th></tr></thead><tbody>{project.spacecraft.map(s => <tr key={s.id}><th scope="row">{s.id}</th><td>{String(s.orbit.altitude_km)} km</td><td>{String(s.orbit.inclination_deg)}°</td><td>{s.sensor_ids.join(', ')}</td><td>{s.resources.max_acquisitions_per_orbit}</td></tr>)}</tbody></table></div></section><div className="mc-bottom-grid">{project.sensors.map(sensor => <section className="mc-card" key={sensor.id}><div className="mc-card-heading"><div><span className="mc-kicker">VIRTUAL SENSOR PROFILE</span><h2>{sensor.id}</h2></div><span className="mc-chip">{sensor.calibration_status}</span></div><dl className="key-values"><dt>Reference Q50 / Q90</dt><dd>{sensor.q50_ref_kg_h} / {sensor.q90_ref_kg_h} kg/h</dd><dt>Nadir GSD</dt><dd>{sensor.gsd_nadir_m} m</dd><dt>Exposure</dt><dd>{sensor.exposure_seconds} s</dd><dt>Minimum sun elevation</dt><dd>{sensor.min_sun_elevation_deg}°</dd><dt>Reference wind</dt><dd>{sensor.ref_wind_m_s} m/s</dd></dl></section>)}<section className="mc-card"><div className="mc-card-heading"><div><span className="mc-kicker">PLANNER SETUP</span><h2>Reproducible optimization</h2></div></div><dl className="key-values"><dt>Lookahead</dt><dd>{project.planner.lookahead_hours} h</dd><dt>Utility</dt><dd>{project.planner.utility}</dd><dt>Solver mode</dt><dd>{String(project.planner.solver.mode)}</dd><dt>Replan triggers</dt><dd>{project.planner.replan_on.join(', ')}</dd><dt>Protocol lock</dt><dd>{project.benchmark_protocol.locked ? 'Locked' : 'Unlocked'}</dd></dl></section></div></div>
+function PlannerStory({ run }: { run: RunRecord }) {
+  const outcomes = useMemo(() => new Map(run.acquisitions.map(a => [a.window_id, a.outcome])), [run])
+  const gains = useMemo(() => new Map(run.utilities.map(u => [`${u.plan_revision}|${u.window_id}`, u.expected_info_gain_bits])), [run])
+  const sourceNo = useMemo(() => new Map(run.sources.map((s, i) => [s.id, i + 1])), [run])
+  const epoch = parse(run.plans[0]?.created_at_sim_utc ?? '')
+  // Consecutive re-plans that keep exactly the same selection are shown once, with a count.
+  const plans = run.plans.filter(p => p.selected_window_ids.length > 0).reduce<(RunRecord['plans'][number] & { repeats: number })[]>((acc, p) => {
+    const last = acc[acc.length - 1]
+    const key = [...p.selected_window_ids].sort().join('|')
+    if (last && [...last.selected_window_ids].sort().join('|') === key) { last.repeats += 1; return acc }
+    acc.push({ ...p, repeats: 1 }); return acc
+  }, [])
+  const cause = (c: string) => ({ initial: 'Start of mission', informative_acquisition: 'A look returned new evidence', forecast_revision: 'The cloud forecast changed', pass_completed: 'A satellite pass finished', invalid_acquisition: 'A look failed (cloud or geometry)' }[c] ?? c.replaceAll('_', ' '))
+  return <Page kind="sim" kicker="Virtual fleet · OR-Tools CP-SAT · independent checker" title="Planner" intro={<>Each time something changes (a look returns evidence, or the forecast changes), the planner re-plans. It weighs every feasible look by how much it is expected to teach about which sources are emitting (expected information gain, in bits), then picks the best schedule the spacecraft can actually fly. An independent checker re-verifies every schedule.</>}>
+    <div className="cx-stats">
+      <Stat kind="sim" label="Schedule changes" value={String(plans.length)} note={`${run.plans.length} re-plans in total`} />
+      <Stat kind="sim" label="Simulated looks executed" value={String(run.acquisitions.length)} note={`${run.acquisitions.filter(a => a.outcome === 'DETECTION').length} detections`} />
+      <Stat kind="sim" label="Proven-optimal solves" value={`${run.plans.filter(p => p.solver_status === 'OPTIMAL').length} / ${run.plans.length}`} note="CP-SAT solver status" />
+      <Stat kind="sim" label="Checker violations" value={String(run.validations.reduce((n, v) => n + v.violations.length, 0))} note="Independent geometry re-check" />
+    </div>
+    <Card title="Decision timeline">
+      <ol className="cx-timeline">{plans.map(p => {
+        const picks = p.selected_window_ids.map(id => ({ id, src: id.split(':')[2], sc: id.split(':')[0], gain: gains.get(`${p.revision}|${id}`), outcome: outcomes.get(id) })).sort((a, b) => (b.gain ?? 0) - (a.gain ?? 0))
+        return <li key={p.revision}><div className="cx-tl-head"><span className="mono">T+{num((parse(p.created_at_sim_utc) - epoch) / 3600000, 1)} h</span><b>{cause(p.cause)}</b><span className="cx-muted">considered {p.candidate_window_ids.length} looks · chose {picks.length} · {p.solver_status === 'OPTIMAL' ? 'proven optimal' : p.solver_status.toLowerCase()}{p.repeats > 1 && ` · ${p.repeats - 1} further re-plans kept this schedule`}</span></div>
+          <div className="cx-picks">{picks.slice(0, 6).map(k => <span key={k.id} className={`cx-pick ${(k.outcome ?? 'planned').toLowerCase()}`} title={k.id}>site {sourceNo.get(k.src) ?? '?'} · {k.sc}{k.gain !== undefined && ` · ${num(k.gain, 2)} bits`}<i>{k.outcome ? k.outcome.replaceAll('_', ' ').toLowerCase() : 'superseded by a later plan'}</i></span>)}{picks.length > 6 && <span className="cx-muted">+{picks.length - 6} more</span>}</div></li>
+      })}</ol>
+    </Card>
+  </Page>
+}
+
+function PolicyTest({ run, rows, report, protocol }: { run: RunRecord; rows: BenchmarkRow[]; report: BenchmarkReport | null; protocol: BenchmarkProtocol | null }) {
+  return <Page kind="sim" kicker="Pre-registered benchmark" title="Policy test" intro={<>The question: does the adaptive planner learn the true state of the sources faster than simple rules, like "look at the biggest source first"? Every policy gets the same satellites, the same sources and the same hidden truth. They are scored by Brier score (lower is better). Before any comparison counts, a gate checks that the scenario can tell good planning from random looks at all.</>}>
+    <Card title="Where the science stands">
+      <ul className="cx-list cx-status">
+        <li><span className="cx-pill fail">FAILED</span><b>Discriminability gate, 72 h scenario.</b> In all six test families (30 seeds each), a reference that can see the hidden truth scores almost the same as random looks. Comparing planners there would measure noise, so no comparison is claimed.</li>
+        <li><span className="cx-pill wait">RUNNING</span><b>168 h scenario</b> (60 sources, 16 passes): being evaluated on two machines now. If it passes the gate, it becomes the proposed benchmark scenario after review.</li>
+        <li><span className="cx-pill wait">PRELIMINARY</span><b>Two-seed comparison below</b>: shows the pipeline works. With 2 seeds it carries no statistical weight.</li>
+      </ul>
+    </Card>
+    <div className="cx-legacy"><ScreenContent screen="F" run={run} benchmarks={rows} benchmarkState={rows.length ? 'ready' : 'empty'} report={report} reportState={report ? 'ready' : 'empty'} protocol={protocol} /></div>
+  </Page>
+}
+
+function Setup({ project }: { project: ProjectSnapshot | null }) {
+  if (!project) return <div className="cx-empty">Loading the scenario configuration…</div>
+  const s = project.sensors[0]
+  return <Page kind="sim" kicker="Scenario" title="Setup" intro={`The simulated mission in one page: ${project.scenario.horizon_hours} hours over the Permian Basin, ${project.scenario.sources_count} source sites placed from the real EMIT records, and a virtual fleet.`}>
+    <div className="cx-three">
+      <Card title={`${project.spacecraft.length} virtual satellites`}>
+        <ul className="cx-list">{project.spacecraft.map(sc => <li key={sc.id}><b>{sc.id}</b> · {String(sc.orbit.altitude_km)} km up · {String(sc.orbit.inclination_deg)}° orbit · up to {sc.resources.max_acquisitions_per_orbit} looks per orbit</li>)}</ul>
+      </Card>
+      {s && <Card title="One virtual methane sensor">
+        <ul className="cx-list"><li>Detects about <b>half</b> of plumes of <b>{s.q50_ref_kg_h} kg/h</b>, and 90% of plumes of {s.q90_ref_kg_h} kg/h, at {s.ref_wind_m_s} m/s wind</li><li>Pixel size {s.gsd_nadir_m} m; needs the sun above {s.min_sun_elevation_deg}°</li><li>Status: {s.calibration_status.replaceAll('_', ' ').toLowerCase()}, an engineering assumption, not a real instrument</li></ul>
+      </Card>}
+      <Card title="Planner">
+        <ul className="cx-list"><li>Looks {project.planner.lookahead_hours} h ahead</li><li>Maximizes expected information gain</li><li>Solver: Google OR-Tools CP-SAT, {String(project.planner.solver.mode)} mode</li><li>Re-plans on: {project.planner.replan_on.map(r => r.replaceAll('_', ' ')).join(', ')}</li></ul>
+      </Card>
+    </div>
+  </Page>
 }
