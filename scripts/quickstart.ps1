@@ -13,6 +13,13 @@ function Need($name, $hint) {
 Need 'py' 'Install Python 3.12 or newer from https://www.python.org (with the py launcher).'
 Need 'npm' 'Install Node.js 20 or newer from https://nodejs.org.'
 
+# Some Python packages (astropy) install files about 150 characters below the venv. Without Windows
+# long-path support, a deep clone location exceeds the 260-character limit and pip fails.
+$longPaths = (Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem' -Name LongPathsEnabled -ErrorAction SilentlyContinue).LongPathsEnabled
+if ($longPaths -ne 1 -and $PWD.Path.Length -gt 80) {
+  throw "This folder's path is $($PWD.Path.Length) characters long, and Windows long-path support is off, so the Python install would fail. Clone into a shorter path (for example C:\Users\you\AETHER), or enable long paths: https://pip.pypa.io/warnings/enable-long-paths"
+}
+
 $venvPython = 'backend\.venv\Scripts\python.exe'
 if (-not (Test-Path $venvPython)) {
   Write-Host 'Creating the Python environment (backend\.venv)...'
