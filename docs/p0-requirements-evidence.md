@@ -1,6 +1,6 @@
 # P0 requirements-to-evidence matrix (REL-01)
 
-Integrated branch `lane/INT-09-completion-integration` (see the final revision in §Checks). Built on 18 Oct 2026 for the six-hour submission. Status values:
+Integrated branch `lane/INT-09-completion-integration`; checks ran on revision `4698d08` (§Checks). Built on 18 Oct 2026 for the six-hour submission. Status values:
 
 - **PASSED**: verified on this revision, with the evidence named.
 - **FAILED**: measured, and below its registered threshold.
@@ -63,4 +63,4 @@ ERA5 replay, Carbon Mapper records, operational tasking and raster flux inversio
 
 ## Checks
 
-Filled in from the final-revision runs; see the end of `docs/lanes/completion-claude-1.md`.
+Final revision R = `4698d08`: Ruff PASS; backend suite 415/415 (0 skipped); frontend build PASS; mocked browser + Axe 16 passed; **live no-mock browser 3 passed** on the actual pinned demo; demo replay byte-identical; export reload 46/46 inputs; fresh clone usable. The commands and logs are at the end of `docs/lanes/completion-claude-1.md`.

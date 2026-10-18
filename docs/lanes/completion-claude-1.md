@@ -56,3 +56,22 @@ Pending human decisions H1–H6 (G1-F demo contingency, D9 sign-off, G4.5 remedy
 
 - A peer session ran `aether.evaluation.gate --output-dir runs/g45-smoke` in the original `AETHER` checkout during this work. It is not part of this integration, and that checkout's `runs/demo` was not touched by Claude-1.
 - Bulk raw files: switching an older checkout (for example `AETHER` at `ee87199`) to this branch makes git remove the now-untracked bulk files from that working tree. They stay recoverable from commit `a70976e`. Copy them aside first if that checkout is ever switched.
+
+## Checks on the final revision R = `4698d084b9db1757d5f98e9a6a8b4719133289bf` (18 Oct 2026, 10:51–10:58 EDT)
+
+The tree was clean (0 dirty paths), and every check below ran on R. Logs are under `runs/release-checks/final-4698d08/` and `runs/integration/` in `AETHER-wt/claude-1`, and are packaged in the archive. Python 3.14.7 and Chromium (`/usr/bin/chromium`) were used.
+
+| Check | Command | Result |
+|---|---|---|
+| Combined offline checks | `AETHER_PYTHON=… AETHER_RUFF=… CHROMIUM_PATH=/usr/bin/chromium bash scripts/release_checks.sh runs/release-checks/final-4698d08` | exit 0 |
+| Ruff | `ruff check .`, `ruff format --check .` (backend) | PASS, PASS |
+| Backend offline suite (includes truth isolation, security/import guards, checker, oracle, geometry cross-validation, freeze guard, lineage/export) | `python -m pytest -q -p no:cacheprovider` (JUnit in the log directory) | **415 tests, 0 failures, 0 errors, 0 skipped**, 136 s |
+| Config validation | `python -m aether.cli validate --config configs/base.yaml` and `configs/demo.yaml` | PASS (base model hash `91920c15…f5c079`) |
+| Frontend type-check and build | `npm --prefix frontend run build` (`tsc -b && vite build`) | PASS |
+| Browser + accessibility (mocked API) | `npx playwright test` (CI=1) | **16 passed**, 3 opt-in live specs skipped; Axe zero serious/critical violations on every screen, run and project modes |
+| Live browser, **no route mocks**, actual pinned artifacts | `bash scripts/serve-demo.sh runs/demo-final` on ports 8012/4312, then `AETHER_LIVE_SMOKE=1 AETHER_SCREENSHOT_DIR=runs/demo-final/rehearsal npx playwright test live-artifacts screenshots` | **3 passed**: run replay, pinned context and lineage, release screenshots |
+| Demo, deterministic replay, export reload | `bash scripts/demo.sh runs/demo-final` (code `db89e12`; no code, config, data, script or frontend change from there to R) | exit 0. Separate-process replay byte-identical; `verify-export` 46/46 inputs for both runs; records byte-identical to `runs/demo-pinned` (code `272aba5`) |
+| Fresh-checkout usability | `git clone --branch lane/INT-09-completion-integration` → `pytest tests/unit/test_pinned_emit_sample.py tests/unit/test_dataset_wiring.py tests/integration/test_export.py`; `aether.cli validate`; `aether.cli verify-export` on both `runs/demo-final/*.zip` | 38 passed, 1 skipped (bulk download absent, as intended); config hash reproduced; both archives verify against the clone's bytes |
+| Repository security settings (read-only `gh api`) | `repos/itsskiwee/AETHER/private-vulnerability-reporting`; `repos/itsskiwee/AETHER` | Repository is private. The endpoint returns 404 and `security_and_analysis` is not visible to this token. **Not verified**; nothing changed |
+
+These numbers are for this one revision; no counts from separate lanes are added together.
