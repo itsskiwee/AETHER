@@ -1,0 +1,15 @@
+{
+  "name": "aether-cloudflare-hosting",
+  "private": true,
+  "scripts": {
+    "cloudflare:types": "wrangler types cloudflare/worker-configuration.d.ts --include-runtime=false --config wrangler.jsonc",
+    "cloudflare:typecheck": "npm run cloudflare:types && tsc --project cloudflare/tsconfig.json",
+    "deploy:cloudflare": "wrangler deploy --config wrangler.jsonc",
+    "dev:cloudflare": "wrangler dev --config wrangler.jsonc"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20261018.1",
+    "typescript": "5.7.2",
+    "wrangler": "4.151.1"
+  }
+}

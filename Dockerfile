@@ -1,11 +1,11 @@
-FROM node:22-bookworm-slim AS console
+FROM --platform=linux/amd64 node:22-bookworm-slim AS console
 WORKDIR /build/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY frontend/ ./
 RUN npm run build
 
-FROM python:3.12-slim-bookworm
+FROM --platform=linux/amd64 python:3.12-slim-bookworm
 WORKDIR /app
 COPY . .
 RUN pip install --no-cache-dir -e './backend[geo,api]'
