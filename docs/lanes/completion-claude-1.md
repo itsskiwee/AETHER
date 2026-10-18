@@ -33,12 +33,12 @@ Session `aether-be`. Assignment: `docs/claude-completion-fix-prompt.md` (cross-l
 | G1-F | **FAIL**: 7 passes ✓; per-pass optimum 9, 10, 9, 6, 10, 8, **2** ✗. Codex-3 witness lower bounds 7, 7, 7, 5, 8, 6, 2. Windows byte-identical to Codex-2's historical candidate | `experiments/results/g1f-pinned-base/` |
 | G4.5, synthetic m0 pilot (C2-06) | **FAIL**: gap 0.00476 vs 2 SD 0.04411; 15/30 seeds | `experiments/results/g45-pilot-synthetic-m0/` |
 | G4.5, pinned, 6 families × 30 seeds | **FAIL in all six**: gaps −0.0004 to 0.0026 vs 2 SD 0.0179–0.0259; 0 checker violations in 360 runs | `experiments/results/g45-pinned-dev/` |
-| SCI-10, m0, 30 seeds (random_feasible) | Meets the registered criteria (coverage 0.910 [0.896, 0.924]; no reliability bin off). Weak test: 83% of points sit near the prior | `experiments/results/sci10-pinned-m0/` |
+| SCI-10, m0 | random_feasible (30 seeds) meets the criteria (weak test: 83% of points near the prior). adaptive_eig (5 seeds) meets coverage 0.911 but **fails** the reliability rule as written: bins 0 and 9 have n = 9 and a degenerate bootstrap; binomial checks give 0.46 and 0.57. Decision H6 | `experiments/results/sci10-pinned-m0/` |
 | Power calculation | **Not run**: needs the 900-run development matrix; blocked by decision H3 | — |
 | Lock / freeze | Mechanism implemented and tested; **nothing locked or tagged** | `backend/aether/evaluation/freeze.py` |
 | Holdout (G5) | **Not run** (refused by the guard) | — |
 
-Pending human decisions H1–H5 (G1-F demo contingency, D9 sign-off, G4.5 remedy, SD/oracle wording, G5/G6 sign-off) are written out with options and recommendations in `docs/validation-report.md` §6. When asked mid-run, the user chose to continue without deciding, so every registered value is unchanged.
+Pending human decisions H1–H6 (G1-F demo contingency, D9 sign-off, G4.5 remedy, SD/oracle wording, G5/G6 sign-off, SCI-10 tiny-bin rule) are written out with options and recommendations in `docs/validation-report.md` §6. When asked mid-run, the user chose to continue without deciding, so every registered value is unchanged.
 
 ## Demo (pinned data)
 

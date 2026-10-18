@@ -1,0 +1,264 @@
+{
+  "by_policy": {
+    "adaptive_eig": {
+      "bins_ci_excluding_zero": [
+        0,
+        9
+      ],
+      "bootstrap": {
+        "kind": "seed-cluster percentile",
+        "level": 0.95,
+        "resamples": 2000
+      },
+      "calibration_in_the_large": {
+        "ci95_seed_cluster": [
+          -0.05106982857133436,
+          0.040265035674112624
+        ],
+        "mean_z_minus_p": -0.00822218852858725
+      },
+      "flux_interval_coverage_90": {
+        "all_points": {
+          "ci95_seed_cluster": [
+            0.8725,
+            0.9491666666666667
+          ],
+          "coverage": 0.9108333333333334,
+          "n_points": 1200,
+          "per_seed": {
+            "1000": 0.8541666666666666,
+            "1001": 0.95,
+            "1002": 0.8541666666666666,
+            "1003": 0.95,
+            "1004": 0.9458333333333333
+          }
+        },
+        "band": [
+          0.85,
+          0.95
+        ],
+        "final_time": {
+          "ci95_seed_cluster": [
+            0.91,
+            0.95
+          ],
+          "coverage": 0.93,
+          "n_points": 100,
+          "per_seed": {
+            "1000": 0.9,
+            "1001": 0.95,
+            "1002": 0.9,
+            "1003": 0.95,
+            "1004": 0.95
+          }
+        },
+        "within_band": true
+      },
+      "label": "m0_well_specified|adaptive_eig",
+      "n_seeds": 5,
+      "reliability": [
+        {
+          "bin": 0,
+          "contains_zero": false,
+          "mean_forecast": 0.08246685704561413,
+          "n": 9,
+          "n_seeds_populated": 4,
+          "observed_freq": 0.0,
+          "range": [
+            0.0,
+            0.1
+          ],
+          "residual_ci95": [
+            -0.09739146572925432,
+            -0.07532887840311793
+          ]
+        },
+        {
+          "bin": 1,
+          "contains_zero": true,
+          "mean_forecast": 0.1684641591512233,
+          "n": 179,
+          "n_seeds_populated": 5,
+          "observed_freq": 0.15083798882681565,
+          "range": [
+            0.1,
+            0.2
+          ],
+          "residual_ci95": [
+            -0.05833610195229267,
+            0.021098523100720478
+          ]
+        },
+        {
+          "bin": 2,
+          "contains_zero": true,
+          "mean_forecast": 0.27700141301088416,
+          "n": 910,
+          "n_seeds_populated": 5,
+          "observed_freq": 0.2692307692307692,
+          "range": [
+            0.2,
+            0.3
+          ],
+          "residual_ci95": [
+            -0.04872010370203426,
+            0.03278440018313275
+          ]
+        },
+        {
+          "bin": 3,
+          "contains_zero": true,
+          "mean_forecast": 0.34500037702498487,
+          "n": 13,
+          "n_seeds_populated": 3,
+          "observed_freq": 0.3076923076923077,
+          "range": [
+            0.3,
+            0.4
+          ],
+          "residual_ci95": [
+            -0.354012516711252,
+            0.6158533343172428
+          ]
+        },
+        {
+          "bin": 4,
+          "contains_zero": true,
+          "mean_forecast": 0.4406904562729285,
+          "n": 10,
+          "n_seeds_populated": 3,
+          "observed_freq": 0.6,
+          "range": [
+            0.4,
+            0.5
+          ],
+          "residual_ci95": [
+            -0.43537817778487214,
+            0.5726555474504045
+          ]
+        },
+        {
+          "bin": 5,
+          "contains_zero": true,
+          "mean_forecast": 0.5633634038069738,
+          "n": 28,
+          "n_seeds_populated": 4,
+          "observed_freq": 0.6071428571428571,
+          "range": [
+            0.5,
+            0.6
+          ],
+          "residual_ci95": [
+            -0.24513411273774566,
+            0.3427982843902073
+          ]
+        },
+        {
+          "bin": 6,
+          "contains_zero": true,
+          "mean_forecast": 0.6445795672498288,
+          "n": 18,
+          "n_seeds_populated": 4,
+          "observed_freq": 0.6111111111111112,
+          "range": [
+            0.6,
+            0.7
+          ],
+          "residual_ci95": [
+            -0.11519329704940705,
+            0.07621559908067704
+          ]
+        },
+        {
+          "bin": 7,
+          "contains_zero": true,
+          "mean_forecast": 0.7471594137151979,
+          "n": 12,
+          "n_seeds_populated": 4,
+          "observed_freq": 0.5833333333333334,
+          "range": [
+            0.7,
+            0.8
+          ],
+          "residual_ci95": [
+            -0.6053924293091032,
+            0.08772964212057695
+          ]
+        },
+        {
+          "bin": 8,
+          "contains_zero": true,
+          "mean_forecast": 0.8509049229283564,
+          "n": 12,
+          "n_seeds_populated": 4,
+          "observed_freq": 0.9166666666666666,
+          "range": [
+            0.8,
+            0.9
+          ],
+          "residual_ci95": [
+            -0.02467767389327762,
+            0.1613233685026492
+          ]
+        },
+        {
+          "bin": 9,
+          "contains_zero": false,
+          "mean_forecast": 0.9391961302279626,
+          "n": 9,
+          "n_seeds_populated": 3,
+          "observed_freq": 1.0,
+          "range": [
+            0.9,
+            1.0
+          ],
+          "residual_ci95": [
+            0.052794018498239656,
+            0.08327628959208644
+          ]
+        }
+      ],
+      "seeds": [
+        1000,
+        1001,
+        1002,
+        1003,
+        1004
+      ]
+    }
+  },
+  "environment": {
+    "code_sha256": "83d8e122a42fa861bb4bc3948fe6a62a222a4860a74ebe4bbd34cbf5e3b7aca3",
+    "code_version": "0.1.0",
+    "cpu_count": 12,
+    "git_commit": "28fbff9a1bfd8978d7c5da3c9702756f659ccfb1",
+    "git_dirty_paths": [],
+    "machine": "x86_64",
+    "python": "3.14.7",
+    "runtime_inputs": {
+      "package_versions": {
+        "astropy": "8.0.2",
+        "numpy": "2.5.4",
+        "ortools": "9.15.6755",
+        "pydantic": "2.14.1",
+        "pyyaml": "6.0.3",
+        "scipy": "1.18.1",
+        "sgp4": "2.27",
+        "skyfield": "1.55"
+      },
+      "pinned_data_sha256": {
+        "data/eop/README.md": "134134b8e10112b7c1f2dadc04f6c0928bee9619aeb47e11f3204b42aac91a70",
+        "data/eop/finals2000A.all": "bfa2066aab0400b075357f573af6081e0068a518993609eee0c5ca991bab0845",
+        "data/eop/manifest.json": "193f70e3ddefa7e161afcd8d2cbb8a5b51ed0b0a60b7ccee761d35e707fb4deb",
+        "data/ephemeris/de421.bsp": "a20a7139da04cbc462454634918e9a9ca69127044e2cc9d4f9c16e238d2deedc",
+        "data/ephemeris/manifest.json": "61adedbdb403bf1acceaa5b7de265a03e919fcaafd3f874f35282b4231c562ed"
+      }
+    }
+  },
+  "family": "m0_well_specified",
+  "input_datasets": [
+    "{\"dataset_id\": \"emit-l2b-ch4plm-002-permian-v1\", \"in_region_count\": 20, \"manifest_path\": \"data/manifests/emit_permian.json\", \"manifest_sha256\": \"216cf916269f10e5a0dd0bd08b224cef2956bfa0d6990443eddf8c6a87982c55\", \"normalized_sha256\": \"ba4305b3876abfca607cb8a994918a945fbd168291466dc169712b5973c94343\", \"record_count\": 20, \"seeded_source_count\": 20, \"uniform_fill_count\": 0}"
+  ],
+  "label": "SIMULATED MISSION \u2014 SCI-10 calibration, m0, tuning seeds (development only)",
+  "seeds_sha256": "deb917ed5fe0c6aa3a98ef322b79dd8a9a3743df6beb5c44a53a82da17785812"
+}

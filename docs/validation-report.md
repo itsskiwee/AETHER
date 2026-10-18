@@ -9,7 +9,7 @@ The base scenario now places its 20 source hypotheses at 20 pinned historical EM
 | G1-F capacity, integrated scenario | **FAIL**: 7 passes ✓; one pass with at most 2 acquisitions ✗ (minimum 4) | §6, `docs/orbit-model-report.md` |
 | G4.5, synthetic-only m0 pilot (C2-06) | **FAIL** (gap 0.0048 vs 2 SD 0.0441) | §3.1 |
 | G4.5, pinned data, six families, 30 tuning seeds | **FAIL in all six** (gaps −0.0004 to 0.0026 vs 2 SD 0.0179–0.0259; 0 checker violations) | §3.2 |
-| SCI-10 calibration, m0 pinned, 30 seeds | **Meets the registered criteria** for the truth-independent reference (random_feasible); weak evidence beyond the prior (see caveat) | §3.3 |
+| SCI-10 calibration, m0 pinned | random_feasible (30 seeds): **meets** the criteria (weak test). adaptive_eig (5 seeds): coverage meets; reliability rule **fails** as written (two 9-point bins) | §3.3 |
 | Power calculation, lock, holdout | **Not run**: blocked by the G4.5 scenario decision | §6 |
 
 The old two-seed demo comparison (17 Oct, synthetic placement) stays below as history. It is not a result for the pinned scenario.
@@ -238,6 +238,11 @@ Command: `python -m aether.evaluation.calibration --output-dir runs/gate-pinned 
 |---|---:|---|---|---|
 | random_feasible (selection independent of truth) | **0.910** | [0.896, 0.924] | none | −0.001 [−0.025, 0.022] |
 | oracle reference (selection reads truth) | 0.917 | [0.902, 0.932] | bins 0 and 6 | −0.013 [−0.037, 0.009] |
+| adaptive_eig (first 5 tuning seeds; selection depends on beliefs only) | 0.911 | [0.873, 0.949] | **bins 0 and 9** | −0.008 [−0.051, 0.040] |
+
+adaptive_eig: `python -m aether.evaluation.calibration --output-dir runs/sci10-adaptive --policies adaptive_eig --n-seeds 5 --workers 5`. Commit `28fbff9`, clean tree, code `83d8e122…`, 860 s. Artifact: `experiments/results/sci10-pinned-m0/calibration-m0-adaptive_eig-5seeds.json`.
+
+**adaptive_eig does not meet the reliability rule as written.** The rule says every populated bin's 95% seed-cluster CI must contain 0. Bins 0 and 9 each hold only 9 points from 3–4 seeds: observed 0/9 at mean forecast 0.082, and 9/9 at 0.939. With all-0 or all-1 outcomes, the seed-cluster bootstrap collapses to a single residual that excludes 0 by construction. A plain binomial check is consistent with calibration (P(0/9 | 0.082) = 0.46; P(9/9 | 0.939) = 0.57), but changing the rule now (for example adding a minimum bin count or a binomial test) would be a method change made after seeing results. It is recorded as decision **H6** and has not been applied. Coverage meets the band.
 
 **Verdict.** The registered SCI-10 criteria (coverage in [0.85, 0.95]; reliability within sampling error) are met on 30 seeds for random_feasible, the reference whose observation choice does not depend on truth. The oracle's two off bins are expected: it chooses what to observe from z_true, so its evidence is not ignorable, and it is not a calibration test of the belief model.
 
@@ -285,7 +290,7 @@ The development comparison (base config, m0, development seeds 1000 and 1001, 3 
 | Gate / scope | Status | Evidence and what remains |
 |---|---|---|
 | G1-F capacity | **FAIL** | 7 passes; per-pass optimum 9, 10, 9, 6, 10, 8, **2**; Codex-3 witness confirms 2 (`experiments/results/g1f-pinned-base/`) |
-| G3 inference | Unit-level **PASS**; SCI-10 **meets the registered criteria** (random_feasible, 30 seeds) with the §3.3 caveat | adaptive_eig calibration not run |
+| G3 inference | Unit-level **PASS**. SCI-10: random_feasible (30 seeds) **meets** the registered criteria (weak-test caveat); adaptive_eig (5 seeds) meets coverage but **fails** the reliability rule as written: two 9-point extreme bins, degenerate bootstrap | §3.3; rule interpretation is H6 |
 | G4.5 discriminability | **FAIL** (synthetic m0 pilot and pinned data) | §3.1, §3.2 |
 | Power / seed count | **Not run** | Needs the 900-run development matrix. Measured costs (adaptive_eig about 12.6 min per 72 h run; reference runs about 2 min with warm geometry) put it at roughly 4 h of wall time on 9 workers. It is pointless before a scenario decision |
 | Protocol lock and freeze | **Not done**; mechanism implemented | `aether.evaluation.freeze` and holdout guard tests. Nothing is locked or tagged |
@@ -299,6 +304,7 @@ The development comparison (base config, m0, development seeds 1000 and 1001, 3 
 | H2 | D9 family scope sign-off | all six families (proposed) / m0 only / m0 + 2 of m1–m4. Every option includes m0, which fails, so today's verdict is FAIL under each | All six (D9 as proposed) |
 | H3 | G4.5 scenario remedy | A: h168 base; A+B: h168 + denser fleet; C: evaluation-time metric change (not recommended); D: keep the scenario and accept a likely null | A (Claude-2), only after H1(b) measures h168 capacity; then re-run the 360-run gate (several hours, planning estimate) |
 | H4 | SD-not-SE rule, and the oracle as an oracle-informed greedy reference | Kept as registered (§3 notes 1–2) | Keep |
+| H6 | SCI-10 reliability rule for tiny bins | Keep as written (adaptive_eig fails), or pre-register a minimum bin size or a binomial check for bins whose seed-cluster bootstrap is degenerate, then re-evaluate | Decide before lock. If changed, report both readings |
 | H5 | G5/G6 sign-off | Concrete artifacts in `docs/p0-requirements-evidence.md` | Pending the user's review |
 
 The old two-seed demo comparison is preliminary and synthetic-placement only. The pinned-scenario development comparison in §5.1 is also preliminary (two seeds, m0). Neither is a research claim.
