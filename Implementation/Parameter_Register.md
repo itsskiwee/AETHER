@@ -80,7 +80,7 @@ Computed with `scripts/feasibility/pass_budget.py` (sgp4 2.27 + Skyfield 1.55, D
 
 **Revisit timing (lessons.md 2.1):** passes come in morning/afternoon clusters about 21 h apart (the two planes cross at 10:30 and 13:30 local time), and none occur at night. Only PERSISTENT sources (τ ≈ 40 h) keep state memory across that gap. INTERMITTENT and EPISODIC sources mostly reveal their *regime* rather than their current state. That's a real property of daylight-only SWIR sensing, not a simulator artefact. It's why gate G4.5, the per-regime breakdowns and the PR-O10 ablation exist.
 
-**Gate G1-F:** if ORB-05 measures fewer than 5 regional passes per 72 h or fewer than 4 acquisitions per pass, switch the demo to `h168_long_horizon` before building further. **Measured 18 Oct 2026 on the integrated pinned scenario: FAIL.** 7 passes; per-pass optimum 9, 10, 9, 6, 10, 8, **2** (`experiments/results/g1f-pinned-base/g1f.json`). The switch is pending human review (`docs/validation-report.md` §6); no number here has changed.
+**Gate G1-F:** if ORB-05 measures fewer than 5 regional passes per 72 h or fewer than 4 acquisitions per pass, switch the demo to `h168_long_horizon` before building further. **Measured 18 Oct 2026 on the integrated pinned scenario: FAIL.** 7 passes; per-pass optimum 9, 10, 9, 6, 10, 8, **2** (`experiments/results/g1f-pinned-base/g1f.json`). The switch is pending human review (`docs/validation-report.md` §6); no number here has changed. A diagnostic on `h168_long_horizon` (fill seed 1000) meets both thresholds: 16 passes, minimum 5 per pass (`experiments/results/g1f-h168-diagnostic/`).
 
 ---
 

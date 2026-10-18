@@ -26,15 +26,29 @@ Session `aether-be`. Assignment: `docs/claude-completion-fix-prompt.md` (cross-l
 - Sample: 20 records (10 quantified, 10 `NA`), 20 distinct clusters, all inside the bbox, no duplicates. Manifest `216cf916…982c55`; normalized `ba4305b3…94343` (20 records, 127,928 bytes); 40 raw files. Retrieval `PARTIAL`, time null.
 - Fresh clone (29 MB working tree, without the bulk directory): sample and wiring tests pass, `validate` reproduces config hash `91920c15…f5c079`, and source resolution verifies the dataset and seeds 20 sources.
 
-## Gates
+## Gates and science (all evidence on the pinned scenario unless labelled)
 
-- **G1-F FAIL** (integrated): 7 passes; per-pass optimum 9, 10, 9, 6, 10, 8, 2. Windows are byte-identical to Codex-2's historical candidate. Evidence: `experiments/results/g1f-pinned-base/`.
-- **G4.5**: synthetic m0 pilot FAIL (C2-06). Pinned all-family result: `experiments/results/g45-pinned-dev/` and `docs/validation-report.md` §3.2.
+| Item | Verdict | Evidence |
+|---|---|---|
+| G1-F | **FAIL**: 7 passes ✓; per-pass optimum 9, 10, 9, 6, 10, 8, **2** ✗. Codex-3 witness lower bounds 7, 7, 7, 5, 8, 6, 2. Windows byte-identical to Codex-2's historical candidate | `experiments/results/g1f-pinned-base/` |
+| G1-F diagnostic on `h168_long_horizon` (fill seed 1000) | Meets both thresholds: 16 passes (6.9 per 72 h), minimum 5 per pass (8 OPTIMAL, 8 FEASIBLE lower bounds), 0 violations. Evidence for H1/H3 only | `experiments/results/g1f-h168-diagnostic/` |
+| G4.5, synthetic m0 pilot (C2-06) | **FAIL**: gap 0.00476 vs 2 SD 0.04411; 15/30 seeds | `experiments/results/g45-pilot-synthetic-m0/` |
+| G4.5, pinned, 6 families × 30 seeds | **FAIL in all six**: gaps −0.0004 to 0.0026 vs 2 SD 0.0179–0.0259; 0 checker violations in 360 runs | `experiments/results/g45-pinned-dev/` |
+| SCI-10, m0 | random_feasible (30 seeds) meets the criteria (weak test: 83% of points near the prior). adaptive_eig (5 seeds) meets coverage 0.911 but **fails** the reliability rule as written: bins 0 and 9 have n = 9 and a degenerate bootstrap; binomial checks give 0.46 and 0.57. Decision H6 | `experiments/results/sci10-pinned-m0/` |
+| Power calculation | **Not run**: needs the 900-run development matrix; blocked by decision H3 | — |
+| Lock / freeze | Mechanism implemented and tested; **nothing locked or tagged** | `backend/aether/evaluation/freeze.py` |
+| Holdout (G5) | **Not run** (refused by the guard) | — |
+
+Pending human decisions H1–H6 (G1-F demo contingency, D9 sign-off, G4.5 remedy, SD/oracle wording, G5/G6 sign-off, SCI-10 tiny-bin rule) are written out with options and recommendations in `docs/validation-report.md` §6. When asked mid-run, the user chose to continue without deciding, so every registered value is unchanged.
+
+## Demo (pinned data)
+
+`runs/demo-final/` was regenerated on the final code and matches the earlier `runs/demo-pinned/` byte for byte for `largest_first`. `largest_first`: 41 plans, 37 acquisitions; `adaptive_eig`: 47 plans, 51 acquisitions; 0 violations. Separate-process replay is byte-identical, and both exports reload with 46 input hashes re-verified. The hour-20 forecast revision changes no selection; `docs/demo-console.md` step 5 explains why. The two-seed development comparison carries no inferential weight. PRD 22.1 screenshots: `runs/demo-pinned/rehearsal/*.png`.
 
 ## Measured cost (reference machine: 12 CPUs, Python 3.14.7)
 
-- Cold 72 h geometry for 20 sources: 385.5 s. Warm (disk cache): about 0.1 s.
-- Pinned reference runs (oracle or random_feasible), 9 parallel workers, warm cache: 107–141 s per run.
+- Cold 72 h geometry for 20 sources: 385.5 s with the machine partly loaded, 699.3 s fully loaded. Warm (disk cache): about 0.1 s. Timings depend on load.
+- Pinned reference runs (oracle or random_feasible), 9 parallel workers: the 360-run gate took 72 min; per run 17.4–796.9 s, median 88.0 s (the maximum includes r1's cold geometry).
 - adaptive_eig, demo seed 1000: 757 s per run, of which 612 s is CP-SAT across 47 plan calls (max 108.7 s); largest_first takes about 50 s plus geometry.
 - Planning estimate (not measured): the 900-run development matrix needs roughly 4 h of wall time on 9 workers, dominated by 180 adaptive_eig runs and the greedy_eig runs. Holdout at N = 100 is 3,000 runs, roughly 13 h.
 

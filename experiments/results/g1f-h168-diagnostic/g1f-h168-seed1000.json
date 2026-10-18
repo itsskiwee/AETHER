@@ -1,0 +1,172 @@
+{
+  "below_4_all_proven_optimal": true,
+  "checker_zero_violations": true,
+  "gate": "G1-F (diagnostic on the registered contingency family; not a scenario change)",
+  "horizon_hours": 168.0,
+  "min_per_pass": 5,
+  "model_config_hash": "390a7223abe6aed6c14edf3e449c79ef1bb6930a9858c038d4efb26187508dd6",
+  "note": "Per-pass independent CP-SAT counting solves with the production planner config; OPTIMAL = proven capacity, FEASIBLE = time-limited, checker-validated lower bound. Not summed across passes. One fill seed only (40 uniform-fill sources depend on it).",
+  "pass_count": 16,
+  "pass_count_threshold_met": true,
+  "passes": [
+    {
+      "checker_ok": true,
+      "checker_violations": 0,
+      "feasible_options": 578,
+      "feasible_source_windows": 54,
+      "pass_id": "vsat_a:102",
+      "scheduled_acquisitions": 10,
+      "solver_status": "FEASIBLE"
+    },
+    {
+      "checker_ok": true,
+      "checker_violations": 0,
+      "feasible_options": 371,
+      "feasible_source_windows": 38,
+      "pass_id": "vsat_a:26",
+      "scheduled_acquisitions": 10,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "checker_ok": true,
+      "checker_violations": 0,
+      "feasible_options": 720,
+      "feasible_source_windows": 60,
+      "pass_id": "vsat_a:41",
+      "scheduled_acquisitions": 10,
+      "solver_status": "FEASIBLE"
+    },
+    {
+      "checker_ok": true,
+      "checker_violations": 0,
+      "feasible_options": 92,
+      "feasible_source_windows": 13,
+      "pass_id": "vsat_a:56",
+      "scheduled_acquisitions": 7,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "checker_ok": true,
+      "checker_violations": 0,
+      "feasible_options": 655,
+      "feasible_source_windows": 60,
+      "pass_id": "vsat_b:11",
+      "scheduled_acquisitions": 10,
+      "solver_status": "FEASIBLE"
+    },
+    {
+      "checker_ok": true,
+      "checker_violations": 0,
+      "feasible_options": 54,
+      "feasible_source_windows": 10,
+      "pass_id": "vsat_b:57",
+      "scheduled_acquisitions": 5,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "checker_ok": true,
+      "checker_violations": 0,
+      "feasible_options": 720,
+      "feasible_source_windows": 60,
+      "pass_id": "vsat_b:72",
+      "scheduled_acquisitions": 10,
+      "solver_status": "FEASIBLE"
+    },
+    {
+      "checker_ok": true,
+      "checker_violations": 0,
+      "feasible_options": 444,
+      "feasible_source_windows": 44,
+      "pass_id": "vsat_b:87",
+      "scheduled_acquisitions": 10,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "checker_ok": true,
+      "checker_violations": 0,
+      "feasible_options": 720,
+      "feasible_source_windows": 60,
+      "pass_id": "vsat_c:104",
+      "scheduled_acquisitions": 10,
+      "solver_status": "FEASIBLE"
+    },
+    {
+      "checker_ok": true,
+      "checker_violations": 0,
+      "feasible_options": 123,
+      "feasible_source_windows": 16,
+      "pass_id": "vsat_c:13",
+      "scheduled_acquisitions": 8,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "checker_ok": true,
+      "checker_violations": 0,
+      "feasible_options": 720,
+      "feasible_source_windows": 60,
+      "pass_id": "vsat_c:28",
+      "scheduled_acquisitions": 10,
+      "solver_status": "FEASIBLE"
+    },
+    {
+      "checker_ok": true,
+      "checker_violations": 0,
+      "feasible_options": 341,
+      "feasible_source_windows": 35,
+      "pass_id": "vsat_c:43",
+      "scheduled_acquisitions": 10,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "checker_ok": true,
+      "checker_violations": 0,
+      "feasible_options": 333,
+      "feasible_source_windows": 35,
+      "pass_id": "vsat_c:89",
+      "scheduled_acquisitions": 10,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "checker_ok": true,
+      "checker_violations": 0,
+      "feasible_options": 34,
+      "feasible_source_windows": 6,
+      "pass_id": "vsat_d:13",
+      "scheduled_acquisitions": 5,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "checker_ok": true,
+      "checker_violations": 0,
+      "feasible_options": 658,
+      "feasible_source_windows": 60,
+      "pass_id": "vsat_d:59",
+      "scheduled_acquisitions": 10,
+      "solver_status": "FEASIBLE"
+    },
+    {
+      "checker_ok": true,
+      "checker_violations": 0,
+      "feasible_options": 675,
+      "feasible_source_windows": 60,
+      "pass_id": "vsat_d:74",
+      "scheduled_acquisitions": 10,
+      "solver_status": "FEASIBLE"
+    }
+  ],
+  "passes_below_4": [],
+  "passes_per_72h": 6.857142857142857,
+  "passes_with_at_least_4": 16,
+  "per_pass_capacity_threshold_met": true,
+  "scenario": "configs/base.yaml + configs/scenarios/h168_long_horizon.yaml, seed 1000",
+  "solver_status_counts": {
+    "FEASIBLE": 8,
+    "OPTIMAL": 8
+  },
+  "sources": {
+    "seeded": 20,
+    "uniform_fill": 40
+  },
+  "windows_sha256": "2dfc246eca34f219ef1ce7b83793e2c245a6bd86ab19d4ce92f93b9521afbd5a",
+  "windows_total": 10346
+}
