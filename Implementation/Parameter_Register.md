@@ -104,7 +104,7 @@ Computed with `scripts/feasibility/pass_budget.py` (sgp4 2.27 + Skyfield 1.55, D
 | PR-P02 | Placement | Cluster EMIT V002 plume centroids in the bbox (500 m); fill with uniform-random points if fewer than 20 | [D] | Makes the real data shape the experiment. Each `Source.seeded_from_plume_id` records its origin. |
 | PR-P03 | Minimum separation | 500 m | [D] | Below the 18 km scene size, so co-imaging is possible but separate source hypotheses stay distinct. |
 | PR-P04 | Plume dataset input | `sources.plume_dataset`: repo-relative manifest path + its SHA-256, or `null` (synthetic-only, all uniform fill) | [D] | One pinned input for every policy and family; the hash enters `config_hash` so a protocol lock binds it. Historical plumes give locations only, never truth fluxes or the prior. Interface: `docs/dataset-interface.md`. |
-| PR-P10 | Flux prior, conditional on active | lognormal, median 300 kg/h, σ_ln 1.1, truncated [30, 30000] | [A] | Permian aircraft surveys show a heavy-tailed distribution with medians of a few hundred kg/h (Cusworth et al. 2021 [S16]). Puts much of the population near the VS-A detection threshold, which is where scheduling decisions matter. **[V] SCI-08:** compare with the EMIT fixture rates (note: EMIT only sees > ~1 t/h, so it is a biased sample of the tail). |
+| PR-P10 | Flux prior, conditional on active | lognormal, median 300 kg/h, σ_ln 1.1, truncated [30, 30000] | [A] | Permian aircraft surveys show a heavy-tailed distribution with medians of a few hundred kg/h (Cusworth et al. 2021 [S16]). Puts much of the population near the VS-A detection threshold, which is where scheduling decisions matter. **[V] SCI-08 (18 Oct 2026):** 73 quantified EMIT V002 Permian rates, median 1,701 kg/h vs prior 308; detection- and quantification-selected, so uninformative about the population prior. Kept [A]. The upper tail (σ_ln) and the EMIT rate-uncertainty definition are on the §10 domain-review list. Details: `docs/model-card-source-state.md`. |
 | PR-P11 | Hourly flux variability | lognormal, σ_ln 0.30, i.i.d. | [A] | Folded into measurement noise by the belief model (deliberately mild misspecification). |
 
 ## 4. Emission-persistence regimes (2-state Markov per regime, 1 h steps)
@@ -254,7 +254,7 @@ So the base scenario is probably **more persistent than the Permian**, perhaps b
 | Exact EMIT V002 GeoJSON property names: not in any public page I found; must be read from a downloaded granule and the ATBD §4.2.5 | ING-02 after download | Parser mapping only |
 | Copernicus CDS API key for ERA5 checks (PR-W01, PR-W10) | You | No (P1) |
 | Carbon Mapper Terms of Use version and redistribution rights | You / ING-06 | No (P1) |
-| Domain sign-off on PR-P10, PR-P20–22, PR-V11 by someone with methane remote-sensing background | Science reviewer | Before any results are published |
+| Domain sign-off on PR-P10 (including its upper tail σ_ln), PR-P20–22, PR-V11, and the meaning of the EMIT `Emissions Rate Estimate Uncertainty (kg/hr)` field (undefined in the public ATBD v0.2 / User Guide v02, so kept `UNKNOWN`), by someone with methane remote-sensing background | Science reviewer | Before any results are published |
 
 ## Added citations (extend PRD §25)
 
