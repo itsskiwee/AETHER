@@ -31,6 +31,7 @@ Session `aether-be`. Assignment: `docs/claude-completion-fix-prompt.md` (cross-l
 | Item | Verdict | Evidence |
 |---|---|---|
 | G1-F | **FAIL**: 7 passes ✓; per-pass optimum 9, 10, 9, 6, 10, 8, **2** ✗. Codex-3 witness lower bounds 7, 7, 7, 5, 8, 6, 2. Windows byte-identical to Codex-2's historical candidate | `experiments/results/g1f-pinned-base/` |
+| G1-F diagnostic on `h168_long_horizon` (fill seed 1000) | Meets both thresholds: 16 passes (6.9 per 72 h), minimum 5 per pass (8 OPTIMAL, 8 FEASIBLE lower bounds), 0 violations. Evidence for H1/H3 only | `experiments/results/g1f-h168-diagnostic/` |
 | G4.5, synthetic m0 pilot (C2-06) | **FAIL**: gap 0.00476 vs 2 SD 0.04411; 15/30 seeds | `experiments/results/g45-pilot-synthetic-m0/` |
 | G4.5, pinned, 6 families × 30 seeds | **FAIL in all six**: gaps −0.0004 to 0.0026 vs 2 SD 0.0179–0.0259; 0 checker violations in 360 runs | `experiments/results/g45-pinned-dev/` |
 | SCI-10, m0 | random_feasible (30 seeds) meets the criteria (weak test: 83% of points near the prior). adaptive_eig (5 seeds) meets coverage 0.911 but **fails** the reliability rule as written: bins 0 and 9 have n = 9 and a degenerate bootstrap; binomial checks give 0.46 and 0.57. Decision H6 | `experiments/results/sci10-pinned-m0/` |

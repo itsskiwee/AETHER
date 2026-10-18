@@ -37,6 +37,16 @@ The Parameter Register's G1-F rule says: on a fail, switch the demo to `h168_lon
 switch is a scenario decision pending human review. It is listed with costs in
 `docs/validation-report.md` §6.
 
+## Diagnostic: G1-F on the registered contingency family `h168_long_horizon`
+
+This is not a scenario change. It is evidence for decisions H1 and H3 (`docs/validation-report.md` §6). Base + `h168_long_horizon`, seed 1000: 168 h, 60 sources (20 plume-seeded + 40 uniform fill, and the fill depends on the seed). 10,346 windows, generated in 3,351 s on a loaded machine. Model config hash `390a7223…`.
+
+- 16 regional passes, 6.86 per 72 h (≥ 5 ✓).
+- Per-pass acquisitions: 10≥, 10, 10≥, 7, 10≥, 5, 10≥, 10, 10≥, 8, 10≥, 10, 10, 5, 10≥, 10≥. A trailing ≥ marks a time-limited FEASIBLE CP-SAT result, which is a checker-valid lower bound and not a proven optimum. The minimum is 5 (≥ 4 ✓). All solves have zero checker violations.
+- Only one fill seed was measured. Before h168 can be adopted, more fill seeds and Codex-3's solver-free witness are needed.
+
+Evidence: `experiments/results/g1f-h168-diagnostic/g1f-h168-seed1000.json`.
+
 ## Inputs and provenance
 
 The benchmark candidate uses `configs/base.yaml`, its 72-hour horizon, and the configured random
