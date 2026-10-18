@@ -1,71 +1,61 @@
-# Cloudflare hosting
+# Cloudflare and GitHub hosting
 
-AETHER's console and read-only API use one origin. The deployment uses a Cloudflare
-Worker as the public entry point and a Durable Object-managed Container for the
-existing FastAPI application and React build. The Container builds from the repository
-`Dockerfile`; it does not run the simulation or change saved replay artifacts.
+AETHER is deployed as the `aether-replay-hosted` Cloudflare Worker with Static Assets.
+Workers Builds connects the Worker to the GitHub repository and deploys commits from
+the configured production branch. The React console, globe, accepted replay data,
+evidence exports, and read-only API snapshots ship together. The Worker does not run
+the planner or simulator, and this deployment does not use Containers or a database.
 
-The Worker accepts `GET` and `HEAD` requests and forwards them to the Container. The
-Container becomes available after `/healthz` succeeds. The console is served at `/`,
-the API at `/api`, and interactive API documentation at `/api/docs`.
+## GitHub build settings
 
-## Data connections
+Connect the existing Worker from **Workers & Pages → aether-replay-hosted → Settings
+→ Builds**. Select `itsskiwee/AETHER` and the `lane/REL-02-cloudflare-github` branch. Set:
 
-AETHER has no runtime MCP client or MCP server requirement. Its current public context
-already comes from the policy-checked CelesTrak GP and NASA CMR HTTP feeds in
-`scripts/live_context.py`. The Cloudflare MCP connection is for managing Cloudflare
-resources; its credentials are not passed to the deployed application. The Container
-is configured to enable those existing public feed refreshes and needs outbound
-internet access. Satellite positions remain SGP4/Skyfield estimates, NASA catalogue
-entries remain historical metadata, and neither feed is telemetry or a methane
-measurement. These feeds do not change the recorded scientific runs.
+| Setting | Value |
+|---|---|
+| Root directory | `/` |
+| Build command | `npm run cloudflare:build` |
+| Deploy command | `npm run deploy:cloudflare` |
 
-## Deploy with Workers Builds
+Cloudflare's build environment installs the root Node dependencies. The build command
+installs the frontend and backend build dependencies, refreshes public provider context
+through the policy-checked script, builds the frontend, and exports read-only API
+snapshots from `scripts.hosted_app`. If a public provider is unavailable, the offline
+replay still builds and the context endpoint records the unavailable state.
 
-Workers Builds can build and publish the Dockerfile image remotely. This is the
-recommended route when the deployment machine has no local Docker daemon.
-See Cloudflare's [Workers Builds configuration](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/)
-and [Container deployment guide](https://developers.cloudflare.com/containers/guides/deploy/)
-for current dashboard fields and rollout behavior.
+## Data and refresh behavior
 
-1. Merge this delivery branch into the intended production branch, then connect the
-   GitHub repository to a Cloudflare Worker using Workers Builds.
-2. Set the repository root as the build root. Use `npm run cloudflare:typecheck` as
-   the optional build command and `npm run deploy:cloudflare` as the deploy command.
-   The root lockfile pins Wrangler; Wrangler builds the Container image from
-   `Dockerfile` during deployment.
-3. Before the first deploy, check that the account does not already contain a Worker
-   named `aether-replay-hosted`. If it does, change the `name` in `wrangler.jsonc`
-   so this deployment cannot replace that Worker.
-4. Open the assigned `workers.dev` URL and confirm `/healthz` returns status `ok`.
-   Then check `/`, `/api/runs` and `/api/live-context`.
+The console reads accepted replay artifacts from `data/fixtures/hosted_replay`. API
+responses are generated from the same FastAPI read-only routes used for local hosting.
+The Worker serves those snapshots as static assets; it does not recompute the
+simulation, planner, or benchmark during a request. The globe view is available at
+`/?view=globe` and uses its checked-in data file under `frontend/public/globe/`.
 
-Workers Builds needs the Cloudflare GitHub App connected to the repository and a
-Cloudflare token that can deploy Workers and Containers. Keep tokens in the Cloudflare
-dashboard or build settings; never commit them. A custom domain is not configured.
+The satellite context is captured during each GitHub build. A push triggers a fresh
+build and deployment; the public feeds do not refresh in the background. If a feed
+fails during the build, the replay remains available and the context view labels the
+provider state as unavailable. Satellite positions are estimates from published
+orbital elements, not telemetry. Catalogue records are metadata, not real-time methane
+measurements.
 
-For a local deployment, install Node dependencies with `npm ci`, run
-`npm run cloudflare:typecheck`, then `npm run deploy:cloudflare`. Local `wrangler deploy`
-also needs Docker running. `wrangler dev` with this Container image has the same local
-Docker requirement.
+No Cloudflare or Supabase secrets are needed for the public replay. Cloudflare manages
+the deployment token for Workers Builds. The current `workers.dev` address is shown in
+the Worker dashboard. Static assets use the Worker Assets binding; no Durable Objects,
+Containers, or paid database bindings are configured.
 
-## Plan and usage
+## Build and deploy locally
 
-Cloudflare Containers require Workers Paid. Cloudflare currently lists a $5 USD monthly
-minimum for that plan, with Container usage included up to monthly allowances and
-metered beyond them. This setup uses the supported `standard-1` Container size, which
-allocates 4 GiB of memory, and stops the Container after ten minutes without a request.
-At that size, each active hour uses 4 GiB-hours of the included monthly memory
-allowance; longer or frequent visits can create additional charges. Review the current
-[Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/) and
-[Container limits](https://developers.cloudflare.com/containers/platform/limits/)
-before enabling a paid plan.
+Install the backend and frontend dependencies using the steps in the repository setup
+guide. Then refresh provider context and publish:
 
-## Current deployment status
+```powershell
+python scripts/live_context.py --output "$env:TEMP\aether-live-context.json"
+$env:AETHER_LIVE_CONTEXT = "$env:TEMP\aether-live-context.json"
+npm --prefix frontend ci
+npm run build:cloudflare
+npm run deploy:cloudflare
+```
 
-The deployment source and local type checks are prepared. No Cloudflare Worker or
-Container has been created from this repository. The connected Cloudflare MCP can list
-the account but account-scoped Workers requests currently return Cloudflare error
-10000, so it cannot inspect or deploy resources. The account's existing plan status
-also could not be read. Workers Builds or a Cloudflare connection with account-level
-Workers and Containers deployment access is still required to publish the site.
+The public provider updater follows `aether.netpolicy`, validates public destinations,
+and uses the configured network timeouts. No raw provider response is published by the
+site; the API snapshot retains retrieval times, response hashes, and derived context.

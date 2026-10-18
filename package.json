@@ -2,14 +2,16 @@
   "name": "aether-cloudflare-hosting",
   "private": true,
   "scripts": {
-    "cloudflare:types": "wrangler types cloudflare/worker-configuration.d.ts --include-runtime=false --config wrangler.jsonc",
-    "cloudflare:typecheck": "npm run cloudflare:types && tsc --project cloudflare/tsconfig.json",
+    "build:cloudflare": "npm --prefix frontend run build && python scripts/export_cloudflare_snapshot.py",
+    "cloudflare:build": "python scripts/build_cloudflare.py",
     "deploy:cloudflare": "wrangler deploy --config wrangler.jsonc",
     "dev:cloudflare": "wrangler dev --config wrangler.jsonc"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "5.20261018.1",
-    "typescript": "5.7.2",
     "wrangler": "4.151.1"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "workerd@1.20261012.1": true
   }
 }

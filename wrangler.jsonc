@@ -1,36 +1,16 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "aether-replay-hosted",
-  "main": "cloudflare/src/index.ts",
+  "main": "cloudflare/src/index.js",
   "compatibility_date": "2026-10-18",
   "workers_dev": true,
   "observability": {
     "enabled": true
   },
-  "containers": [
-    {
-      "class_name": "AetherReplayContainer",
-      "scheduling_policy": "durable_object",
-      "images": {
-        "base": {
-          "dockerfile": "./Dockerfile",
-          "build_context": "."
-        }
-      }
-    }
-  ],
-  "durable_objects": {
-    "bindings": [
-      {
-        "name": "AETHER_REPLAY",
-        "class_name": "AetherReplayContainer"
-      }
-    ]
-  },
-  "exports": {
-    "AetherReplayContainer": {
-      "type": "durable-object",
-      "storage": "sqlite"
-    }
+  "assets": {
+    "directory": "./frontend/dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/openapi.json", "/healthz"]
   }
 }

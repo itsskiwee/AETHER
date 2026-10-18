@@ -30,9 +30,9 @@ backend\.venv\Scripts\python -m uvicorn scripts.hosted_app:app --host 127.0.0.1 
 
 Open **http://127.0.0.1:8080**. Initial dependency installation needs network access;
 recorded replay then runs offline. This serves the production console and API together.
-For local container hosting, see [hosted replay instructions](docs/hosted-replay.md).
-For the Cloudflare Workers and Containers deployment, see
-[Cloudflare hosting](docs/cloudflare-hosting.md).
+For local FastAPI container hosting, see [hosted replay instructions](docs/hosted-replay.md).
+For the GitHub-connected Cloudflare Worker deployment, see
+[Cloudflare and GitHub hosting](docs/cloudflare-hosting.md).
 The saved sample contains two demo policies and a completed six-run development
 comparison on two seeds. It is labelled preliminary and insufficient for research
 claims. No benchmark win is claimed. See the [workspace guide](docs/frontend-workspace.md).
@@ -47,9 +47,11 @@ with retrieval times, observation times and hashes. To enable provider refresh:
 AETHER_ENABLE_LIVE=1 AETHER_PYTHON=backend/.venv/bin/python sh scripts/serve_hosted.sh
 ```
 
-Upstream inputs are cached for two hours; positions are recalculated on request.
-This is provider data and modelled position context, not live telemetry or a
-real-time methane feed. It does not change recorded planning or benchmark evidence.
+For local hosting, upstream inputs are cached for two hours and positions are
+recalculated on request. The Cloudflare deployment serves the timestamped snapshot
+captured during the latest GitHub build. This is provider data and modelled position
+context, not live telemetry or a real-time methane feed. It does not change recorded
+planning or benchmark evidence.
 See [hosting and data semantics](docs/hosted-replay.md) for failure states and deployment.
 
 ## Regenerate the demo and development comparison
