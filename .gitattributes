@@ -1,0 +1,3 @@
+# Byte-exact checkout. Pinned data, ephemeris/EOP tables, configs and replay fixtures are verified
+# by SHA-256 and byte size, so line-ending conversion (core.autocrlf on Windows) breaks every check.
+* -text
