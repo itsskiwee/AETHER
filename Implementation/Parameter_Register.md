@@ -80,7 +80,7 @@ Computed with `scripts/feasibility/pass_budget.py` (sgp4 2.27 + Skyfield 1.55, D
 
 **Revisit timing (lessons.md 2.1):** passes come in morning/afternoon clusters about 21 h apart (the two planes cross at 10:30 and 13:30 local time), and none occur at night. Only PERSISTENT sources (τ ≈ 40 h) keep state memory across that gap. INTERMITTENT and EPISODIC sources mostly reveal their *regime* rather than their current state. That's a real property of daylight-only SWIR sensing, not a simulator artefact. It's why gate G4.5, the per-regime breakdowns and the PR-O10 ablation exist.
 
-**Gate G1-F:** if ORB-05 measures fewer than 5 regional passes per 72 h or fewer than 4 acquisitions per pass, switch the demo to `h168_long_horizon` before building further.
+**Gate G1-F:** if ORB-05 measures fewer than 5 regional passes per 72 h or fewer than 4 acquisitions per pass, switch the demo to `h168_long_horizon` before building further. **Measured 18 Oct 2026 on the integrated pinned scenario: FAIL.** 7 passes; per-pass optimum 9, 10, 9, 6, 10, 8, **2** (`experiments/results/g1f-pinned-base/g1f.json`). The switch is pending human review (`docs/validation-report.md` §6); no number here has changed.
 
 ---
 
@@ -103,7 +103,7 @@ Computed with `scripts/feasibility/pass_budget.py` (sgp4 2.27 + Skyfield 1.55, D
 | PR-P01 | Source count | 20 (P0), 60 (P1 / 168 h) | [D] | PRD §3.1. |
 | PR-P02 | Placement | Cluster EMIT V002 plume centroids in the bbox (500 m); fill with uniform-random points if fewer than 20 | [D] | Makes the real data shape the experiment. Each `Source.seeded_from_plume_id` records its origin. |
 | PR-P03 | Minimum separation | 500 m | [D] | Below the 18 km scene size, so co-imaging is possible but separate source hypotheses stay distinct. |
-| PR-P04 | Plume dataset input | `sources.plume_dataset`: repo-relative manifest path + its SHA-256, or `null` (synthetic-only, all uniform fill) | [D] | One pinned input for every policy and family; the hash enters `config_hash` so a protocol lock binds it. Historical plumes give locations only, never truth fluxes or the prior. Interface: `docs/dataset-interface.md`. |
+| PR-P04 | Plume dataset input | `sources.plume_dataset`: repo-relative manifest path + its SHA-256, or `null` (synthetic-only, all uniform fill). Base (18 Oct 2026): `data/manifests/emit_permian.json` @ `216cf916…982c55`, 20 EMIT V002 Permian records | [D] | One pinned input for every policy and family; the hash enters `config_hash` so a protocol lock binds it. Historical plumes give locations only, never truth fluxes or the prior. Interface: `docs/dataset-interface.md`. |
 | PR-P10 | Flux prior, conditional on active | lognormal, median 300 kg/h, σ_ln 1.1, truncated [30, 30000] | [A] | Permian aircraft surveys show a heavy-tailed distribution with medians of a few hundred kg/h (Cusworth et al. 2021 [S16]). Puts much of the population near the VS-A detection threshold, which is where scheduling decisions matter. **[V] SCI-08 (18 Oct 2026):** 73 quantified EMIT V002 Permian rates, median 1,701 kg/h vs prior 308; detection- and quantification-selected, so uninformative about the population prior. Kept [A]. The upper tail (σ_ln) and the EMIT rate-uncertainty definition are on the §10 domain-review list. Details: `docs/model-card-source-state.md`. |
 | PR-P11 | Hourly flux variability | lognormal, σ_ln 0.30, i.i.d. | [A] | Folded into measurement noise by the belief model (deliberately mild misspecification). |
 

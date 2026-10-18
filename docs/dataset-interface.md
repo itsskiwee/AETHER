@@ -1,6 +1,18 @@
 # Pinned plume dataset interface (DATA-01 ↔ DATA-02)
 
-Status: **proposed by Claude-1, 18 Oct 2026.** Codex-1 (ingestion) and Claude-2 (science/evaluation) review it. Claude-1 owns the config, contract and runner side. Codex-1 owns everything under `data/` and `backend/aether/ingestion/`.
+Status: **implemented and integrated, 18 Oct 2026** (`lane/INT-09-completion-integration`). Proposed by Claude-1; Codex-1 built the ingestion side; Claude-1 integrated it. Claude-2's review of the historical-rates rule is still open (§ Truth below).
+
+| Item | Value |
+|---|---|
+| Manifest | `data/manifests/emit_permian.json`, SHA-256 `216cf916269f10e5a0dd0bd08b224cef2956bfa0d6990443eddf8c6a87982c55` (pinned in `configs/base.yaml`) |
+| Normalized records | `data/normalized/emit_permian_plumes.json`, SHA-256 `ba4305b3876abfca607cb8a994918a945fbd168291466dc169712b5973c94343`, 20 records (10 quantified, 10 `NA` → null + `CRITERIA_NOT_MET`) |
+| Raw files | 40 byte-identical copies (20 metadata JSON + 20 TIFF) under `data/raw/pinned_emit_permian_v1/`, tracked |
+| Inventory | `data/manifests/emit_inventory.json`, SHA-256 `c7f591ad79fd1f33fad2d30ffc0225642730d038ccfeeac6cb28c31fad24ff74`, reproduced independently: 1,686 pairs; 155 regional (73 numeric, 82 `NA`); 144 regional 500 m clusters |
+| Retrieval | `PARTIAL`: time and per-file URLs were not retained. `DataSource.retrieved_at_utc` is an explicit `null`, never reconstructed |
+| Bulk download | `data/raw/EMITL2BCH4PLM_002-20261018_042728/` (3,372 files) is local and ignored. It left the index in `b9d7ee9` without being deleted; commit `a70976e` still holds it |
+| Run use | base: 20 plume-seeded sources, 0 uniform fill; `h168_long_horizon`: 20 seeded + 40 fill |
+
+The deviations from the proposal below are additive: the manifest also records `size_bytes`, `catalog_url` and selection counts; run manifests list every file (see the CLI section); `aether.cli verify-export` reloads an export and checks it again.
 
 ## Why
 
@@ -95,5 +107,5 @@ It reads only the files the manifest lists, never the whole global download. It 
 - **Config.** `SourcesConfig.plume_dataset: {manifest: <repo-relative path>, manifest_sha256: <hex>} | null`. It is part of `config_hash`, so a protocol lock binds the dataset. A `truth:` override of it is rejected. `null` is the documented synthetic-only mode: all sources are uniform fill. `configs/base.yaml` points at the pinned manifest once it exists. Families inherit it, so every policy and family sees the same records.
 - **Runner.** `run_policy(bundle, policy_id, seed, *, plume_observations=())` stays the entry point (Claude-2's benchmark and gate call it unchanged). When the config names a dataset, the runner loads and verifies it once per process (cached by path and hash). Passing `plume_observations` explicitly while the config also names a dataset raises `ValueError`, so there are never two competing inputs. Source construction then stays as it is: region filter, 500 m clustering, then seeded uniform fill. It depends only on the plumes, the config and the seed, never on the policy.
 - **Contract (additive).** `RunRecord.input_dataset: InputDatasetRef | None`, carrying `dataset_id`, `manifest_path`, `manifest_sha256`, `normalized_sha256`, `record_count`, `in_region_count`, `seeded_source_count` and `uniform_fill_count`. It is `None` in synthetic-only mode. The `DATA_READY` event repeats the counts. Claude-2's benchmark provenance can read `run.input_dataset`.
-- **CLI.** `windows`, `simulate` and `benchmark` (through the runner) all use the config's dataset. `--synthetic-only` is an explicit switch that sets `plume_dataset` to null; the switch appears in the output manifest. Export manifests list the manifest, normalized file and selected raw files in `input_sha256`.
+- **CLI.** `windows`, `simulate` and `benchmark` (through the runner) all use the config's dataset. `--synthetic-only` is an explicit switch on all three, and on the G4.5 gate, that sets `plume_dataset` to null; it appears in the output manifest or report. Run manifests (`lineage_version` 1) list repo-relative SHA-256 for the pinned ephemeris/EOP files, the dataset manifest, the normalized file and all 40 raw files. `export` re-verifies them against the record and the repository bytes, refuses missing, non-portable or altered evidence, and packs the dataset manifest and normalized records into the ZIP.
 - **Truth.** Downloaded rates never set truth fluxes. Any prior-fitting from them needs Claude-2's review and a registered parameter change.
