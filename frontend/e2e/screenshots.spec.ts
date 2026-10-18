@@ -9,19 +9,18 @@ test('release screenshots from actual artifacts', async ({ page, request }) => {
   const index = await (await request.get('/api/runs')).json()
   const adaptive = index.find((item: { policy_id: string }) => item.policy_id === 'adaptive_eig')
   expect(adaptive).toBeTruthy()
-  await page.goto('/')
-  await page.getByLabel('Select archived run').selectOption(adaptive.run_id)
-  await expect(page.locator('main')).not.toContainText('Reading run archive')
-  const shots: [RegExp, string][] = [
-    [/Sources/, 'real-data-provenance.png'],
-    [/Windows/, 'orbital-windows.png'],
-    [/Planner/, 'planner-before-after.png'],
-    [/Beliefs/, 'belief-update.png'],
-    [/Comparison/, 'baseline-comparison.png'],
+  const shots: [string, string][] = [
+    ['globe', 'globe.png'],
+    ['observations', 'real-data-provenance.png'],
+    ['passes', 'real-satellite-passes.png'],
+    ['planner', 'planner-timeline.png'],
+    ['beliefs', 'belief-update.png'],
+    ['comparison', 'policy-test.png'],
   ]
-  for (const [name, file] of shots) {
-    await page.getByRole('navigation').getByRole('button', { name }).click()
-    await expect(page.locator('main')).not.toContainText('Loading artifact')
-    await page.screenshot({ path: `${dir}/${file}`, fullPage: true })
+  for (const [view, file] of shots) {
+    await page.goto(`/?view=${view}&run=${encodeURIComponent(adaptive.run_id)}`)
+    await expect(page.locator('body')).not.toContainText('Loading the recorded simulation')
+    await page.waitForTimeout(view === 'globe' ? 3000 : 300)
+    await page.screenshot({ path: `${dir}/${file}`, fullPage: view !== 'globe' })
   }
 })

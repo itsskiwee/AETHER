@@ -16,7 +16,7 @@ from aether.contracts import ObservationOutcome, RunRecord
 from aether.evaluation.metrics import evaluation_times
 
 
-def verify(root: Path) -> None:
+def verify(root: Path, family: str | None = None) -> None:
     paths = sorted(root.glob("*/run.json"))
     if len(paths) != 2:
         raise ValueError(f"expected two real policy runs, found {len(paths)}")
@@ -25,7 +25,7 @@ def verify(root: Path) -> None:
     for path in paths:
         run = RunRecord.model_validate_json(path.read_bytes())
         policies.add(run.policy_id.value)
-        cfg = load_scenario("configs/demo.yaml", seed=run.seed).model
+        cfg = load_scenario("configs/demo.yaml", family, seed=run.seed).model
         assert run.seed == 1000
         assert run.model_config_hash == cfg.config_hash()
         assert {p.revision for p in run.plans} == {
@@ -174,4 +174,4 @@ def verify(root: Path) -> None:
 
 
 if __name__ == "__main__":
-    verify(Path(sys.argv[1]))
+    verify(Path(sys.argv[1]), sys.argv[2] if len(sys.argv) > 2 else None)

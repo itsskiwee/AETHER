@@ -1,0 +1,121 @@
+{
+  "config_hashes": {
+    "h168_long_horizon": {
+      "model": "390a7223abe6aed6c14edf3e449c79ef1bb6930a9858c038d4efb26187508dd6",
+      "seed_for_hash": 1000,
+      "truth": "390a7223abe6aed6c14edf3e449c79ef1bb6930a9858c038d4efb26187508dd6"
+    }
+  },
+  "environment": {
+    "code_sha256": "83d8e122a42fa861bb4bc3948fe6a62a222a4860a74ebe4bbd34cbf5e3b7aca3",
+    "code_version": "0.1.0",
+    "cpu_count": 8,
+    "git_commit": "90f395fb83b27c17dbe8866b40ce6f64a752d2cf",
+    "git_dirty_paths": [],
+    "machine": "AMD64",
+    "python": "3.13.9",
+    "runtime_inputs": {
+      "package_versions": {
+        "astropy": "8.0.2",
+        "numpy": "2.5.4",
+        "ortools": "9.15.6755",
+        "pydantic": "2.14.1",
+        "pyyaml": "6.0.3",
+        "scipy": "1.18.1",
+        "sgp4": "2.27",
+        "skyfield": "1.55"
+      },
+      "pinned_data_sha256": {
+        "data/eop/README.md": "134134b8e10112b7c1f2dadc04f6c0928bee9619aeb47e11f3204b42aac91a70",
+        "data/eop/finals2000A.all": "bfa2066aab0400b075357f573af6081e0068a518993609eee0c5ca991bab0845",
+        "data/eop/manifest.json": "193f70e3ddefa7e161afcd8d2cbb8a5b51ed0b0a60b7ccee761d35e707fb4deb",
+        "data/ephemeris/de421.bsp": "a20a7139da04cbc462454634918e9a9ca69127044e2cc9d4f9c16e238d2deedc",
+        "data/ephemeris/manifest.json": "61adedbdb403bf1acceaa5b7de265a03e919fcaafd3f874f35282b4231c562ed"
+      }
+    }
+  },
+  "families": [
+    "h168_long_horizon"
+  ],
+  "family_scope_rule": "gate passes only if it passes in every family evaluated (D9)",
+  "input_datasets": [
+    {
+      "dataset_id": "emit-l2b-ch4plm-002-permian-v1",
+      "in_region_count": 20,
+      "manifest_path": "data/manifests/emit_permian.json",
+      "manifest_sha256": "216cf916269f10e5a0dd0bd08b224cef2956bfa0d6990443eddf8c6a87982c55",
+      "normalized_sha256": "ba4305b3876abfca607cb8a994918a945fbd168291466dc169712b5973c94343",
+      "record_count": 20,
+      "seeded_source_count": 20,
+      "uniform_fill_count": 40
+    }
+  ],
+  "label": "SIMULATED MISSION \u2014 G4.5 discriminability gate (tuning seeds; reference policies only; not a policy comparison)",
+  "overall_passed": false,
+  "per_family": {
+    "h168_long_horizon": {
+      "capacity_random_feasible": {
+        "acquisitions": {
+          "max": 122.0,
+          "mean": 111.75,
+          "min": 107.0,
+          "n": 8
+        },
+        "acquisitions_per_pass": {
+          "max": 7.625,
+          "mean": 6.984375,
+          "min": 6.6875,
+          "n": 8
+        },
+        "capacity_to_demand_ratio": {
+          "max": 0.12708333333333333,
+          "mean": 0.11640625000000002,
+          "min": 0.11145833333333334,
+          "n": 8
+        },
+        "passes": {
+          "max": 16.0,
+          "mean": 16.0,
+          "min": 16.0,
+          "n": 8
+        },
+        "passes_per_72h": {
+          "max": 6.857142857142857,
+          "mean": 6.857142857142857,
+          "min": 6.857142857142857,
+          "n": 8
+        }
+      },
+      "gap_mean_random_minus_oracle": -0.0003803319371257323,
+      "mean_brier": {
+        "oracle": 0.18731209800502824,
+        "random_feasible": 0.18693176606790252
+      },
+      "n_seeds": 8,
+      "passed": false,
+      "reference_checker_violations": 0,
+      "rule": "mean(random - oracle) > 2 * sd(random - oracle)",
+      "sd_paired": 0.006333183292618374,
+      "se_paired": 0.0022391184263538992,
+      "seeds_where_oracle_better": 4,
+      "threshold_2sd": 0.012666366585236748
+    }
+  },
+  "protocol_locked": false,
+  "protocol_sha256": "9afbfc76795e202b0e011244f748bd3a212e000919c19a36141cdbbd11c8d6b2",
+  "reference_note": "oracle = oracle-informed greedy reference that reads truth; not a proven upper bound",
+  "seed_subset_only": true,
+  "seeds": [
+    1000,
+    1002,
+    1003,
+    1004,
+    1005,
+    1006,
+    1007,
+    1009
+  ],
+  "seeds_file": "experiments\\seeds_dev.txt",
+  "seeds_sha256": "deb917ed5fe0c6aa3a98ef322b79dd8a9a3743df6beb5c44a53a82da17785812",
+  "synthetic_only": false
+}

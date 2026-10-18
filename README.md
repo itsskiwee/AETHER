@@ -3,6 +3,8 @@ A research prototype: we developed and tested a **simulated** methane observatio
 
 **SIMULATED MISSION · offline replay.** NASA EMIT provided real observed methane plume records. The checked-in pinned sample is 20 EMIT L2B CH4PLM V002 Permian plume records from 2023–2024, together with their provider metadata and raster files. These records place the simulated source hypotheses. They are historical location context only. They never set simulated truth, present-day activity or the flux prior. Spacecraft, sensor responses, weather, acquisitions and ground truth are all simulated. AETHER does not task real satellites, and it does not verify emissions or reductions.
 
+**The virtual fleet.** The four simulated satellites are shown as **Pip** (`vsat_a`), **Wren** (`vsat_b`), **Juniper** (`vsat_c`) and **Mochi** (`vsat_d`). The names are display names only (`frontend/src/fleet.ts`); configs, run records and export hashes keep the IDs.
+
 ## View the saved demonstration
 
 The repository includes both accepted pinned-data demo records. View them without
@@ -72,6 +74,8 @@ python -m aether.cli simulate --config ../configs/base.yaml --policies largest_f
 python -m aether.cli export --run-dir ../runs/dev --run-id <run_id> --output ../runs/<run_id>.zip
 python -m aether.cli verify-export --archive ../runs/<run_id>.zip
 ```
+
+For byte-identical replay, run with a fixed BLAS thread count (`OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1`; `scripts/demo.sh` sets it). Without it, decisions are unchanged but the last floating-point digit can differ.
 
 The first 72-hour run computes orbit geometry, which took about 6.5 minutes on the reference machine. Set `AETHER_WINDOW_CACHE_DIR` to reuse it across runs, policies and seeds; outputs are byte-identical with or without the cache.
 
