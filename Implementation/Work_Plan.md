@@ -7,6 +7,12 @@ Read first: `AGENTS.md` (rules), `Implementation/Parameter_Register.md` (every n
 `Implementation/lessons.md` (review findings; closure status in Parameter_Register §0b),
 `backend/aether/*/__init__.py` (the interface each lane implements).
 
+## Integration handoff, 18 Oct 2026 (Claude-1, supersedes lane boundaries for integration only)
+
+The user assigned Claude-1 (session `aether-be`) to integrate and finish the completion batch across all lanes (`docs/claude-completion-fix-prompt.md` in `AETHER-codex1`, with a six-hour submission deadline: recorded as 14:49 EDT / 18:49 UTC, six hours after this session started at 08:49 EDT). For this handoff Claude-1 may edit any lane's files when integration requires it. Each lane's work enters as a separate scoped commit that names its source worktree and author role. Scientific rules, gates, checker independence, truth isolation and the Parameter Register still bind. Scenario and threshold changes still need a human decision. Branch: `lane/INT-09-completion-integration` in `AETHER-wt/claude-1`, based on `main` 302d0b0. The original accepted offline demo stays untouched in `AETHER` (`ee87199`, `runs/demo`) as the recovery artifact.
+
+Initial inventory (18 Oct, 08:50 EDT): main 302d0b0 clean. C2-06 (`886336e`) was committed but unmerged. Codex-1, -2, -3 and -4 work was uncommitted in `AETHER-codex1/2/3/6`. C2-05 (`1c3e89f`) was already on main. No h168 diagnostic output existed anywhere.
+
 ## Completion batch, 18 Oct 2026: six-agent ownership (supersedes the lane table below)
 
 For the completion batch, ownership follows `Implementation/Six_Model_Completion_Prompt.md` and the gap list in `Implementation/Remaining_Work_Assessment_2026-10-18.md`. This replaces the agent assignment in "Lanes and assignment" below. It does not replace any scientific rule: `AGENTS.md`, the gates, checker independence, truth isolation and the Parameter Register all still bind. The original nine-lane build is finished and is not restarted. Task IDs below keep their original meaning.
