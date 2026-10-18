@@ -95,7 +95,7 @@ comparison.
   bootstrap under-covers slightly at small n. That's one more reason not to trust a single
   marginal family.
 
-## 3. Discriminability gate G4.5 (EVL-08): driver ready, not yet run on the wired scenario
+## 3. Discriminability gate G4.5 (EVL-08): pilot FAILS on m0; scenario decision pending
 
 Rule as written in `protocol.yaml`: mean(random − oracle Brier) > 2 × **SD** of the per-seed paired
 difference on the 30 tuning seeds. Family scope: D9 (all six protocol families must pass).
@@ -120,6 +120,59 @@ called `greedy_insert` without `now_utc`, so completed acquisitions counted agai
 source cap (PR-O03). The oracle could look at each source only once per run (exactly 20
 acquisitions per seed, against random's 32–36). Every oracle result before C2-04 is invalid and was
 discarded. `test_oracle_can_revisit_a_source_observed_in_an_earlier_solve` guards it. **Order:** gate on the wired dataset → power calculation → lock.
+
+### 3.1 Pilot result: synthetic-only m0, 30 tuning seeds (18 Oct 2026). **FAIL**
+
+Pre-wiring scenario (`plume_dataset: null`, all 20 sources seeded uniform fill), code `18a74f4`
+(clean tree), oracle fix C2-04 included. Artifacts: `experiments/results/g45-pilot-synthetic-m0/`
+(`gate.json`, `gate-seeds.csv`). The wired-dataset run supersedes this; it is reported because it
+already decides the scenario question below.
+
+| Quantity | Value |
+|---|---|
+| mean(random − oracle Brier) | **0.0048** |
+| SD of the paired difference (rule: gap > 2 SD = 0.0441) | 0.0221 |
+| SE (information only) | 0.0040 |
+| Seeds where the oracle reference beats random | **15 / 30** |
+| Mean Brier, oracle / random | 0.2040 / 0.2087 |
+| Passes per 72 h (random reference runs) | 6.6 (6–7) |
+| Executed acquisitions per pass | 5.7 (4.6–6.8) |
+| Capacity/demand | 0.28 (0.23–0.34) |
+| Brier gain over the no-observation baseline (stationary prior p = 0.291 at every point) | oracle 0.013, random 0.008 |
+| Checker violations in the 60 reference runs | 0 |
+
+**Interpretation.** Under this scenario, observing at all improves the primary metric by about 0.01
+Brier points. That is the size of the registered minimum effect. Even an oracle-informed greedy
+reference can't separate from random on half the seeds. Likely causes, each visible in the data:
+
+- only about 6.6 passes per 72 h;
+- evaluation every 6 h, while INTERMITTENT and EPISODIC states change on a 3–24 h scale, so one look
+  says little about the next evaluation point;
+- about one quarter of the flux prior lies below the VS-A Q50 at median wind, where a look at an
+  active source mostly returns a valid non-detection.
+
+The benchmark as configured would compare policies inside a range of about 0.01 and would almost
+certainly report no difference whatever the planner did. That is the situation G4.5 is meant to stop.
+
+**This is a scenario finding, not a model defect.** The model is well specified, every source
+starts at the stationary prior, and the updated belief improves on the prior on average. The
+reference is weak in one respect, recorded here rather than fixed: its value p_valid·(p − z)²
+ignores detectability. A detectability-aware reference would bound headroom better, but changing the
+reference after seeing a fail risks gate-shopping. Any such change needs explicit approval and must
+be reported together with this result.
+
+**Options (Work_Plan: "If it fails, resize the scenario … never tune the planner"; human decision):**
+
+| Option | What changes | Evidence / cost |
+|---|---|---|
+| A. Make `h168_long_horizon` (168 h, 60 sources) the benchmark base | horizon, source count | More passes for regime learning; 3× sources lowers per-seed SD. Diagnostic gate on 10 seeds running now. Runs cost about 5–8× more |
+| B. More passes: denser virtual constellation (more spacecraft/planes) | `configs/spacecraft`, base | Directly raises information per evaluation interval; changes G1-F evidence and orbit artifacts |
+| C. Evaluate at pass times or hourly instead of every 6 h (PR-E01) | metric definition | Measures what observation can know. It is a metric change, which must be decided before lock and must not be chosen for being favourable |
+| D. Keep the scenario and accept a likely null | none | Honest but uninformative; power would need far more than 100 seeds |
+
+Claude-2 recommendation: wait for the h168 diagnostic. If it passes, adopt **A** (already a
+registered family, smallest conceptual change). Otherwise combine A with B. C and D are not
+recommended.
 
 Notes for the reviewer:
 
