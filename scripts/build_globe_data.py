@@ -222,10 +222,11 @@ def virtual_fleet(cfg) -> list[dict]:
     return fleet
 
 
-def replay_runs() -> tuple[list[dict], list[dict]]:
+def replay_runs(directory: Path = REPLAY) -> tuple[list[dict], list[dict]]:
     sources, runs = None, []
-    for path in sorted(REPLAY.glob("*/run.json")):
-        run = json.loads(path.read_bytes())
+    for path in sorted(directory.glob("*/run.json")):
+        data = path.read_bytes()
+        run = json.loads(data)
         if sources is None:
             sources = [
                 {
@@ -240,6 +241,7 @@ def replay_runs() -> tuple[list[dict], list[dict]]:
             {
                 "run_id": run["run_id"],
                 "policy_id": run["policy_id"],
+                "run_sha256": hashlib.sha256(data).hexdigest(),
                 "acquisitions": [
                     {
                         "time_utc": a["time_utc"],
@@ -252,6 +254,27 @@ def replay_runs() -> tuple[list[dict], list[dict]]:
             }
         )
     return sources or [], runs
+
+
+def mission(label: str, run_dir: Path, family: Path | None = None) -> dict | None:
+    """One recorded simulated mission: its fleet tracks, every source and each policy's looks."""
+    sources, runs = replay_runs(run_dir)
+    if not runs:
+        print(f"mission skipped (no runs in {run_dir.relative_to(ROOT)}): {label}")
+        return None
+    cfg = load_scenario(ROOT / "configs/demo.yaml", family).model
+    return {
+        "label": label,
+        "scenario_id": cfg.scenario_id,
+        "family": cfg.family,
+        "epoch_utc": cfg.simulation_epoch_utc.isoformat(),
+        "horizon_hours": cfg.horizon_hours,
+        "track_step_s": TRACK_STEP_S,
+        "run_dir": run_dir.relative_to(ROOT).as_posix(),
+        "sources": sources,
+        "fleet": virtual_fleet(cfg),
+        "runs": runs,
+    }
 
 
 def main() -> None:
@@ -288,6 +311,20 @@ def main() -> None:
             "fleet": virtual_fleet(cfg),
             "runs": runs,
         },
+        # Selectable missions on the globe. The 168 h demo is regenerated locally (runs/ is not
+        # tracked); each run is identified by its run_id and the SHA-256 of its run.json.
+        "missions": [
+            m
+            for m in (
+                mission("72-hour demo · 20 sites", REPLAY),
+                mission(
+                    "168-hour demo · 60 sites",
+                    ROOT / "runs/demo-h168",
+                    ROOT / "configs/scenarios/h168_long_horizon.yaml",
+                ),
+            )
+            if m is not None
+        ],
     }
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(data, separators=(",", ":")) + "\n", encoding="utf-8")

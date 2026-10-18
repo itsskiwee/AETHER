@@ -12,7 +12,10 @@ import './globe.css'
 type RealSat = { norad_id: number; name: string; role: string; url: string; omm?: OMMJsonObject; retrieved_at_utc?: string; sha256?: string; refresh_status: string }
 type Fleet = { id: string; altitude_km: number; inclination_deg: number; track: [number, number, number][] }
 type Acq = { time_utc: string; spacecraft_id: string; source_id: string; outcome: string }
+type Site = { id: string; lat: number; lon: number; plume_id: string | null }
+type Mission = { label: string; epoch_utc: string; horizon_hours: number; track_step_s: number; sources: Site[]; fleet: Fleet[]; runs: { run_id: string; policy_id: string; acquisitions: Acq[] }[] }
 type GlobeData = {
+  missions?: Mission[]
   real_satellites: RealSat[]
   plume_sources: { id: string; lat: number; lon: number; plume_id: string | null }[]
   simulation: { scenario_id: string; epoch_utc: string; horizon_hours: number; track_step_s: number; fleet: Fleet[]; runs: { run_id: string; policy_id: string; acquisitions: Acq[] }[] }
@@ -55,6 +58,7 @@ export default function GlobeView() {
   const [playing, setPlaying] = useState(false)
   const [speed, setSpeed] = useState(60)
   const [runIndex, setRunIndex] = useState(0)
+  const [missionIndex, setMissionIndex] = useState(0)
   const [follow, setFollow] = useState(false)
 
   useEffect(() => {
@@ -63,9 +67,13 @@ export default function GlobeView() {
   }, [])
 
   const recs = useMemo(() => (data?.real_satellites ?? []).flatMap(s => s.omm ? [{ sat: s, rec: json2satrec(s.omm) }] : []), [data])
-  const run = data?.simulation.runs[runIndex]
-  const epochMs = data ? utc(data.simulation.epoch_utc) : 0
-  const horizonS = (data?.simulation.horizon_hours ?? 0) * 3600
+  const missions = useMemo<Mission[]>(() => data?.missions?.length ? data.missions : data ? [{ label: 'Recorded demo', ...data.simulation, sources: data.plume_sources }] : [], [data])
+  const mission = missions[missionIndex]
+  const run = mission?.runs[runIndex]
+  const epochMs = mission ? utc(mission.epoch_utc) : 0
+  const horizonS = (mission?.horizon_hours ?? 0) * 3600
+  const simulatedSites = useMemo(() => (mission?.sources ?? []).filter(x => !x.plume_id), [mission])
+  const chooseMission = (i: number) => { setMissionIndex(i); setRunIndex(0); setSimS(0); setPlaying(false) }
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 30000)
@@ -106,8 +114,8 @@ export default function GlobeView() {
       .pathPointAlt((p: [number, number, number]) => p[2] / EARTH_KM)
       .pathColor((d: object) => { const p = d as Path; return p.kind === 'real' ? 'rgba(255,255,255,0.35)' : p.kind === 'sim' ? 'rgba(224,164,58,0.55)' : OUTCOME_COLOR[p.outcome ?? ''] ?? '#fff' })
       .pathStroke((d: object) => ((d as Path).kind === 'look' ? 1.2 : 0.5))
-      .pointLat('lat').pointLng('lon').pointColor(() => '#e8743b').pointAltitude(0.004).pointRadius(0.12)
-      .pointLabel((d: object) => { const s = d as GlobeData['plume_sources'][number]; return `Real EMIT plume site<br>${s.plume_id ?? 'unattributed'}<br>${fmt(s.lat, 3)}°, ${fmt(s.lon, 3)}°` })
+      .pointLat('lat').pointLng('lon').pointColor((d: object) => ((d as Site).plume_id ? '#e8743b' : '#8a929b')).pointAltitude(0.004).pointRadius((d: object) => ((d as Site).plume_id ? 0.12 : 0.08))
+      .pointLabel((d: object) => { const s = d as Site; return `${s.plume_id ? 'Real EMIT plume site' : 'Simulated site (no EMIT record)'}<br>${s.plume_id ?? 'placed by the simulation'}<br>${fmt(s.lat, 3)}°, ${fmt(s.lon, 3)}°` })
     g.controls().autoRotate = false
     globe.current = g
     const resize = () => { if (host.current) g.width(host.current.clientWidth).height(host.current.clientHeight) }
@@ -135,12 +143,12 @@ export default function GlobeView() {
   }), [recs, trailKey])
 
   const sim = useMemo(() => {
-    if (!data || !run) return { markers: [] as Marker[], paths: [] as Path[], counts: {} as Record<string, number> }
-    const step = data.simulation.track_step_s
-    const sources = new Map(data.plume_sources.map(s => [s.id, s]))
+    if (!mission || !run) return { markers: [] as Marker[], paths: [] as Path[], counts: {} as Record<string, number> }
+    const step = mission.track_step_s
+    const sources = new Map(mission.sources.map(x => [x.id, x]))
     const markers: Marker[] = []
     const paths: Path[] = []
-    for (const f of data.simulation.fleet) {
+    for (const f of mission.fleet) {
       const i = simIndex(f, simS, step)
       const [lat, lng, alt] = f.track[i]
       markers.push({ kind: 'sim', id: f.id, label: craftName(f.id), lat, lng, alt_km: alt })
@@ -152,24 +160,24 @@ export default function GlobeView() {
       if (t > simS) continue
       counts[a.outcome] = (counts[a.outcome] ?? 0) + 1
       if (simS - t > LOOK_WINDOW_S) continue
-      const f = data.simulation.fleet.find(x => x.id === a.spacecraft_id)
+      const f = mission.fleet.find(x => x.id === a.spacecraft_id)
       const s = sources.get(a.source_id)
       if (!f || !s) continue
       paths.push({ kind: 'look', outcome: a.outcome, points: [f.track[simIndex(f, t, step)], [s.lat, s.lon, 0]] })
     }
     return { markers, paths, counts }
-  }, [data, run, simS, epochMs])
+  }, [mission, run, simS, epochMs])
 
   useEffect(() => {
     const g = globe.current
     if (!g || !data) return
     const real: Marker[] = realNow.map(r => ({ kind: 'real', id: String(r.sat.norad_id), label: r.sat.name, lat: r.lat, lng: r.lng, alt_km: r.alt_km }))
-    g.htmlElementsData([...real, ...sim.markers]).pathsData([...realTrails, ...sim.paths]).pointsData(data.plume_sources)
+    g.htmlElementsData([...real, ...sim.markers]).pathsData([...realTrails, ...sim.paths]).pointsData([...data.plume_sources, ...simulatedSites])
     if (follow) {
       const iss = realNow.find(r => r.sat.norad_id === 25544)
       if (iss) g.pointOfView({ lat: iss.lat, lng: iss.lng, altitude: 1.6 }, 900)
     }
-  }, [data, realNow, realTrails, sim, follow])
+  }, [data, realNow, realTrails, sim, follow, simulatedSites])
 
   const elementAgeH = (s: RealSat) => (s.omm ? (now - utc(String(s.omm.EPOCH))) / 3600000 : NaN)
   const totalLooks = Object.values(sim.counts).reduce((a, b) => a + b, 0)
@@ -201,9 +209,11 @@ export default function GlobeView() {
 
         <section aria-labelledby="g-sim">
           <h2 id="g-sim">Simulated mission</h2>
-          <p className="globe-meta">A recorded {data?.simulation.horizon_hours ?? 72}-hour run. Satellites, sensor, weather and outcomes are all simulated.</p>
+          <p className="globe-meta">Satellites, sensor, weather and outcomes are all simulated.{simulatedSites.length > 0 && ` This mission has ${mission?.sources.length} sites: ${(mission?.sources.length ?? 0) - simulatedSites.length} real EMIT locations and ${simulatedSites.length} simulated ones (grey).`}</p>
+          <label className="globe-label" htmlFor="globe-mission">Mission</label>
+          <select id="globe-mission" value={missionIndex} onChange={e => chooseMission(Number(e.target.value))}>{missions.map((m, i) => <option key={m.label} value={i}>{m.label}</option>)}</select>
           <label className="globe-label" htmlFor="globe-run">Planner</label>
-          <select id="globe-run" value={runIndex} onChange={e => setRunIndex(Number(e.target.value))}>{data?.simulation.runs.map((r, i) => <option key={r.run_id} value={i}>{POLICY_NAME[r.policy_id] ?? r.policy_id}</option>)}</select>
+          <select id="globe-run" value={runIndex} onChange={e => setRunIndex(Number(e.target.value))}>{mission?.runs.map((r, i) => <option key={r.run_id} value={i}>{POLICY_NAME[r.policy_id] ?? r.policy_id}</option>)}</select>
           <div className="globe-controls">
             <button onClick={() => setPlaying(p => !p)}>{playing ? 'Pause' : 'Play'}</button>
             <label className="sr-only" htmlFor="globe-speed">Replay speed</label>
@@ -211,8 +221,8 @@ export default function GlobeView() {
           </div>
           <label className="sr-only" htmlFor="globe-scrub">Replay time</label>
           <input id="globe-scrub" type="range" min={0} max={horizonS} step={60} value={simS} onChange={e => setSimS(Number(e.target.value))} />
-          <p className="globe-clock">{data ? clock(epochMs + simS * 1000) : '—'} <span>hour {fmt(simS / 3600)} of {data?.simulation.horizon_hours ?? '—'}</span></p>
-          <ul className="globe-fleet">{data?.simulation.fleet.map(f => <li key={f.id}><i />{craftName(f.id)}<span>{f.id} · {fmt(f.altitude_km, 0)} km</span></li>)}</ul>
+          <p className="globe-clock">{data ? clock(epochMs + simS * 1000) : '—'} <span>hour {fmt(simS / 3600)} of {mission?.horizon_hours ?? '—'}</span></p>
+          <ul className="globe-fleet">{mission?.fleet.map(f => <li key={f.id}><i />{craftName(f.id)}<span>{f.id} · {fmt(f.altitude_km, 0)} km</span></li>)}</ul>
           <p className="globe-looks"><strong>{totalLooks}</strong> looks so far</p>
           <ul className="globe-outcomes">{Object.entries(OUTCOME_COLOR).map(([k, c]) => <li key={k}><i style={{ background: c }} />{OUTCOME_LABEL[k]}<span>{sim.counts[k] ?? 0}</span></li>)}</ul>
           <p className="globe-meta">A line joins a satellite to a site for {LOOK_WINDOW_S / 60} minutes after each look.</p>
@@ -229,6 +239,7 @@ export default function GlobeView() {
             <li><i className="real" />Real satellite</li>
             <li><i className="sim" />Virtual satellite</li>
             <li><i className="plume" />Real EMIT plume site (20)</li>
+            {simulatedSites.length > 0 && <li><i className="fill" />Simulated site</li>}
           </ul>
         </section>
       </aside>
