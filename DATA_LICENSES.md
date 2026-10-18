@@ -45,3 +45,8 @@ The app's MIT code license does not assert a new license over provider data.
 - NASA LP DAAC EMIT L2BCH4PLM V002: <https://doi.org/10.5067/EMIT/EMITL2BCH4PLM.002>
 - Carbon Mapper Terms of Use: <https://carbonmapper.org/terms>
 - Carbon Mapper Data API docs: <https://api.carbonmapper.org/api/v1/docs>
+
+## Globe view (UI-10)
+
+- `frontend/public/globe/earth-blue-marble.jpg`, `earth-topology.png`, `night-sky.png`: from the `three-globe` package examples (MIT). The Earth imagery derives from NASA Blue Marble / NASA Visible Earth (public domain, NASA media guidelines; no endorsement implied).
+- `frontend/public/globe/globe-data.json`: CelesTrak GP orbital elements (OMM JSON) for NORAD 25544, 39084, 49260 and 42969, with retrieval time, URL and SHA-256 per record, built by `scripts/build_globe_data.py`. Positions shown are SGP4 propagations, not telemetry.
