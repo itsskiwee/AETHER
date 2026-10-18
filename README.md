@@ -31,7 +31,8 @@ The first 72-hour run computes orbit geometry, which took about 6.5 minutes on t
 The implementation is integrated. Scientific acceptance is **not** complete. See [`docs/p0-requirements-evidence.md`](docs/p0-requirements-evidence.md) for every criterion with its evidence and status, and [`docs/validation-report.md`](docs/validation-report.md) for gate results, including the failures:
 
 - **G1-F capacity fails on the pinned scenario.** It has 7 passes per 72 h, but one pass supports only 2 acquisitions; the minimum is 4.
-- **G4.5 discriminability failed** in the synthetic-only m0 pilot. The pinned-data all-family results are in the validation report.
+- **G4.5 discriminability fails**, both in the synthetic-only m0 pilot and on the pinned scenario in all six protocol families (30 tuning seeds each). Even an oracle-informed reference does not separate from random, so the registered benchmark would not be informative as configured. A scenario decision is pending.
+- SCI-10 calibration is mixed: the random reference passes; adaptive_eig fails one reliability rule on two tiny bins (see the validation report).
 - The protocol is **unlocked**. No holdout benchmark has run, and no policy-comparison claim is made.
 
 ## Documents
