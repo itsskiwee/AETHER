@@ -125,7 +125,9 @@ class DataSource(Contract):
     url: str
     license_url: str | None
     citation_text: str
-    retrieved_at_utc: UtcDatetime
+    # Required but nullable: None means the retrieval time was not retained. It is never
+    # reconstructed from filenames, mtimes or commit dates; the dataset manifest says why.
+    retrieved_at_utc: UtcDatetime | None
     sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
 
 

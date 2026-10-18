@@ -158,3 +158,41 @@ def test_bootstrap_namespace_registered():
     a = keyed_rng(7, "bootstrap", "adaptive_eig_vs_largest_first").integers(0, 100, 5)
     b = keyed_rng(7, "bootstrap", "adaptive_eig_vs_largest_first").integers(0, 100, 5)
     assert np.array_equal(a, b)
+
+
+def _data_source(**kw):
+    from aether.contracts.models import DataSource
+
+    base = dict(
+        provider="NASA LP DAAC",
+        dataset="EMITL2BCH4PLM",
+        version="002",
+        url="https://doi.org/10.5067/EMIT/EMITL2BCH4PLM.002",
+        license_url=None,
+        citation_text="fixture",
+        retrieved_at_utc=None,
+        sha256="0" * 64,
+    )
+    base.update(kw)
+    return DataSource(**base)
+
+
+def test_unknown_retrieval_time_is_null_and_explicit():
+    source = _data_source()
+    assert source.retrieved_at_utc is None
+    dumped = source.model_dump(mode="json")
+    assert "retrieved_at_utc" in dumped and dumped["retrieved_at_utc"] is None
+    assert type(source).model_validate_json(source.model_dump_json()) == source
+
+
+def test_retrieval_time_is_required_and_utc_when_known():
+    from aether.contracts.models import DataSource
+
+    fields = _data_source().model_dump()
+    del fields["retrieved_at_utc"]
+    with pytest.raises(ValidationError):
+        DataSource(**fields)  # omitted is not the same as unknown
+    with pytest.raises(ValidationError):
+        _data_source(retrieved_at_utc=datetime(2026, 10, 17))  # naive
+    aware = _data_source(retrieved_at_utc=datetime(2026, 10, 17, tzinfo=UTC))
+    assert aware.retrieved_at_utc.tzinfo is not None

@@ -141,6 +141,8 @@ def contract_examples():
     )
     return [
         source_data,
+        # Unknown retrieval time serializes as an explicit null and reloads unchanged.
+        source_data.model_copy(update={"retrieved_at_utc": None}),
         models.PlumeObservation(
             id="plume",
             provider="fixture",
