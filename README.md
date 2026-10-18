@@ -73,6 +73,8 @@ python -m aether.cli export --run-dir ../runs/dev --run-id <run_id> --output ../
 python -m aether.cli verify-export --archive ../runs/<run_id>.zip
 ```
 
+For byte-identical replay, run with a fixed BLAS thread count (`OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1`; `scripts/demo.sh` sets it). Without it, decisions are unchanged but the last floating-point digit can differ.
+
 The first 72-hour run computes orbit geometry, which took about 6.5 minutes on the reference machine. Set `AETHER_WINDOW_CACHE_DIR` to reuse it across runs, policies and seeds; outputs are byte-identical with or without the cache.
 
 ## Status (18 Oct 2026)

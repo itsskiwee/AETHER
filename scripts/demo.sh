@@ -3,6 +3,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 export PYTHONPATH="$PWD/backend${PYTHONPATH:+:$PYTHONPATH}"
+# Byte-identical replay needs a fixed BLAS thread count (validation report §7).
+export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1
 python_bin="${AETHER_PYTHON:-$PWD/backend/.venv/bin/python}"
 out_dir="${1:-runs/demo}"
 if [[ ! -x "$python_bin" ]]; then
