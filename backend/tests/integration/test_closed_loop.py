@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import zipfile
+from datetime import timedelta
 
 import pytest
 
@@ -43,7 +44,7 @@ def test_same_seed_gives_identical_record_bytes_and_timing_stays_outside(bundle,
 
     assert performance.run_id == first.run_id
     assert performance.measured is True
-    assert not performance.windows_from_process_cache
+    assert performance.windows_source == "computed"
     assert performance.windows_wall_s > 0
     assert performance.total_run_wall_s >= performance.windows_wall_s
     assert len(performance.plan_timings) >= len(first.plans)
@@ -57,7 +58,7 @@ def test_policies_share_sources_and_windows(bundle):
     b, performance = runner.run_policy_with_performance(bundle, "adaptive_eig", 1000)
     assert a.sources == b.sources
     assert a.windows == b.windows
-    assert performance.windows_from_process_cache
+    assert performance.windows_source == "process_cache"
 
 
 def test_export_carries_performance_separately(bundle, tmp_path):
@@ -80,3 +81,37 @@ def test_export_carries_performance_separately(bundle, tmp_path):
     )
     with pytest.raises(ValueError, match="different run"):
         main(args)
+
+
+def test_window_key_ignores_family_and_seed_but_not_geometry(bundle):
+    cfg = bundle.model
+    sources, _ = runner.resolve_sources(cfg, 1000)
+    start = cfg.simulation_epoch_utc
+    end = start + timedelta(hours=cfg.horizon_hours)
+    data = cfg.model_dump(mode="python")
+    data["family"], data["random_seed"] = "m1_persistence_wrong", 7
+    relabelled = ScenarioConfig.model_validate(data)
+    data["window_search"]["option_step_s"] = 20.0
+    regridded = ScenarioConfig.model_validate(data)
+    key = runner._window_cache_key(cfg, sources, start, end)
+    assert runner._window_cache_key(relabelled, sources, start, end) == key
+    assert runner._window_cache_key(regridded, sources, start, end) != key
+    assert runner._window_cache_key(cfg, sources[1:], start, end) != key
+
+
+def test_disk_window_cache_gives_identical_records(bundle, monkeypatch, tmp_path):
+    monkeypatch.setattr(runner, "_WINDOW_CACHE", {})
+    monkeypatch.delenv(runner.WINDOW_CACHE_ENV, raising=False)
+    reference = runner.run_policy(bundle, "greedy_eig", 1000)
+
+    monkeypatch.setenv(runner.WINDOW_CACHE_ENV, str(tmp_path / "cache"))
+    monkeypatch.setattr(runner, "_WINDOW_CACHE", {})
+    written, perf_written = runner.run_policy_with_performance(bundle, "greedy_eig", 1000)
+    assert perf_written.windows_source == "computed"
+    assert len(list((tmp_path / "cache").glob("windows-*.json"))) == 1
+    assert not list((tmp_path / "cache").glob("*.tmp"))
+
+    monkeypatch.setattr(runner, "_WINDOW_CACHE", {})
+    loaded, perf_loaded = runner.run_policy_with_performance(bundle, "greedy_eig", 1000)
+    assert perf_loaded.windows_source == "disk_cache"
+    assert _bytes(reference) == _bytes(written) == _bytes(loaded)

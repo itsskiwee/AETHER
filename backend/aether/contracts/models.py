@@ -518,5 +518,6 @@ class RunPerformance(Contract):
     machine: dict[str, str]
     total_run_wall_s: float = Field(ge=0, allow_inf_nan=False)
     windows_wall_s: float = Field(ge=0, allow_inf_nan=False)
-    windows_from_process_cache: bool
+    # "computed" means windows_wall_s measured orbit geometry; otherwise it measured a cache read.
+    windows_source: Literal["computed", "process_cache", "disk_cache"]
     plan_timings: tuple[PlanTiming, ...]

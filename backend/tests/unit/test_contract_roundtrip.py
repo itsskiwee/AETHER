@@ -204,7 +204,7 @@ def contract_examples():
             machine={"python": "3.14"},
             total_run_wall_s=2.0,
             windows_wall_s=1.5,
-            windows_from_process_cache=False,
+            windows_source="computed",
             plan_timings=(timing,),
         ),
     ]
