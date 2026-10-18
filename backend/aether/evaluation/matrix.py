@@ -93,7 +93,36 @@ def code_sha256() -> str:
     return _CODE_SHA256
 
 
-def _identity(bundle: ScenarioBundle, family: str, policy: str, seed: int) -> dict:
+# Runtime inputs outside config_hash that change results (Claude-1 review, 18 Oct 2026).
+RESULT_PACKAGES = ("numpy", "scipy", "ortools", "sgp4", "skyfield", "astropy", "pydantic", "pyyaml")
+PINNED_DATA = ("data/ephemeris/manifest.json", "data/eop/manifest.json")
+_RUNTIME_INPUTS: dict[str, dict] = {}
+
+
+def runtime_inputs(repo: Path) -> dict:
+    """SHA-256 of the pinned ephemeris/EOP manifests and every file they sit beside, plus versions
+    of result-affecting packages. Raises if a pinned manifest is missing: no unknown identity."""
+    key = str(repo)
+    if key not in _RUNTIME_INPUTS:
+        from aether.cli import _package_version
+
+        data = {}
+        for rel in PINNED_DATA:
+            manifest = repo / rel
+            if not manifest.is_file():
+                raise RuntimeError(f"cannot determine runtime identity: {rel} missing")
+            for path in sorted(p for p in manifest.parent.iterdir() if p.is_file()):
+                data[path.relative_to(repo).as_posix()] = hashlib.sha256(
+                    path.read_bytes()
+                ).hexdigest()
+        versions = {name: _package_version(name) for name in RESULT_PACKAGES}
+        if any(v is None for v in versions.values()):
+            raise RuntimeError(f"cannot determine package versions: {versions}")
+        _RUNTIME_INPUTS[key] = {"pinned_data_sha256": data, "package_versions": versions}
+    return _RUNTIME_INPUTS[key]
+
+
+def _identity(bundle: ScenarioBundle, family: str, policy: str, seed: int, repo: Path) -> dict:
     return {
         "family": family,
         "policy": policy,
@@ -102,6 +131,7 @@ def _identity(bundle: ScenarioBundle, family: str, policy: str, seed: int) -> di
         "truth_config_hash": bundle.truth.config_hash(),
         "code_version": __version__,
         "code_sha256": code_sha256(),
+        "runtime_inputs": runtime_inputs(repo),
     }
 
 
@@ -120,7 +150,7 @@ def _run_task(
     bundle = family_bundle(repo_p, base_config, task.family, task.seed)
     timings = []
     for policy in task.policies:
-        identity = _identity(bundle, task.family, policy, task.seed)
+        identity = _identity(bundle, task.family, policy, task.seed, repo_p)
         path = _record_path(out_p, task.family, policy, task.seed)
         if path.exists() and json.loads(path.read_text())["identity"] == identity:
             continue
@@ -162,6 +192,7 @@ def execution_environment(repo: Path) -> dict:
         "git_dirty_paths": (git("status", "--porcelain") or "").splitlines(),
         "code_version": __version__,
         "code_sha256": code_sha256(),
+        "runtime_inputs": runtime_inputs(repo),
         "python": platform.python_version(),
         "machine": platform.machine(),
         "cpu_count": os.cpu_count(),
