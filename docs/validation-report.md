@@ -1,6 +1,22 @@
 # AETHER — Validation Report (L3)
 
-## Current status — offline demo delivery (17 Oct 2026)
+## Current status — integrated pinned-data build (18 Oct 2026)
+
+The base scenario now places its 20 source hypotheses at 20 pinned historical EMIT V002 Permian plume locations, with 0 uniform fill (`configs/base.yaml`, PR-P04). Every result below uses that scenario unless it is labelled synthetic-only. **Implementation is integrated; scientific acceptance is not complete.**
+
+| Item | Result | Section |
+|---|---|---|
+| G1-F capacity, integrated scenario | **FAIL**: 7 passes ✓; one pass with at most 2 acquisitions ✗ (minimum 4) | §6, `docs/orbit-model-report.md` |
+| G4.5, synthetic-only m0 pilot (C2-06) | **FAIL** (gap 0.0048 vs 2 SD 0.0441) | §3.1 |
+| G4.5, pinned data, six families, 30 tuning seeds | **FAIL** (m0 gap 0.0025 vs 2 SD 0.0256; the per-family table is in §3.2) | §3.2 |
+| SCI-10 calibration, m0 pinned, 30 seeds | **Meets the registered criteria** for the truth-independent reference (random_feasible); weak evidence beyond the prior (see caveat) | §3.3 |
+| Power calculation, lock, holdout | **Not run**: blocked by the G4.5 scenario decision | §6 |
+
+The old two-seed demo comparison (17 Oct, synthetic placement) stays below as history. It is not a result for the pinned scenario.
+
+## Historical: offline demo delivery (17 Oct 2026, synthetic-only placement)
+
+Preserved in the original `AETHER` checkout, `runs/demo`. It predates the pinned dataset.
 
 Owner: L3 (Evaluation & integrity). Code: `backend/aether/evaluation/`.
 
@@ -197,6 +213,19 @@ Notes for the reviewer:
 5. If the gate fails, the remedy is a registered **scenario** change (sources, capacity, horizon)
    proposed for human review (Work_Plan G4.5 is "L3 + human"). The planner is never tuned to pass.
 
+### 3.3 SCI-10 calibration on the pinned m0 scenario (18 Oct 2026)
+
+Command: `python -m aether.evaluation.calibration --output-dir runs/gate-pinned --policies random_feasible,oracle --n-seeds 30`. It reuses the 60 pinned m0 gate records, at code identity `c79062f5…`, commit `272aba5`. Seed-cluster percentile bootstrap, 2,000 resamples (D10). Artifact: `experiments/results/sci10-pinned-m0/calibration-m0-references.json`.
+
+| Policy | 90% flux coverage (all points) | 95% seed-cluster CI | Reliability bins whose CI excludes 0 | Calibration-in-the-large (z − p) |
+|---|---:|---|---|---|
+| random_feasible (selection independent of truth) | **0.910** | [0.896, 0.924] | none | −0.001 [−0.025, 0.022] |
+| oracle reference (selection reads truth) | 0.917 | [0.902, 0.932] | bins 0 and 6 | −0.013 [−0.037, 0.009] |
+
+**Verdict.** The registered SCI-10 criteria (coverage in [0.85, 0.95]; reliability within sampling error) are met on 30 seeds for random_feasible, the reference whose observation choice does not depend on truth. The oracle's two off bins are expected: it chooses what to observe from z_true, so its evidence is not ignorable, and it is not a calibration test of the belief model.
+
+**Caveat (strength of evidence).** 5,977 of 7,200 evaluation points lie in the 0.2–0.3 bin, around the stationary prior of 0.291. Coverage is likewise dominated by sources whose interval is still close to the prior, and truth is drawn from that prior. The criteria therefore test posterior calibration *after observation* only weakly: the bins away from the prior hold 36–674 points, with wide CIs. The compact gate records do not mark which sources were observed, so observed-only coverage is not reported. adaptive_eig calibration (the Work_Plan's default pair) is listed under "not run" in §6.
+
 ## 4. Known caveats that apply to any future result
 
 - **EMIT flux comparison (SCI-08) is uninformative about the population prior.** The 73
@@ -228,20 +257,25 @@ Notes for the reviewer:
 - The actual base-config development batch has six RunRecords and zero checker violations. This is
   execution and display evidence for one family and two development seeds, not a research verdict.
 
-## 6. Scientific gates
+## 6. Scientific gates and pending decisions (18 Oct 2026)
 
-| Gate / scope | Current status | Evidence and remaining work |
+| Gate / scope | Status | Evidence and what remains |
 |---|---|---|
-| G3 — Inference | **Not established as a scientific result** | The development artifacts contain evaluator scores, but they cover only two seeds in m0. SCI-10 calibration and model-assumption review remain unfinished. |
-| G4.5 — Discriminability | **Not run** | The comparison batch has no oracle/random results; the gate quantities and tuning-seed paired variation are not established by this batch. |
-| G5 — Science | **Unfinished** | Only the m0 family and two development seeds are present. The protocol is unlocked and no holdout validation was run. |
+| G1-F capacity | **FAIL** | 7 passes; per-pass optimum 9, 10, 9, 6, 10, 8, **2**; Codex-3 witness confirms 2 (`experiments/results/g1f-pinned-base/`) |
+| G3 inference | Unit-level **PASS**; SCI-10 **meets the registered criteria** (random_feasible, 30 seeds) with the §3.3 caveat | adaptive_eig calibration not run |
+| G4.5 discriminability | **FAIL** (synthetic m0 pilot and pinned data) | §3.1, §3.2 |
+| Power / seed count | **Not run** | Needs the 900-run development matrix. Measured costs (adaptive_eig about 12.6 min per 72 h run; reference runs about 2 min with warm geometry) put it at roughly 4 h of wall time on 9 workers. It is pointless before a scenario decision |
+| Protocol lock and freeze | **Not done**; mechanism implemented | `aether.evaluation.freeze` and holdout guard tests. Nothing is locked or tagged |
+| G5 science (holdout) | **Not run** | Refused by the lock guard until the steps above are done |
 
-The offline demo acceptance (G6 scope) is complete for the documented demonstration: actual records,
-replay/export checks, production API/browser replay, 294 backend tests, and 13 browser tests are
-recorded above and in `docs/demo-console.md`. The hour-20 forecast event is logged, and the adaptive
-record changes selected option IDs, demonstrating feedback behavior in the simulated run.
+**Decisions pending human review.** These were not taken during integration; nothing registered has changed.
 
-The two-seed comparisons remain preliminary and insufficient for research claims. `experiments/protocol.yaml`
-is still unlocked, and no holdout validation is represented here. The retained m0 persistence
-assumptions remain unverified. The approved 0.01 Brier-point minimum effect is recorded in the
-protocol, while valid tuning-seed variance for the seed-count procedure remains to be established.
+| # | Decision | Options (evidence) | Integrator recommendation |
+|---|---|---|---|
+| H1 | G1-F contingency (Register: "switch the demo to `h168_long_horizon`") | (a) keep the 72 h pinned demo with G1-F shown as failed; (b) add a labelled h168 demo; (c) make h168 the primary demo. h168 has 168 h and 60 sources (20 plume-seeded, 40 fill). Its G1-F is unmeasured; planning estimate 1.5–2.5 h of compute per demo seed | (a) for this submission. The submitted demo stays on base, labelled. Run (b) next, re-measuring G1-F on h168 first |
+| H2 | D9 family scope sign-off | all six families (proposed) / m0 only / m0 + 2 of m1–m4. Every option includes m0, which fails, so today's verdict is FAIL under each | All six (D9 as proposed) |
+| H3 | G4.5 scenario remedy | A: h168 base; A+B: h168 + denser fleet; C: evaluation-time metric change (not recommended); D: keep the scenario and accept a likely null | A (Claude-2), only after H1(b) measures h168 capacity; then re-run the 360-run gate (several hours, planning estimate) |
+| H4 | SD-not-SE rule, and the oracle as an oracle-informed greedy reference | Kept as registered (§3 notes 1–2) | Keep |
+| H5 | G5/G6 sign-off | Concrete artifacts in `docs/p0-requirements-evidence.md` | Pending the user's review |
+
+The old two-seed demo comparison is preliminary and synthetic-placement only. The pinned-scenario development comparison in §5.1 is also preliminary (two seeds, m0). Neither is a research claim.
