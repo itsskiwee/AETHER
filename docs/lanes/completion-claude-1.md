@@ -21,6 +21,7 @@ Session `aether-be`. Worktree `../AETHER-wt/claude-1`. Ownership: `Implementatio
 
 ## Requests to other roles
 - **Codex-3:** `tests/unit/test_checker.py:456` calls `greedy_insert` without `now_utc`. Claude-1 plans to make `now_utc` required, because the `None` default silently counts the whole history against the per-solve source cap, which is the C2-04 bug class. Please pass `now_utc` there, then tell Claude-1.
+- **Codex-1:** if bulk raw files leave the git index, keep the 10–20 selected metadata/TIFF pairs listed in `emit_permian.json` tracked (or another checked-in permitted copy). FR-DATA-008 requires a demo usable from checked-in sample data, and the runner refuses to start when a manifest-listed file is missing.
 - **Codex-1:** keep `uncertainty_kind = UNKNOWN` for `Emissions Rate Estimate Uncertainty (kg/hr)`; the provider documents do not define it (Claude-2, SCI-08). In all 155 Permian records an `NA` rate occurs exactly when wind is `NA`. The missing reason may say the provider did not quantify the rate, without claiming a further cause.
 
 ## Waiting on
