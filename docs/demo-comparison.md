@@ -19,6 +19,12 @@ Outputs are generated under the requested directory, which is ignored by Git:
 - `benchmark-confidence-intervals.json` compares adaptive EIG with both largest first and greedy EIG. Differences are adaptive minus comparator. Lower Brier is better; higher recall is better. At least two defined pairs are required to compute a paired bootstrap interval (PR-E04); fewer than ten pairs are explicitly labeled **insufficient samples**. All results remain preliminary and no research success verdict is issued for this single-family exercise.
 - `development-timing.json` records measured elapsed wall time for each complete policy run and the comparison. This sidecar is nondeterministic. It does not claim to measure solver-only performance. Missing solver runtime remains null in evaluator output.
 
+Screen F displays the families represented in the interval and aggregate artifacts
+against the registered protocol roster. Missing families remain marked unavailable.
+The timing panel reads the separate `development-timing.json` sidecar and labels
+whole-run and whole-comparison elapsed time; it never fills a missing solver runtime
+with a wall-time measurement.
+
 The console's comparison view reads the evaluator CSV and confidence interval artifacts. The demo's scripted forecast revision is demonstrated separately using `configs/demo.yaml`; do not pool those scripted runs into this comparison.
 
 The full registered benchmark still requires the remaining families, the discriminability and calibration gates, an explicitly authorized protocol lock, and holdout validation. A small development comparison cannot establish policy superiority.

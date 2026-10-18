@@ -1,13 +1,15 @@
-"""Lane L9 read-only FastAPI views over run artifacts (PRD 12).
+"""Lane L9 read-only FastAPI views over run and project evidence (PRD 12).
 
-Run artifacts are the source of truth. Routes validate run files against ``RunRecord`` and never
-read hidden simulation truth or calculate scientific results.
+Run and dataset artifacts are the source of truth. Routes validate run files against ``RunRecord``
+and never read hidden simulation truth or calculate scientific results.
 """
 
 from __future__ import annotations
 
 import csv
+import hashlib
 import json
+import math
 import os
 from pathlib import Path
 from typing import Any
@@ -15,9 +17,9 @@ from typing import Any
 import yaml
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
-from pydantic import ValidationError
+from pydantic import TypeAdapter, ValidationError
 
-from aether.contracts.models import RunRecord
+from aether.contracts.models import PlumeObservation, RunRecord
 
 # backend/aether/api/__init__.py -> the repository root.
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -302,6 +304,177 @@ def create_app(
     def get_plans(run_id: str) -> tuple:
         return read_run(run_id).plans
 
+    def read_object(path: Path, label: str) -> dict[str, Any]:
+        if not path.is_file():
+            raise HTTPException(status_code=404, detail=f"{label} is not available")
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(value, dict):
+                raise ValueError("expected an object")
+            return value
+        except (OSError, ValueError) as exc:
+            raise HTTPException(status_code=422, detail=f"{label} is invalid") from exc
+
+    def load_historical_context(ref: dict[str, Any]) -> dict[str, Any]:
+        """Read and verify a run-pinned normalized dataset for display only."""
+
+        def pinned_bytes(relative_path: str, expected_hash: str) -> bytes:
+            if not isinstance(relative_path, str) or not isinstance(expected_hash, str):
+                raise ValueError("dataset paths and SHA-256 values must be strings")
+            path = (project_root / relative_path).resolve()
+            if not path.is_relative_to(project_root):
+                raise ValueError("dataset path leaves project")
+            content = path.read_bytes()
+            if hashlib.sha256(content).hexdigest() != expected_hash:
+                raise ValueError(f"SHA-256 mismatch for {relative_path}")
+            return content
+
+        try:
+            manifest_path = ref["manifest_path"]
+            manifest_sha256 = ref["manifest_sha256"]
+            manifest = json.loads(pinned_bytes(manifest_path, manifest_sha256))
+            if not isinstance(manifest, dict):
+                raise ValueError("dataset manifest must be an object")
+            normalized = manifest["normalized"]
+            if not isinstance(normalized, dict):
+                raise ValueError("manifest normalized entry must be an object")
+            if manifest["dataset_id"] != ref["dataset_id"]:
+                raise ValueError("dataset identity mismatch")
+            if normalized["sha256"] != ref["normalized_sha256"]:
+                raise ValueError("normalized identity mismatch")
+            records = TypeAdapter(list[PlumeObservation]).validate_json(
+                pinned_bytes(normalized["path"], ref["normalized_sha256"])
+            )
+            expected_count = ref["record_count"]
+            if len(records) != normalized["record_count"] or len(records) != expected_count:
+                raise ValueError("normalized record count differs from the dataset reference")
+            if len({record.id for record in records}) != len(records):
+                raise ValueError("normalized dataset contains duplicate observation IDs")
+            if [record.id for record in records] != sorted(record.id for record in records):
+                raise ValueError("normalized observations are not sorted by ID")
+        except (OSError, ValueError, KeyError, TypeError, ValidationError) as exc:
+            raise HTTPException(
+                status_code=422, detail=f"Pinned historical context is invalid: {exc}"
+            ) from exc
+        return {
+            "status": "pinned",
+            "input_dataset": ref,
+            "manifest": manifest,
+            "observations": [record.model_dump(mode="json") for record in records],
+        }
+
+    def synthetic_only_context() -> dict[str, Any]:
+        return {
+            "status": "synthetic_only",
+            "input_dataset": None,
+            "manifest": None,
+            "observations": [],
+        }
+
+    @app.get("/api/runs/{run_id}/manifest.json")
+    def run_manifest(run_id: str) -> dict[str, Any]:
+        read_run(run_id)
+        path = (root / run_id / "manifest.json").resolve()
+        if path.parent.parent != root:
+            raise HTTPException(status_code=404, detail="Run manifest is not available")
+        return read_object(path, "Run manifest")
+
+    @app.get("/api/runs/{run_id}/historical-context")
+    def historical_context(run_id: str) -> dict[str, Any]:
+        # The additive DATA-02 field binds context to this run, never to the current base config.
+        record = read_run(run_id)
+        payload = record.model_dump(mode="json")
+        # Once the shared contract declares this optional field, model_fields_set separates an
+        # explicitly recorded null (synthetic-only) from an older artifact that predates the field.
+        # The fallback supports the interface test double until DATA-02 lands in the contract.
+        if "input_dataset" in type(record).model_fields:
+            if "input_dataset" not in record.model_fields_set:
+                raise HTTPException(
+                    status_code=404, detail="Run artifact has no pinned dataset reference"
+                )
+            ref = payload["input_dataset"]
+        elif "input_dataset" in payload:
+            ref = payload["input_dataset"]
+        else:
+            raise HTTPException(
+                status_code=404, detail="Run artifact has no pinned dataset reference"
+            )
+        if ref is None:
+            return synthetic_only_context()
+        if not isinstance(ref, dict):
+            raise HTTPException(status_code=422, detail="Run dataset reference is invalid")
+        return load_historical_context(ref)
+
+    @app.get("/api/project/historical-context")
+    def project_historical_context() -> dict[str, Any]:
+        """Read configured historical context, or report an explicit synthetic-only project."""
+        config_dir = project_root / "configs"
+        base_path = config_dir / "base.yaml"
+        if not base_path.is_file():
+            base_path = config_dir / "demo.yaml"
+        base = read_yaml(base_path)
+        dataset = base.get("sources", {}).get("plume_dataset")
+        if dataset is None:
+            return synthetic_only_context()
+        if not isinstance(dataset, dict):
+            raise HTTPException(
+                status_code=422, detail="Configured plume dataset reference is invalid"
+            )
+        manifest_path = dataset.get("manifest")
+        manifest_sha256 = dataset.get("manifest_sha256")
+        if not isinstance(manifest_path, str) or not isinstance(manifest_sha256, str):
+            raise HTTPException(
+                status_code=422, detail="Configured plume dataset reference is incomplete"
+            )
+        try:
+            manifest_file = (project_root / manifest_path).resolve()
+            if not manifest_file.is_relative_to(project_root):
+                raise ValueError("manifest path leaves project")
+            manifest_bytes = manifest_file.read_bytes()
+            if hashlib.sha256(manifest_bytes).hexdigest() != manifest_sha256:
+                raise ValueError("configured manifest SHA-256 does not match")
+            manifest = json.loads(manifest_bytes)
+            if not isinstance(manifest, dict):
+                raise ValueError("dataset manifest must be an object")
+            normalized = manifest["normalized"]
+            ref = {
+                "dataset_id": manifest["dataset_id"],
+                "manifest_path": manifest_path,
+                "manifest_sha256": manifest_sha256,
+                "normalized_sha256": normalized["sha256"],
+                "record_count": normalized["record_count"],
+            }
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            raise HTTPException(
+                status_code=422, detail=f"Configured plume dataset is invalid: {exc}"
+            ) from exc
+        return load_historical_context(ref)
+
+    @app.get("/api/development-timing.json")
+    def development_timing() -> dict[str, Any]:
+        report = read_object(bench / "development-timing.json", "Measured development timing")
+
+        def elapsed(value: Any) -> bool:
+            return (
+                isinstance(value, (int, float))
+                and not isinstance(value, bool)
+                and math.isfinite(value)
+                and value > 0
+            )
+
+        if (
+            not isinstance(report.get("runs"), list)
+            or not elapsed(report.get("complete_comparison_elapsed_s"))
+            or any(
+                not isinstance(row, dict)
+                or not isinstance(row.get("run_id"), str)
+                or not elapsed(row.get("complete_run_elapsed_s"))
+                for row in report["runs"]
+            )
+        ):
+            raise HTTPException(status_code=422, detail="Measured development timing is invalid")
+        return report
+
     @app.get("/api/benchmark-results.csv")
     def benchmark_results() -> JSONResponse:
         path = bench / "benchmark-results.csv"
@@ -347,6 +520,8 @@ def create_app(
             "primary_comparison": protocol.get("primary_comparison"),
             "mandatory_secondary_comparison": protocol.get("mandatory_secondary_comparison"),
             "success_criterion": protocol.get("success_criterion"),
+            "families": protocol.get("families", []),
+            "policies": protocol.get("policies", []),
         }
 
     return app

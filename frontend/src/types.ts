@@ -36,9 +36,14 @@ export interface RunEvent {
   event_type: string; actor: string; payload: Record<string, unknown>; payload_sha256: string
   config_hash: string; model_version: string
 }
+export interface InputDatasetRef {
+  dataset_id: string; manifest_path: string; manifest_sha256: string; normalized_sha256: string
+  record_count: number; in_region_count: number; seeded_source_count: number; uniform_fill_count: number
+}
 export interface RunRecord {
   run_id: string; policy_id: string; scenario_id: string; family: string; seed: number
   model_config_hash: string; truth_config_hash: string; code_version: string; sources: Source[]
+  input_dataset?: InputDatasetRef | null
   windows: ObservationWindow[]; plans: Plan[]; validations: { plan_revision: number; ok: boolean; violations: { rule: string; detail: string; option_ids: string[] }[]; checker_version: string }[]
   utilities: CandidateUtility[]; acquisitions: SimulatedAcquisition[]; beliefs: BeliefSnapshot[]; events: RunEvent[]
 }
@@ -56,6 +61,7 @@ export interface BenchmarkComparison {
 export interface BenchmarkReport {
   protocol_version: number; protocol_sha256: string; protocol_locked: boolean; lock_tag: string | null
   n_seeds: number; total_checker_violations: number; comparisons: BenchmarkComparison[]
+  preliminary?: boolean; insufficient_samples?: boolean
   holm_primary?: Record<string, { adjusted_p: number; reject: boolean }>
   success_verdict: { success: boolean; m0_win: boolean; misspecified_wins: string[]; zero_violations: boolean; reasons: string[] } | null
   note: string | null
@@ -63,6 +69,7 @@ export interface BenchmarkReport {
 export interface BenchmarkProtocol {
   protocol_version?: number; locked?: boolean; primary_metric: string; primary_comparison: [string, string]
   mandatory_secondary_comparison: [string, string]; success_criterion: string
+  families?: string[]; policies?: string[]
 }
 export interface ProjectSnapshot {
   scenario: {
