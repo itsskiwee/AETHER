@@ -89,6 +89,7 @@ def run_gate(
     seeds_file: str | None = None,
     seed_subset: tuple[int, ...] | None = None,
     run_fn=None,
+    synthetic_only: bool = False,
 ) -> dict:
     """``seed_subset`` (smoke checks only) must be drawn from the tuning list; reported as such."""
     repo, out_dir = repo.resolve(), out_dir.resolve()
@@ -107,7 +108,15 @@ def run_gate(
     if unknown:
         raise ValueError(f"unknown families {sorted(unknown)}")
     records = run_matrix(
-        repo, proto.base_config, families, REFERENCE, seeds, out_dir, workers, run_fn=run_fn
+        repo,
+        proto.base_config,
+        families,
+        REFERENCE,
+        seeds,
+        out_dir,
+        workers,
+        run_fn=run_fn,
+        synthetic_only=synthetic_only,
     )
 
     per_family = gate_from_records(records, families, seeds)
@@ -154,13 +163,16 @@ def run_gate(
         "config_hashes": {
             f: {
                 "model": (
-                    b := family_bundle(repo, proto.base_config, f, seeds[0])
+                    b := family_bundle(
+                        repo, proto.base_config, f, seeds[0], synthetic_only=synthetic_only
+                    )
                 ).model.config_hash(),
                 "truth": b.truth.config_hash(),
                 "seed_for_hash": seeds[0],
             }
             for f in families
         },  # fmt: skip
+        "synthetic_only": synthetic_only,
         "input_datasets": [json.loads(d) for d in datasets],
         "environment": execution_environment(repo),
     }
@@ -176,10 +188,19 @@ def main() -> None:
     ap.add_argument("--workers", type=int, default=1)
     ap.add_argument("--seeds-file", default=None, help="repo-relative; must be the tuning list")
     ap.add_argument("--seed-subset", default="", help="smoke only: comma-separated tuning seeds")
+    ap.add_argument("--synthetic-only", action="store_true", help="ignore the plume dataset")
     args = ap.parse_args()
     fams = [f for f in args.families.split(",") if f] or None
     subset = tuple(int(x) for x in args.seed_subset.split(",") if x) or None
-    report = run_gate(args.repo, args.output_dir, fams, args.workers, args.seeds_file, subset)
+    report = run_gate(
+        args.repo,
+        args.output_dir,
+        fams,
+        args.workers,
+        args.seeds_file,
+        subset,
+        synthetic_only=args.synthetic_only,
+    )
     for f, v in report["per_family"].items():
         print(
             f"{f}: {'PASS' if v['passed'] else 'FAIL'} gap {v['gap_mean_random_minus_oracle']:.4f}"

@@ -46,11 +46,18 @@ class MatrixTask:
     family: str
     seed: int
     policies: tuple[str, ...]
+    synthetic_only: bool = False
 
 
-def family_bundle(repo: Path, base_config: str, family: str, seed: int) -> ScenarioBundle:
+def family_bundle(
+    repo: Path, base_config: str, family: str, seed: int, *, synthetic_only: bool = False
+) -> ScenarioBundle:
+    """The (family, seed) scenario. ``synthetic_only`` clears the pinned dataset explicitly; the
+    change is in the config hash, so such records never mix with dataset-backed ones."""
     scenarios = repo / "configs" / "scenarios"
-    return load_scenario(repo / base_config, scenarios / f"{family}.yaml", seed=seed)
+    return load_scenario(
+        repo / base_config, scenarios / f"{family}.yaml", seed=seed, synthetic_only=synthetic_only
+    )
 
 
 def calibration_points(run, truth, cfg) -> list[list]:
@@ -177,7 +184,9 @@ def _run_task(
     from aether.evaluation.benchmark import unpack_run_result
 
     repo_p, out_p = Path(repo), Path(out_dir)
-    bundle = family_bundle(repo_p, base_config, task.family, task.seed)
+    bundle = family_bundle(
+        repo_p, base_config, task.family, task.seed, synthetic_only=task.synthetic_only
+    )
     timings = []
     for policy in task.policies:
         identity = _identity(bundle, task.family, policy, task.seed, repo_p)
@@ -240,11 +249,12 @@ def run_matrix(
     workers: int = 1,
     log: Callable[[str], None] = print,
     run_fn: RunFn | None = None,
+    synthetic_only: bool = False,
 ) -> dict[tuple[str, str, int], dict]:
     """Run (or reuse) every record; return them keyed by (family, policy, seed)."""
     repo, out_dir = repo.resolve(), out_dir.resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
-    tasks = [MatrixTask(f, s, tuple(policies)) for f in families for s in seeds]
+    tasks = [MatrixTask(f, s, tuple(policies), synthetic_only) for f in families for s in seeds]
     started = perf_counter()
     timing_path = out_dir / "timing.jsonl"
     with timing_path.open("a", encoding="utf-8") as timing_fh:

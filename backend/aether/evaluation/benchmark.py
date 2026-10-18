@@ -147,11 +147,14 @@ def benchmark(
     out_dir: str | Path,
     run_fn: RunFn = default_run_fn,
     workers: int = 1,
+    synthetic_only: bool = False,
 ) -> dict:
     """Run (or resume) the protocol matrix and write the three result files.
 
     Per-run records are cached under ``out_dir/records`` by ``matrix.run_matrix`` and reused only
-    when their config hashes, code version, policy and seed match.
+    when their config hashes, code version, policy and seed match. ``synthetic_only`` clears the
+    base config's pinned plume dataset in every family (explicit uniform-fill mode); it is
+    recorded in the report and changes every config hash.
     """
     protocol_path, seeds_path, out_dir = Path(protocol_path), Path(seeds_path), Path(out_dir)
     proto = load_protocol(protocol_path)
@@ -165,12 +168,12 @@ def benchmark(
 
     config_hashes: dict[str, dict[str, str]] = {}
     for family in proto.families:
-        bundle = load_scenario(base, scenarios / f"{family}.yaml")
+        bundle = load_scenario(base, scenarios / f"{family}.yaml", synthetic_only=synthetic_only)
         config_hashes[family] = {"model": bundle.model.config_hash(),
                                  "truth": bundle.truth.config_hash()}  # fmt: skip
     policies = [p.value for p in proto.policies]
     records = run_matrix(repo, proto.base_config, proto.families, policies, seeds, out_dir,
-                         workers, run_fn=run_fn)  # fmt: skip
+                         workers, run_fn=run_fn, synthetic_only=synthetic_only)  # fmt: skip
     rows: list[dict] = []
     score_keys: list[str] = []
     for family in proto.families:
@@ -233,6 +236,7 @@ def benchmark(
         "seeds_sha256": file_sha256(seeds_path),
         "n_seeds": len(seeds),
         "config_hashes": config_hashes,
+        "synthetic_only": synthetic_only,
         "input_datasets": [json.loads(d) for d in datasets],
         "environment": execution_environment(repo),
         "performance": {

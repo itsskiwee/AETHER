@@ -49,9 +49,7 @@ def _normalized() -> list[dict]:
 def test_base_config_pins_the_checked_in_manifest_and_it_loads_offline():
     expected = _configured_sha()
     assert _sha(REPO / MANIFEST) == expected
-    dataset = load_pinned_plume_dataset(
-        MANIFEST, expected_manifest_sha256=expected, repo_root=REPO
-    )
+    dataset = load_pinned_plume_dataset(MANIFEST, expected_manifest_sha256=expected, repo_root=REPO)
     assert dataset.dataset_id == "emit-l2b-ch4plm-002-permian-v1"
     assert dataset.manifest_path == MANIFEST
     assert len(dataset.plumes) == 20 and dataset.raw_file_count == 40

@@ -163,3 +163,20 @@ def test_development_comparison_rejects_unapproved_seeds_before_running(repo_roo
 
     with pytest.raises(ValueError, match="approved development seeds"):
         development_comparison(repo_root, tmp_path, seeds, run_fn=forbidden)
+
+
+@pytest.mark.parametrize("synthetic_only", [False, True])
+def test_synthetic_only_switch_reaches_every_run(repo_root, tmp_path, synthetic_only):
+    """The benchmark switch must change what the runner sees, not only a label."""
+    seen = set()
+
+    def recording(bundle, policy, seed):
+        seen.add((bundle.model.sources.plume_dataset is None,
+                  bundle.truth.sources.plume_dataset is None))  # fmt: skip
+        return fake_run(bundle, policy, seed)
+
+    report = benchmark(repo_root / "experiments/protocol.yaml",
+                       repo_root / "experiments/seeds_dev.txt", tmp_path, run_fn=recording,
+                       synthetic_only=synthetic_only)  # fmt: skip
+    assert seen == {(synthetic_only, synthetic_only)}
+    assert report["synthetic_only"] is synthetic_only

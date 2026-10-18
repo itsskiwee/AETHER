@@ -8,7 +8,8 @@ from datetime import timedelta
 
 import pytest
 
-from aether.cli import main
+from aether import cli
+from aether.cli import LineageError, main, verify_export, verify_lineage
 from aether.config import ScenarioBundle, ScenarioConfig, load_scenario
 from aether.contracts.models import RunPerformance, RunRecord
 from aether.simulation import runner
@@ -29,8 +30,32 @@ def bundle(base_config_path):
     return ScenarioBundle(model=_short(loaded.model), truth=_short(loaded.truth))
 
 
+@pytest.fixture(scope="module")
+def pinned_bundle(base_config_path):
+    loaded = load_scenario(base_config_path)
+    assert loaded.model.sources.plume_dataset is not None
+    return ScenarioBundle(model=_short(loaded.model), truth=_short(loaded.truth))
+
+
 def _bytes(run: RunRecord) -> bytes:
     return run.model_dump_json().encode()
+
+
+def _seeded(bundle, seed):
+    """The bundle as the runner sees it: ``run_policy`` hashes the config with ``seed`` applied."""
+    views = {}
+    for name in ("model", "truth"):
+        data = getattr(bundle, name).model_dump(mode="python")
+        data["random_seed"] = seed
+        views[name] = ScenarioConfig.model_validate(data)
+    return ScenarioBundle(**views)
+
+
+def _run_manifest(bundle, *, synthetic_only=False, seed=1000):
+    bundle = _seeded(bundle, seed)
+    root = cli._repo_root()
+    inputs = [root / rel for rel in cli.PINNED_INPUTS] + cli._dataset_inputs(bundle)
+    return cli._manifest(bundle, [], inputs, synthetic_only=synthetic_only)
 
 
 def test_same_seed_gives_identical_record_bytes_and_timing_stays_outside(bundle, monkeypatch):
@@ -66,7 +91,7 @@ def test_export_carries_performance_separately(bundle, tmp_path):
     run_dir = tmp_path / run.run_id
     run_dir.mkdir()
     (run_dir / "run.json").write_text(run.model_dump_json())
-    (run_dir / "manifest.json").write_text("{}")
+    (run_dir / "manifest.json").write_text(json.dumps(_run_manifest(bundle, synthetic_only=True)))
     (run_dir / "performance.json").write_text(performance.model_dump_json())
     output = tmp_path / "export.zip"
     args = ["export", "--run-dir", str(tmp_path), "--run-id", run.run_id, "--output", str(output)]
@@ -115,3 +140,48 @@ def test_disk_window_cache_gives_identical_records(bundle, monkeypatch, tmp_path
     loaded, perf_loaded = runner.run_policy_with_performance(bundle, "greedy_eig", 1000)
     assert perf_loaded.windows_source == "disk_cache"
     assert _bytes(reference) == _bytes(written) == _bytes(loaded)
+
+
+def test_pinned_run_lineage_exports_and_reloads(pinned_bundle, tmp_path):
+    run, performance = runner.run_policy_with_performance(pinned_bundle, "largest_first", 1000)
+    ref = run.input_dataset
+    assert ref is not None and ref.dataset_id == "emit-l2b-ch4plm-002-permian-v1"
+    assert (ref.seeded_source_count, ref.uniform_fill_count) == (6, 0)
+    assert run.sources == runner.resolve_sources(pinned_bundle.model, 1000)[0]
+    manifest = _run_manifest(pinned_bundle)
+    dataset_files = cli._dataset_inputs(pinned_bundle)
+    assert len(dataset_files) == 42  # manifest + normalized + 20 metadata/raster pairs
+    assert len(manifest["input_sha256"]) == len(cli.PINNED_INPUTS) + 42
+    assert all(not key.startswith("/") for key in manifest["input_sha256"])
+    assert manifest["input_dataset"]["manifest_sha256"] == ref.manifest_sha256
+
+    run_dir = tmp_path / run.run_id
+    run_dir.mkdir()
+    (run_dir / "run.json").write_text(run.model_dump_json())
+    (run_dir / "manifest.json").write_text(json.dumps(manifest))
+    (run_dir / "performance.json").write_text(performance.model_dump_json())
+    output = tmp_path / "pinned.zip"
+    args = ["export", "--run-dir", str(tmp_path), "--run-id", run.run_id, "--output", str(output)]
+    assert main(args) == 0
+    with zipfile.ZipFile(output) as archive:
+        names = set(archive.namelist())
+    assert "inputs/data/manifests/emit_permian.json" in names
+    assert "inputs/data/normalized/emit_permian_plumes.json" in names
+    summary = verify_export(output)
+    assert summary["dataset_files"] == 42 and summary["input_dataset"] == ref.dataset_id
+
+    raw_key = next(k for k in manifest["input_sha256"] if k.endswith(".tif"))
+    dropped = json.loads(json.dumps(manifest))
+    del dropped["input_sha256"][raw_key]
+    with pytest.raises(LineageError, match="lacks required evidence"):
+        verify_lineage(dropped, run)
+
+    root = cli._repo_root()
+    for rel in manifest["input_sha256"]:
+        (tmp_path / "copy" / rel).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / "copy" / rel).write_bytes((root / rel).read_bytes())
+    assert verify_lineage(manifest, run, root=tmp_path / "copy")["dataset_files"] == 42
+    raster = tmp_path / "copy" / raw_key
+    raster.write_bytes(raster.read_bytes() + b"\0")
+    with pytest.raises(LineageError, match="altered"):
+        verify_lineage(manifest, run, root=tmp_path / "copy")
