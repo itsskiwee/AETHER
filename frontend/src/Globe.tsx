@@ -290,7 +290,7 @@ export default function GlobeView() {
           <p className="globe-meta">Position: <a href="https://github.com/cosinekitty/astronomy" target="_blank" rel="noreferrer">Astronomy Engine</a>. Surface: <a href="https://svs.gsfc.nasa.gov/4720/" target="_blank" rel="noreferrer">NASA’s Scientific Visualization Studio</a>.</p>
         </section>
       </aside>
-      <div className="globe-stage">
+      <div className={`globe-stage ${lunarFocus !== 'earth' ? 'lunar-view' : ''}`}>
         <div className="globe-canvas" ref={host} role="img" aria-label="3D Earth and Moon at physical scale, real satellite positions, the 20 real EMIT plume sites in the Permian Basin, and the recorded simulation of four virtual satellites. The sidebar lists the same information as text." />
         <p className="globe-sky-note">Earth and Moon: physical scale · stars: decorative{lunarPlaying ? ' · lunar preview: 1 day/s' : ''}</p>
       </div>

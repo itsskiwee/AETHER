@@ -1,5 +1,6 @@
 import { GeoMoon, HOUR2RAD, KM_PER_AU, RAD2DEG, RotateVector, Rotation_EQJ_EQD, SiderealTime } from 'astronomy-engine'
 import { Mesh, MeshStandardMaterial, PerspectiveCamera, SphereGeometry, SRGBColorSpace, TextureLoader, Vector3 } from 'three'
+import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js'
 import type { GlobeInstance } from 'globe.gl'
 
 // PR-LUNAR01: presentation context only. Never an input to the mission or planner.
@@ -28,6 +29,17 @@ export function addMoon(globe: GlobeInstance, frameAt: Date) {
   const moon = new Mesh(geometry, material)
   moon.name = 'Moon'
   globe.scene().add(moon)
+  function label(text: string) {
+    const element = document.createElement('div')
+    element.className = 'globe-body-label'
+    element.textContent = text
+    const object = new CSS2DObject(element)
+    object.visible = false
+    globe.scene().add(object)
+    return object
+  }
+  const earthLabel = label('Earth')
+  const moonLabel = label('Moon')
 
   function positionAt(at: Date) {
     const p = lunarPosition(at, frameAt)
@@ -35,6 +47,7 @@ export function addMoon(globe: GlobeInstance, frameAt: Date) {
   }
 
   function focus(mode: LunarFocus) {
+    earthLabel.visible = moonLabel.visible = mode === 'system'
     if (mode === 'earth') return
     const camera = globe.camera() as PerspectiveCamera
     const controls = globe.controls()
@@ -56,6 +69,8 @@ export function addMoon(globe: GlobeInstance, frameAt: Date) {
 
   function update(at: Date, mode: LunarFocus) {
     moon.position.copy(positionAt(at))
+    moonLabel.position.copy(moon.position)
+    earthLabel.visible = moonLabel.visible = mode === 'system'
     // Synchronous rotation: the same texture hemisphere faces Earth. This is a
     // visual approximation of tidal locking, without a lunar libration model.
     moon.lookAt(0, 0, 0)
@@ -68,6 +83,9 @@ export function addMoon(globe: GlobeInstance, frameAt: Date) {
     focus, update,
     dispose() {
       globe.scene().remove(moon)
+      globe.scene().remove(earthLabel, moonLabel)
+      earthLabel.element.remove()
+      moonLabel.element.remove()
       geometry.dispose()
       material.dispose()
       texture.dispose()
