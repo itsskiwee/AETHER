@@ -1,0 +1,954 @@
+{
+  "acquisitions": [
+    {
+      "id": "acq-000",
+      "measured_flux_kg_h": 75.0,
+      "off_nadir_deg": 4.0,
+      "option_id": "window-000@20250101T010000Z",
+      "outcome": "DETECTION",
+      "provenance_class": "SIMULATED_OBSERVATION",
+      "rng_key": "example:0",
+      "scene_cloud_fraction": 0.15,
+      "sensor_id": "EMIT_SIM",
+      "source_id": "source-000",
+      "spacecraft_id": "VS-A",
+      "time_utc": "2025-01-01T01:00:00Z",
+      "wind_estimate_m_s": 4.5,
+      "window_id": "window-000"
+    },
+    {
+      "id": "acq-001",
+      "measured_flux_kg_h": null,
+      "off_nadir_deg": 4.0,
+      "option_id": "window-001@20250101T020000Z",
+      "outcome": "VALID_NON_DETECTION",
+      "provenance_class": "SIMULATED_OBSERVATION",
+      "rng_key": "example:1",
+      "scene_cloud_fraction": 0.15,
+      "sensor_id": "EMIT_SIM",
+      "source_id": "source-001",
+      "spacecraft_id": "VS-A",
+      "time_utc": "2025-01-01T02:00:00Z",
+      "wind_estimate_m_s": 4.5,
+      "window_id": "window-001"
+    },
+    {
+      "id": "acq-002",
+      "measured_flux_kg_h": null,
+      "off_nadir_deg": 4.0,
+      "option_id": "window-002@20250101T030000Z",
+      "outcome": "INVALID_ACQUISITION",
+      "provenance_class": "SIMULATED_OBSERVATION",
+      "rng_key": "example:2",
+      "scene_cloud_fraction": 0.15,
+      "sensor_id": "EMIT_SIM",
+      "source_id": "source-000",
+      "spacecraft_id": "VS-A",
+      "time_utc": "2025-01-01T03:00:00Z",
+      "wind_estimate_m_s": 4.5,
+      "window_id": "window-002"
+    },
+    {
+      "id": "acq-003",
+      "measured_flux_kg_h": null,
+      "off_nadir_deg": 4.0,
+      "option_id": "window-003@20250101T040000Z",
+      "outcome": "NOT_OBSERVED",
+      "provenance_class": "SIMULATED_OBSERVATION",
+      "rng_key": "example:3",
+      "scene_cloud_fraction": 0.15,
+      "sensor_id": "EMIT_SIM",
+      "source_id": "source-001",
+      "spacecraft_id": "VS-A",
+      "time_utc": "2025-01-01T04:00:00Z",
+      "wind_estimate_m_s": 4.5,
+      "window_id": "window-003"
+    },
+    {
+      "id": "acq-004",
+      "measured_flux_kg_h": 75.0,
+      "off_nadir_deg": 4.0,
+      "option_id": "window-004@20250101T050000Z",
+      "outcome": "DETECTION",
+      "provenance_class": "SIMULATED_OBSERVATION",
+      "rng_key": "example:4",
+      "scene_cloud_fraction": 0.15,
+      "sensor_id": "EMIT_SIM",
+      "source_id": "source-000",
+      "spacecraft_id": "VS-A",
+      "time_utc": "2025-01-01T05:00:00Z",
+      "wind_estimate_m_s": 4.5,
+      "window_id": "window-004"
+    },
+    {
+      "id": "acq-005",
+      "measured_flux_kg_h": null,
+      "off_nadir_deg": 4.0,
+      "option_id": "window-005@20250101T060000Z",
+      "outcome": "VALID_NON_DETECTION",
+      "provenance_class": "SIMULATED_OBSERVATION",
+      "rng_key": "example:5",
+      "scene_cloud_fraction": 0.15,
+      "sensor_id": "EMIT_SIM",
+      "source_id": "source-001",
+      "spacecraft_id": "VS-A",
+      "time_utc": "2025-01-01T06:00:00Z",
+      "wind_estimate_m_s": 4.5,
+      "window_id": "window-005"
+    }
+  ],
+  "beliefs": [
+    {
+      "entropy_bits": 0.88,
+      "evidence_ids": [],
+      "flux_ci90_kg_h": [
+        12.0,
+        180.0
+      ],
+      "flux_median_kg_h": 52.0,
+      "model_version": "p0-0",
+      "p_active": 0.42,
+      "provenance_class": "MODEL_INFERENCE",
+      "received_new_evidence": false,
+      "regime_probs": {
+        "EPISODIC": 0.3,
+        "INTERMITTENT": 0.4,
+        "PERSISTENT": 0.3
+      },
+      "source_id": "source-000",
+      "state_time_utc": "2025-01-01T00:00:00Z"
+    },
+    {
+      "entropy_bits": 0.88,
+      "evidence_ids": [
+        "acq-000",
+        "acq-002",
+        "acq-004"
+      ],
+      "flux_ci90_kg_h": [
+        12.0,
+        180.0
+      ],
+      "flux_median_kg_h": 52.0,
+      "model_version": "p0-0",
+      "p_active": 0.44,
+      "provenance_class": "MODEL_INFERENCE",
+      "received_new_evidence": false,
+      "regime_probs": {
+        "EPISODIC": 0.3,
+        "INTERMITTENT": 0.4,
+        "PERSISTENT": 0.3
+      },
+      "source_id": "source-000",
+      "state_time_utc": "2025-01-01T06:00:00Z"
+    },
+    {
+      "entropy_bits": 0.88,
+      "evidence_ids": [
+        "acq-000",
+        "acq-002",
+        "acq-004"
+      ],
+      "flux_ci90_kg_h": [
+        12.0,
+        180.0
+      ],
+      "flux_median_kg_h": 52.0,
+      "model_version": "p0-0",
+      "p_active": 0.45999999999999996,
+      "provenance_class": "MODEL_INFERENCE",
+      "received_new_evidence": false,
+      "regime_probs": {
+        "EPISODIC": 0.3,
+        "INTERMITTENT": 0.4,
+        "PERSISTENT": 0.3
+      },
+      "source_id": "source-000",
+      "state_time_utc": "2025-01-01T12:00:00Z"
+    },
+    {
+      "entropy_bits": 0.88,
+      "evidence_ids": [
+        "acq-000",
+        "acq-002",
+        "acq-004"
+      ],
+      "flux_ci90_kg_h": [
+        12.0,
+        180.0
+      ],
+      "flux_median_kg_h": 52.0,
+      "model_version": "p0-0",
+      "p_active": 0.48,
+      "provenance_class": "MODEL_INFERENCE",
+      "received_new_evidence": false,
+      "regime_probs": {
+        "EPISODIC": 0.3,
+        "INTERMITTENT": 0.4,
+        "PERSISTENT": 0.3
+      },
+      "source_id": "source-000",
+      "state_time_utc": "2025-01-01T18:00:00Z"
+    },
+    {
+      "entropy_bits": 0.88,
+      "evidence_ids": [],
+      "flux_ci90_kg_h": [
+        12.0,
+        180.0
+      ],
+      "flux_median_kg_h": 52.0,
+      "model_version": "p0-0",
+      "p_active": 0.42,
+      "provenance_class": "MODEL_INFERENCE",
+      "received_new_evidence": false,
+      "regime_probs": {
+        "EPISODIC": 0.3,
+        "INTERMITTENT": 0.4,
+        "PERSISTENT": 0.3
+      },
+      "source_id": "source-001",
+      "state_time_utc": "2025-01-01T00:00:00Z"
+    },
+    {
+      "entropy_bits": 0.88,
+      "evidence_ids": [
+        "acq-001",
+        "acq-003",
+        "acq-005"
+      ],
+      "flux_ci90_kg_h": [
+        12.0,
+        180.0
+      ],
+      "flux_median_kg_h": 52.0,
+      "model_version": "p0-0",
+      "p_active": 0.44,
+      "provenance_class": "MODEL_INFERENCE",
+      "received_new_evidence": true,
+      "regime_probs": {
+        "EPISODIC": 0.3,
+        "INTERMITTENT": 0.4,
+        "PERSISTENT": 0.3
+      },
+      "source_id": "source-001",
+      "state_time_utc": "2025-01-01T06:00:00Z"
+    },
+    {
+      "entropy_bits": 0.88,
+      "evidence_ids": [
+        "acq-001",
+        "acq-003",
+        "acq-005"
+      ],
+      "flux_ci90_kg_h": [
+        12.0,
+        180.0
+      ],
+      "flux_median_kg_h": 52.0,
+      "model_version": "p0-0",
+      "p_active": 0.45999999999999996,
+      "provenance_class": "MODEL_INFERENCE",
+      "received_new_evidence": false,
+      "regime_probs": {
+        "EPISODIC": 0.3,
+        "INTERMITTENT": 0.4,
+        "PERSISTENT": 0.3
+      },
+      "source_id": "source-001",
+      "state_time_utc": "2025-01-01T12:00:00Z"
+    },
+    {
+      "entropy_bits": 0.88,
+      "evidence_ids": [
+        "acq-001",
+        "acq-003",
+        "acq-005"
+      ],
+      "flux_ci90_kg_h": [
+        12.0,
+        180.0
+      ],
+      "flux_median_kg_h": 52.0,
+      "model_version": "p0-0",
+      "p_active": 0.48,
+      "provenance_class": "MODEL_INFERENCE",
+      "received_new_evidence": false,
+      "regime_probs": {
+        "EPISODIC": 0.3,
+        "INTERMITTENT": 0.4,
+        "PERSISTENT": 0.3
+      },
+      "source_id": "source-001",
+      "state_time_utc": "2025-01-01T18:00:00Z"
+    }
+  ],
+  "code_version": "0.1.0",
+  "events": [
+    {
+      "actor": "simulation",
+      "config_hash": "5fb45b77c13bf8ff138da800ad47d3c59a2f09b2915b97d67e073f5fcd2a91d3",
+      "event_id": "example-adaptive_eig:event:000001",
+      "event_time_sim_utc": "2025-01-01T01:00:00Z",
+      "event_type": "PLAN_REQUESTED",
+      "model_version": "p0-0",
+      "payload": {
+        "cause": "initial",
+        "injected": false
+      },
+      "payload_sha256": "98922350db9ef46f552dd59354852c9fbb8646fca261c4089c7d35186ec3a5e5",
+      "run_id": "example-adaptive_eig",
+      "sequence_number": 1
+    },
+    {
+      "actor": "simulation",
+      "config_hash": "5fb45b77c13bf8ff138da800ad47d3c59a2f09b2915b97d67e073f5fcd2a91d3",
+      "event_id": "example-adaptive_eig:event:000002",
+      "event_time_sim_utc": "2025-01-01T02:00:00Z",
+      "event_type": "PLAN_REQUESTED",
+      "model_version": "p0-0",
+      "payload": {
+        "cause": "initial",
+        "injected": false
+      },
+      "payload_sha256": "98922350db9ef46f552dd59354852c9fbb8646fca261c4089c7d35186ec3a5e5",
+      "run_id": "example-adaptive_eig",
+      "sequence_number": 2
+    },
+    {
+      "actor": "simulation",
+      "config_hash": "5fb45b77c13bf8ff138da800ad47d3c59a2f09b2915b97d67e073f5fcd2a91d3",
+      "event_id": "example-adaptive_eig:event:000003",
+      "event_time_sim_utc": "2025-01-01T03:00:00Z",
+      "event_type": "PLAN_REQUESTED",
+      "model_version": "p0-0",
+      "payload": {
+        "cause": "initial",
+        "injected": false
+      },
+      "payload_sha256": "98922350db9ef46f552dd59354852c9fbb8646fca261c4089c7d35186ec3a5e5",
+      "run_id": "example-adaptive_eig",
+      "sequence_number": 3
+    },
+    {
+      "actor": "simulation",
+      "config_hash": "5fb45b77c13bf8ff138da800ad47d3c59a2f09b2915b97d67e073f5fcd2a91d3",
+      "event_id": "example-adaptive_eig:event:000004",
+      "event_time_sim_utc": "2025-01-01T04:00:00Z",
+      "event_type": "PLAN_REQUESTED",
+      "model_version": "p0-0",
+      "payload": {
+        "cause": "informative_acquisition",
+        "injected": false
+      },
+      "payload_sha256": "db98f3f35262c9a5a293d24fb8d9677c1abce89e3a7b705ec3267ed84124e0e5",
+      "run_id": "example-adaptive_eig",
+      "sequence_number": 4
+    },
+    {
+      "actor": "simulation",
+      "config_hash": "5fb45b77c13bf8ff138da800ad47d3c59a2f09b2915b97d67e073f5fcd2a91d3",
+      "event_id": "example-adaptive_eig:event:000005",
+      "event_time_sim_utc": "2025-01-01T05:00:00Z",
+      "event_type": "PLAN_REQUESTED",
+      "model_version": "p0-0",
+      "payload": {
+        "cause": "informative_acquisition",
+        "injected": false
+      },
+      "payload_sha256": "db98f3f35262c9a5a293d24fb8d9677c1abce89e3a7b705ec3267ed84124e0e5",
+      "run_id": "example-adaptive_eig",
+      "sequence_number": 5
+    },
+    {
+      "actor": "simulation",
+      "config_hash": "5fb45b77c13bf8ff138da800ad47d3c59a2f09b2915b97d67e073f5fcd2a91d3",
+      "event_id": "example-adaptive_eig:event:000006",
+      "event_time_sim_utc": "2025-01-01T06:00:00Z",
+      "event_type": "PLAN_REQUESTED",
+      "model_version": "p0-0",
+      "payload": {
+        "cause": "informative_acquisition",
+        "injected": false
+      },
+      "payload_sha256": "db98f3f35262c9a5a293d24fb8d9677c1abce89e3a7b705ec3267ed84124e0e5",
+      "run_id": "example-adaptive_eig",
+      "sequence_number": 6
+    },
+    {
+      "actor": "simulation",
+      "config_hash": "5fb45b77c13bf8ff138da800ad47d3c59a2f09b2915b97d67e073f5fcd2a91d3",
+      "event_id": "example-adaptive_eig:event:000007",
+      "event_time_sim_utc": "2025-01-01T07:00:00Z",
+      "event_type": "PLAN_REQUESTED",
+      "model_version": "p0-0",
+      "payload": {
+        "cause": "forecast_revision",
+        "injected": false
+      },
+      "payload_sha256": "871b1652acbd7441704eafb569b28b51b476e5b609ce3809a6ff3d79bf66fa31",
+      "run_id": "example-adaptive_eig",
+      "sequence_number": 7
+    },
+    {
+      "actor": "weather",
+      "config_hash": "5fb45b77c13bf8ff138da800ad47d3c59a2f09b2915b97d67e073f5fcd2a91d3",
+      "event_id": "example-adaptive_eig:event:000008",
+      "event_time_sim_utc": "2025-01-01T20:00:00Z",
+      "event_type": "FORECAST_REVISED",
+      "model_version": "p0-0",
+      "payload": {
+        "cause": "forecast_revision",
+        "injected": true
+      },
+      "payload_sha256": "4cffaa959fa45cc53412f6b40b91255847d77922d1fac22b3256afbbbc28f540",
+      "run_id": "example-adaptive_eig",
+      "sequence_number": 8
+    },
+    {
+      "actor": "simulation",
+      "config_hash": "5fb45b77c13bf8ff138da800ad47d3c59a2f09b2915b97d67e073f5fcd2a91d3",
+      "event_id": "example-adaptive_eig:event:000009",
+      "event_time_sim_utc": "2025-01-01T09:00:00Z",
+      "event_type": "PLAN_REQUESTED",
+      "model_version": "p0-0",
+      "payload": {
+        "cause": "forecast_revision",
+        "injected": false
+      },
+      "payload_sha256": "871b1652acbd7441704eafb569b28b51b476e5b609ce3809a6ff3d79bf66fa31",
+      "run_id": "example-adaptive_eig",
+      "sequence_number": 9
+    },
+    {
+      "actor": "adaptive_eig",
+      "config_hash": "5fb45b77c13bf8ff138da800ad47d3c59a2f09b2915b97d67e073f5fcd2a91d3",
+      "event_id": "example-adaptive_eig:plan:0:proposed",
+      "event_time_sim_utc": "2025-01-01T00:00:00Z",
+      "event_type": "PLAN_PROPOSED",
+      "model_version": "p0-0",
+      "payload": {
+        "cause": "initial",
+        "revision": 0
+      },
+      "payload_sha256": "e23331a903cb83294cdd392abb4020cbfacb529014a118de78f253fc7bc0ac85",
+      "run_id": "example-adaptive_eig",
+      "sequence_number": 10
+    },
+    {
+      "actor": "independent_checker",
+      "config_hash": "5fb45b77c13bf8ff138da800ad47d3c59a2f09b2915b97d67e073f5fcd2a91d3",
+      "event_id": "example-adaptive_eig:plan:0:validated",
+      "event_time_sim_utc": "2025-01-01T00:00:00Z",
+      "event_type": "PLAN_VALIDATED",
+      "model_version": "p0-0",
+      "payload": {
+        "ok": true,
+        "revision": 0
+      },
+      "payload_sha256": "abbc94690f3a618ce6a340a1155c2f3664c0fdf1d75383629bc42ce27ad8c3fb",
+      "run_id": "example-adaptive_eig",
+      "sequence_number": 11
+    },
+    {
+      "actor": "adaptive_eig",
+      "config_hash": "5fb45b77c13bf8ff138da800ad47d3c59a2f09b2915b97d67e073f5fcd2a91d3",
+      "event_id": "example-adaptive_eig:plan:1:proposed",
+      "event_time_sim_utc": "2025-01-01T10:00:00Z",
+      "event_type": "PLAN_PROPOSED",
+      "model_version": "p0-0",
+      "payload": {
+        "cause": "informative_acquisition",
+        "revision": 1
+      },
+      "payload_sha256": "038b142b6ae684ce2fa8a34e3db72d796f2bda5cbcb65c3b554c5054a26bc4f5",
+      "run_id": "example-adaptive_eig",
+      "sequence_number": 12
+    },
+    {
+      "actor": "independent_checker",
+      "config_hash": "5fb45b77c13bf8ff138da800ad47d3c59a2f09b2915b97d67e073f5fcd2a91d3",
+      "event_id": "example-adaptive_eig:plan:1:validated",
+      "event_time_sim_utc": "2025-01-01T10:00:00Z",
+      "event_type": "PLAN_VALIDATED",
+      "model_version": "p0-0",
+      "payload": {
+        "ok": true,
+        "revision": 1
+      },
+      "payload_sha256": "afd6cd325f593ecc0ea5c5dde4f3d175b11fbd4af429112e6e220ef48f09367b",
+      "run_id": "example-adaptive_eig",
+      "sequence_number": 13
+    },
+    {
+      "actor": "adaptive_eig",
+      "config_hash": "5fb45b77c13bf8ff138da800ad47d3c59a2f09b2915b97d67e073f5fcd2a91d3",
+      "event_id": "example-adaptive_eig:plan:2:proposed",
+      "event_time_sim_utc": "2025-01-01T20:00:00Z",
+      "event_type": "PLAN_PROPOSED",
+      "model_version": "p0-0",
+      "payload": {
+        "cause": "forecast_revision",
+        "revision": 2
+      },
+      "payload_sha256": "205faa35215b848b67d6ad2897f7720023f9811e28f680167f5e852462bd5fb0",
+      "run_id": "example-adaptive_eig",
+      "sequence_number": 14
+    },
+    {
+      "actor": "independent_checker",
+      "config_hash": "5fb45b77c13bf8ff138da800ad47d3c59a2f09b2915b97d67e073f5fcd2a91d3",
+      "event_id": "example-adaptive_eig:plan:2:validated",
+      "event_time_sim_utc": "2025-01-01T20:00:00Z",
+      "event_type": "PLAN_VALIDATED",
+      "model_version": "p0-0",
+      "payload": {
+        "ok": true,
+        "revision": 2
+      },
+      "payload_sha256": "acef40ca9be3f1d3a7b3c18d51f02a810358dce2096556148ca66354d383a192",
+      "run_id": "example-adaptive_eig",
+      "sequence_number": 15
+    }
+  ],
+  "family": "m0_well_specified",
+  "model_config_hash": "5fb45b77c13bf8ff138da800ad47d3c59a2f09b2915b97d67e073f5fcd2a91d3",
+  "plans": [
+    {
+      "best_bound": 1.5,
+      "candidate_window_ids": [
+        "window-000",
+        "window-001",
+        "window-002",
+        "window-003",
+        "window-004",
+        "window-005"
+      ],
+      "cause": "initial",
+      "created_at_sim_utc": "2025-01-01T00:00:00Z",
+      "objective_value": 1.5,
+      "objective_weights": {
+        "decision": 1.0,
+        "information": 1.0,
+        "latency": 0.0,
+        "resource": 0.0
+      },
+      "policy_id": "adaptive_eig",
+      "revision": 0,
+      "run_id": "example-adaptive_eig",
+      "runtime_s": null,
+      "selected_window_ids": [
+        "window-000",
+        "window-001"
+      ],
+      "selections": [
+        {
+          "option_id": "window-000@20250101T010000Z",
+          "window_id": "window-000"
+        },
+        {
+          "option_id": "window-001@20250101T020000Z",
+          "window_id": "window-001"
+        }
+      ],
+      "solver_status": "OPTIMAL",
+      "validation_ok": true
+    },
+    {
+      "best_bound": 1.4,
+      "candidate_window_ids": [
+        "window-000",
+        "window-001",
+        "window-002",
+        "window-003",
+        "window-004",
+        "window-005"
+      ],
+      "cause": "informative_acquisition",
+      "created_at_sim_utc": "2025-01-01T10:00:00Z",
+      "objective_value": 1.4,
+      "objective_weights": {
+        "decision": 1.0,
+        "information": 1.0,
+        "latency": 0.0,
+        "resource": 0.0
+      },
+      "policy_id": "adaptive_eig",
+      "revision": 1,
+      "run_id": "example-adaptive_eig",
+      "runtime_s": null,
+      "selected_window_ids": [
+        "window-002",
+        "window-003"
+      ],
+      "selections": [
+        {
+          "option_id": "window-002@20250101T030000Z",
+          "window_id": "window-002"
+        },
+        {
+          "option_id": "window-003@20250101T040000Z",
+          "window_id": "window-003"
+        }
+      ],
+      "solver_status": "OPTIMAL",
+      "validation_ok": true
+    },
+    {
+      "best_bound": 1.3,
+      "candidate_window_ids": [
+        "window-000",
+        "window-001",
+        "window-002",
+        "window-003",
+        "window-004",
+        "window-005"
+      ],
+      "cause": "forecast_revision",
+      "created_at_sim_utc": "2025-01-01T20:00:00Z",
+      "objective_value": 1.3,
+      "objective_weights": {
+        "decision": 1.0,
+        "information": 1.0,
+        "latency": 0.0,
+        "resource": 0.0
+      },
+      "policy_id": "adaptive_eig",
+      "revision": 2,
+      "run_id": "example-adaptive_eig",
+      "runtime_s": null,
+      "selected_window_ids": [
+        "window-004",
+        "window-005"
+      ],
+      "selections": [
+        {
+          "option_id": "window-004@20250101T050000Z",
+          "window_id": "window-004"
+        },
+        {
+          "option_id": "window-005@20250101T060000Z",
+          "window_id": "window-005"
+        }
+      ],
+      "solver_status": "OPTIMAL",
+      "validation_ok": true
+    }
+  ],
+  "policy_id": "adaptive_eig",
+  "run_id": "example-adaptive_eig",
+  "scenario_id": "docs-example",
+  "seed": 1000,
+  "sources": [
+    {
+      "attribution_status": "UNATTRIBUTED",
+      "id": "source-000",
+      "lat": 32.0,
+      "lon": -103.0,
+      "seeded_from_plume_id": null
+    },
+    {
+      "attribution_status": "UNATTRIBUTED",
+      "id": "source-001",
+      "lat": 32.02,
+      "lon": -102.98,
+      "seeded_from_plume_id": null
+    }
+  ],
+  "truth_config_hash": "5fb45b77c13bf8ff138da800ad47d3c59a2f09b2915b97d67e073f5fcd2a91d3",
+  "utilities": [
+    {
+      "decision_relevance": 0.03,
+      "expected_info_gain_bits": 0.2,
+      "integer_utility": 250,
+      "latency_s": 3600.0,
+      "p_valid_forecast": 0.85,
+      "plan_revision": 0,
+      "resource_cost": 0.05,
+      "utility": 0.25,
+      "window_id": "window-000"
+    },
+    {
+      "decision_relevance": 0.03,
+      "expected_info_gain_bits": 0.21000000000000002,
+      "integer_utility": 260,
+      "latency_s": 7200.0,
+      "p_valid_forecast": 0.85,
+      "plan_revision": 0,
+      "resource_cost": 0.05,
+      "utility": 0.26,
+      "window_id": "window-001"
+    },
+    {
+      "decision_relevance": 0.03,
+      "expected_info_gain_bits": 0.22,
+      "integer_utility": 270,
+      "latency_s": 10800.0,
+      "p_valid_forecast": 0.85,
+      "plan_revision": 1,
+      "resource_cost": 0.05,
+      "utility": 0.27,
+      "window_id": "window-002"
+    },
+    {
+      "decision_relevance": 0.03,
+      "expected_info_gain_bits": 0.23,
+      "integer_utility": 280,
+      "latency_s": 14400.0,
+      "p_valid_forecast": 0.85,
+      "plan_revision": 1,
+      "resource_cost": 0.05,
+      "utility": 0.28,
+      "window_id": "window-003"
+    },
+    {
+      "decision_relevance": 0.03,
+      "expected_info_gain_bits": 0.24000000000000002,
+      "integer_utility": 290,
+      "latency_s": 18000.0,
+      "p_valid_forecast": 0.85,
+      "plan_revision": 2,
+      "resource_cost": 0.05,
+      "utility": 0.29,
+      "window_id": "window-004"
+    },
+    {
+      "decision_relevance": 0.03,
+      "expected_info_gain_bits": 0.25,
+      "integer_utility": 300,
+      "latency_s": 21600.0,
+      "p_valid_forecast": 0.85,
+      "plan_revision": 2,
+      "resource_cost": 0.05,
+      "utility": 0.3,
+      "window_id": "window-005"
+    }
+  ],
+  "validations": [
+    {
+      "checker_version": "example-only",
+      "ok": true,
+      "plan_revision": 0,
+      "violations": []
+    },
+    {
+      "checker_version": "example-only",
+      "ok": true,
+      "plan_revision": 1,
+      "violations": []
+    },
+    {
+      "checker_version": "example-only",
+      "ok": true,
+      "plan_revision": 2,
+      "violations": []
+    }
+  ],
+  "windows": [
+    {
+      "data_bytes": 100000000,
+      "duration_s": 30.0,
+      "end_utc": "2025-01-01T01:02:00Z",
+      "energy_wh": 18.0,
+      "feasible": true,
+      "id": "window-000",
+      "min_off_nadir_deg": 4.0,
+      "options": [
+        {
+          "end_utc": "2025-01-01T01:00:30Z",
+          "los_unit_ecef": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "off_nadir_deg": 4.0,
+          "option_id": "window-000@20250101T010000Z",
+          "start_utc": "2025-01-01T01:00:00Z",
+          "sun_elevation_deg": 35.0,
+          "window_id": "window-000"
+        }
+      ],
+      "orbit_number": 100,
+      "pass_id": "pass-00",
+      "rejection_reasons": [],
+      "sensor_id": "EMIT_SIM",
+      "source_id": "source-000",
+      "spacecraft_id": "VS-A",
+      "start_utc": "2025-01-01T01:00:00Z"
+    },
+    {
+      "data_bytes": 100000000,
+      "duration_s": 30.0,
+      "end_utc": "2025-01-01T02:02:00Z",
+      "energy_wh": 18.0,
+      "feasible": true,
+      "id": "window-001",
+      "min_off_nadir_deg": 4.0,
+      "options": [
+        {
+          "end_utc": "2025-01-01T02:00:30Z",
+          "los_unit_ecef": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "off_nadir_deg": 4.0,
+          "option_id": "window-001@20250101T020000Z",
+          "start_utc": "2025-01-01T02:00:00Z",
+          "sun_elevation_deg": 35.0,
+          "window_id": "window-001"
+        }
+      ],
+      "orbit_number": 100,
+      "pass_id": "pass-00",
+      "rejection_reasons": [],
+      "sensor_id": "EMIT_SIM",
+      "source_id": "source-001",
+      "spacecraft_id": "VS-A",
+      "start_utc": "2025-01-01T02:00:00Z"
+    },
+    {
+      "data_bytes": 100000000,
+      "duration_s": 30.0,
+      "end_utc": "2025-01-01T03:02:00Z",
+      "energy_wh": 18.0,
+      "feasible": true,
+      "id": "window-002",
+      "min_off_nadir_deg": 4.0,
+      "options": [
+        {
+          "end_utc": "2025-01-01T03:00:30Z",
+          "los_unit_ecef": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "off_nadir_deg": 4.0,
+          "option_id": "window-002@20250101T030000Z",
+          "start_utc": "2025-01-01T03:00:00Z",
+          "sun_elevation_deg": 35.0,
+          "window_id": "window-002"
+        }
+      ],
+      "orbit_number": 101,
+      "pass_id": "pass-01",
+      "rejection_reasons": [],
+      "sensor_id": "EMIT_SIM",
+      "source_id": "source-000",
+      "spacecraft_id": "VS-A",
+      "start_utc": "2025-01-01T03:00:00Z"
+    },
+    {
+      "data_bytes": 100000000,
+      "duration_s": 30.0,
+      "end_utc": "2025-01-01T04:02:00Z",
+      "energy_wh": 18.0,
+      "feasible": true,
+      "id": "window-003",
+      "min_off_nadir_deg": 4.0,
+      "options": [
+        {
+          "end_utc": "2025-01-01T04:00:30Z",
+          "los_unit_ecef": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "off_nadir_deg": 4.0,
+          "option_id": "window-003@20250101T040000Z",
+          "start_utc": "2025-01-01T04:00:00Z",
+          "sun_elevation_deg": 35.0,
+          "window_id": "window-003"
+        }
+      ],
+      "orbit_number": 101,
+      "pass_id": "pass-01",
+      "rejection_reasons": [],
+      "sensor_id": "EMIT_SIM",
+      "source_id": "source-001",
+      "spacecraft_id": "VS-A",
+      "start_utc": "2025-01-01T04:00:00Z"
+    },
+    {
+      "data_bytes": 100000000,
+      "duration_s": 30.0,
+      "end_utc": "2025-01-01T05:02:00Z",
+      "energy_wh": 18.0,
+      "feasible": true,
+      "id": "window-004",
+      "min_off_nadir_deg": 4.0,
+      "options": [
+        {
+          "end_utc": "2025-01-01T05:00:30Z",
+          "los_unit_ecef": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "off_nadir_deg": 4.0,
+          "option_id": "window-004@20250101T050000Z",
+          "start_utc": "2025-01-01T05:00:00Z",
+          "sun_elevation_deg": 35.0,
+          "window_id": "window-004"
+        }
+      ],
+      "orbit_number": 102,
+      "pass_id": "pass-02",
+      "rejection_reasons": [],
+      "sensor_id": "EMIT_SIM",
+      "source_id": "source-000",
+      "spacecraft_id": "VS-A",
+      "start_utc": "2025-01-01T05:00:00Z"
+    },
+    {
+      "data_bytes": 100000000,
+      "duration_s": 30.0,
+      "end_utc": "2025-01-01T06:02:00Z",
+      "energy_wh": 18.0,
+      "feasible": true,
+      "id": "window-005",
+      "min_off_nadir_deg": 4.0,
+      "options": [
+        {
+          "end_utc": "2025-01-01T06:00:30Z",
+          "los_unit_ecef": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "off_nadir_deg": 4.0,
+          "option_id": "window-005@20250101T060000Z",
+          "start_utc": "2025-01-01T06:00:00Z",
+          "sun_elevation_deg": 35.0,
+          "window_id": "window-005"
+        }
+      ],
+      "orbit_number": 102,
+      "pass_id": "pass-02",
+      "rejection_reasons": [],
+      "sensor_id": "EMIT_SIM",
+      "source_id": "source-001",
+      "spacecraft_id": "VS-A",
+      "start_utc": "2025-01-01T06:00:00Z"
+    },
+    {
+      "data_bytes": 100000000,
+      "duration_s": 30.0,
+      "end_utc": "2025-01-01T09:00:00Z",
+      "energy_wh": 18.0,
+      "feasible": false,
+      "id": "window-rejected",
+      "min_off_nadir_deg": 12.0,
+      "options": [],
+      "orbit_number": 104,
+      "pass_id": "pass-rejected",
+      "rejection_reasons": [
+        "DARK"
+      ],
+      "sensor_id": "EMIT_SIM",
+      "source_id": "source-000",
+      "spacecraft_id": "VS-A",
+      "start_utc": "2025-01-01T08:00:00Z"
+    }
+  ]
+}

@@ -1,0 +1,309 @@
+{
+ "scenario": {
+  "id": "permian-p0",
+  "epoch_utc": "2026-10-17T00:00:00Z",
+  "horizon_hours": 72,
+  "sources_count": 20,
+  "policies": [
+   "first_feasible",
+   "largest_first",
+   "static_priority",
+   "adaptive_eig",
+   "greedy_eig"
+  ],
+  "region": {
+   "id": "permian_basin",
+   "name": "Permian Basin (Delaware + Midland sub-basins), Texas/New Mexico",
+   "bbox_wgs84": [
+    -104.5,
+    30.8,
+    -101.0,
+    33.5
+   ]
+  },
+  "weather": {
+   "type": "synthetic_scenario",
+   "mean_cloud_fraction": 0.3,
+   "wind_median_m_s": 4.0
+  }
+ },
+ "source_model": {
+  "placement": "emit_fixture_then_uniform",
+  "min_separation_m": 500,
+  "flux_prior": {
+   "family": "lognormal",
+   "median_kg_h": 300.0,
+   "sigma_ln": 1.1,
+   "min_kg_h": 30.0,
+   "max_kg_h": 30000.0
+  },
+  "regimes": [
+   {
+    "name": "PERSISTENT",
+    "weight": 0.15,
+    "mean_on_hours": 240.0,
+    "mean_off_hours": 48.0
+   },
+   {
+    "name": "INTERMITTENT",
+    "weight": 0.45,
+    "mean_on_hours": 12.0,
+    "mean_off_hours": 24.0
+   },
+   {
+    "name": "EPISODIC",
+    "weight": 0.4,
+    "mean_on_hours": 3.0,
+    "mean_off_hours": 72.0
+   }
+  ]
+ },
+ "planner": {
+  "lookahead_hours": 24.0,
+  "replan_on": [
+   "pass_completed",
+   "informative_acquisition",
+   "forecast_revision"
+  ],
+  "weights": {
+   "information": 1.0,
+   "decision": 0.0,
+   "latency": 0.0,
+   "resource": 0.0
+  },
+  "utility": "one_step_eig",
+  "solver": {
+   "mode": "reproducible",
+   "max_deterministic_time": 30.0,
+   "num_workers": 1,
+   "fast_mode_wall_time_seconds": 10.0
+  },
+  "max_visits_per_source_per_solve": 1
+ },
+ "scenario_families": [
+  "h168_long_horizon",
+  "m0_well_specified",
+  "m1_persistence_wrong",
+  "m2_pod_optimistic",
+  "m3_forecast_overconfident",
+  "m4_false_positives",
+  "r1_resource_scarce"
+ ],
+ "spacecraft": [
+  {
+   "id": "vsat_a",
+   "virtual": true,
+   "profile_version": "p0-1",
+   "sensor_ids": [
+    "vs_a_point_source"
+   ],
+   "orbit": {
+    "epoch_utc": "2026-10-17T00:00:00Z",
+    "plane": 1,
+    "altitude_km": 500.0,
+    "inclination_deg": 97.4,
+    "ltdn": "10:30",
+    "raan_deg": 359.0,
+    "mean_anomaly_deg": 0.0
+   },
+   "attitude": {
+    "max_off_nadir_deg": 40.0,
+    "slew_rate_deg_s": 1.5,
+    "settle_seconds": 5.0
+   },
+   "resources": {
+    "battery_capacity_wh": 150.0,
+    "storage_bytes": 64000000000,
+    "max_acquisitions_per_orbit": 10
+   }
+  },
+  {
+   "id": "vsat_b",
+   "virtual": true,
+   "profile_version": "p0-1",
+   "sensor_ids": [
+    "vs_a_point_source"
+   ],
+   "orbit": {
+    "epoch_utc": "2026-10-17T00:00:00Z",
+    "plane": 1,
+    "altitude_km": 500.0,
+    "inclination_deg": 97.4,
+    "ltdn": "10:30",
+    "raan_deg": 359.0,
+    "mean_anomaly_deg": 180.0
+   },
+   "attitude": {
+    "max_off_nadir_deg": 40.0,
+    "slew_rate_deg_s": 1.5,
+    "settle_seconds": 5.0
+   },
+   "resources": {
+    "battery_capacity_wh": 150.0,
+    "storage_bytes": 64000000000,
+    "max_acquisitions_per_orbit": 10
+   }
+  },
+  {
+   "id": "vsat_c",
+   "virtual": true,
+   "profile_version": "p0-1",
+   "sensor_ids": [
+    "vs_a_point_source"
+   ],
+   "orbit": {
+    "epoch_utc": "2026-10-17T00:00:00Z",
+    "plane": 2,
+    "altitude_km": 500.0,
+    "inclination_deg": 97.4,
+    "ltdn": "13:30",
+    "raan_deg": 44.0,
+    "mean_anomaly_deg": 90.0
+   },
+   "attitude": {
+    "max_off_nadir_deg": 40.0,
+    "slew_rate_deg_s": 1.5,
+    "settle_seconds": 5.0
+   },
+   "resources": {
+    "battery_capacity_wh": 150.0,
+    "storage_bytes": 64000000000,
+    "max_acquisitions_per_orbit": 10
+   }
+  },
+  {
+   "id": "vsat_d",
+   "virtual": true,
+   "profile_version": "p0-1",
+   "sensor_ids": [
+    "vs_a_point_source"
+   ],
+   "orbit": {
+    "epoch_utc": "2026-10-17T00:00:00Z",
+    "plane": 2,
+    "altitude_km": 500.0,
+    "inclination_deg": 97.4,
+    "ltdn": "13:30",
+    "raan_deg": 44.0,
+    "mean_anomaly_deg": 270.0
+   },
+   "attitude": {
+    "max_off_nadir_deg": 40.0,
+    "slew_rate_deg_s": 1.5,
+    "settle_seconds": 5.0
+   },
+   "resources": {
+    "battery_capacity_wh": 150.0,
+    "storage_bytes": 64000000000,
+    "max_acquisitions_per_orbit": 10
+   }
+  }
+ ],
+ "sensors": [
+  {
+   "id": "vs_a_point_source",
+   "calibration_status": "SIMULATED_PROFILE",
+   "gsd_nadir_m": 30.0,
+   "exposure_seconds": 3.0,
+   "min_sun_elevation_deg": 20.0,
+   "q50_ref_kg_h": 100.0,
+   "q90_ref_kg_h": 200.0,
+   "ref_wind_m_s": 3.0,
+   "false_positive_prob": 0.02,
+   "retrieval_success_prob": 0.95,
+   "data_bytes_per_scene": 306000000,
+   "energy_wh_per_scene": 0.2
+  }
+ ],
+ "fixture": {
+  "manifest": {
+   "provider": "AETHER synthetic fixtures",
+   "dataset": "Synthetic EMIT V002-shaped GeoJSON parser example",
+   "version": "1",
+   "citation_text": "AETHER fabricated parser fixtures; not provider source data.",
+   "license_url": null,
+   "retrieved_at_utc": "2026-10-17T00:00:00Z",
+   "adapter_version": "aether-ingestion/0.1.0",
+   "transformation_version": "aether-geojson-normalization/1",
+   "fixture_status": "EXAMPLE_ONLY_NOT_SOURCE_VERIFIED",
+   "files": [
+    {
+     "path": "data/fixtures/emit_v002_synthetic.geojson",
+     "sha256": "13974416a7df1780c7a3277e80ca1157adbb6ff8adbc9b3b00f6302c78661f16",
+     "size_bytes": 2060
+    }
+   ]
+  },
+  "features": [
+   {
+    "id": "SYNTHETIC-EMIT-001",
+    "time_utc": "2023-08-14T18:02:00Z",
+    "longitude": -103.4,
+    "latitude": 31.75,
+    "rate": "N/A",
+    "geometry_type": "Polygon",
+    "quality": "example_only"
+   },
+   {
+    "id": "SYNTHETIC-EMIT-002",
+    "time_utc": "2023-08-15T18:02:00Z",
+    "longitude": -102.8,
+    "latitude": 32.05,
+    "rate": null,
+    "geometry_type": "Polygon",
+    "quality": "not provided"
+   },
+   {
+    "id": "SYNTHETIC-EMIT-003",
+    "time_utc": "2023-08-16T18:02:00Z",
+    "longitude": -102.2,
+    "latitude": 32.4,
+    "rate": null,
+    "geometry_type": "Polygon",
+    "quality": "not provided"
+   }
+  ]
+ },
+ "pinned_data": {
+  "earth_orientation": {
+   "filename": "finals2000A.all",
+   "url": "https://datacenter.iers.org/products/eop/rapid/standard/finals2000A.all",
+   "byte_size": 3769212,
+   "sha256": "bfa2066aab0400b075357f573af6081e0068a518993609eee0c5ca991bab0845",
+   "retrieved_at_utc": "2026-10-17T21:09:35Z"
+  },
+  "planetary_ephemeris": {
+   "filename": "de421.bsp",
+   "url": "https://ssd.jpl.nasa.gov/ftp/eph/planets/bsp/de421.bsp",
+   "byte_size": 16788480,
+   "sha256": "a20a7139da04cbc462454634918e9a9ca69127044e2cc9d4f9c16e238d2deedc",
+   "retrieved_at_utc": "2026-10-17T21:04:02Z"
+  }
+ },
+ "benchmark_protocol": {
+  "path": "experiments/protocol.yaml",
+  "version": 1,
+  "locked": false,
+  "families": [
+   "m0_well_specified",
+   "m1_persistence_wrong",
+   "m2_pod_optimistic",
+   "m3_forecast_overconfident",
+   "m4_false_positives",
+   "r1_resource_scarce"
+  ],
+  "policies": [
+   "first_feasible",
+   "largest_first",
+   "static_priority",
+   "adaptive_eig",
+   "greedy_eig"
+  ],
+  "primary_metric": "brier_active_state",
+  "seed_count_rule": "holdout seed count fixed from the tuning-seed variance of the paired difference (power 0.8 for a pre-stated minimum effect); 100 is the default upper budget",
+  "seed_files": [
+   "experiments/seeds_dev.txt",
+   "experiments/seeds_holdout.txt"
+  ]
+ }
+}

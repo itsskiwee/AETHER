@@ -1,0 +1,14 @@
+{
+ "protocol_version": 1,
+ "locked": false,
+ "primary_metric": "brier_active_state",
+ "primary_comparison": [
+  "adaptive_eig",
+  "largest_first"
+ ],
+ "mandatory_secondary_comparison": [
+  "adaptive_eig",
+  "greedy_eig"
+ ],
+ "success_criterion": "adaptive_eig has a negative paired Brier difference vs largest_first with the 95% CI excluding 0 on m0 AND on at least 2 of {m1, m2, m3, m4} after Holm correction, with zero checker violations. The adaptive_eig vs greedy_eig comparison and high-impact recall are reported with equal prominence. Report all families either way, including regimes where adaptive_eig is equal or worse.\n"
+}

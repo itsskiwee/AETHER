@@ -17,7 +17,7 @@ export interface Plan {
   run_id: string; policy_id: string; revision: number; created_at_sim_utc: string; cause: string
   objective_weights: Record<string, number>; candidate_window_ids: string[]
   selections: Selection[]; selected_window_ids: string[]
-  solver_status: string; objective_value: number | null; best_bound: number | null; runtime_s: number; validation_ok: boolean | null
+  solver_status: string; objective_value: number | null; best_bound: number | null; runtime_s: number | null; validation_ok: boolean | null
 }
 export interface Selection { window_id: string; option_id: string }
 export interface BeliefSnapshot {
@@ -44,7 +44,41 @@ export interface RunRecord {
 }
 
 export interface RunIndexItem { run_id: string; policy_id: string; scenario_id: string; family: string; seed: number }
-export interface BenchmarkRow extends Record<string, string> {}
+export type BenchmarkRow = Record<string, string>
+export interface PairedInterval {
+  mean_diff: number; lo: number; hi: number; p_value: number; n: number; resamples: number; level: number
+}
+export interface BenchmarkComparison {
+  family: string; a: string; b: string; metric: string; better_direction: 'lower' | 'higher' | null
+  n_pairs: number; n_excluded_undefined: number
+  result: PairedInterval | null; note?: string
+}
+export interface BenchmarkReport {
+  protocol_version: number; protocol_sha256: string; protocol_locked: boolean; lock_tag: string | null
+  n_seeds: number; total_checker_violations: number; comparisons: BenchmarkComparison[]
+  holm_primary?: Record<string, { adjusted_p: number; reject: boolean }>
+  success_verdict: { success: boolean; m0_win: boolean; misspecified_wins: string[]; zero_violations: boolean; reasons: string[] } | null
+  note: string | null
+}
+export interface BenchmarkProtocol {
+  protocol_version?: number; locked?: boolean; primary_metric: string; primary_comparison: [string, string]
+  mandatory_secondary_comparison: [string, string]; success_criterion: string
+}
+export interface ProjectSnapshot {
+  scenario: {
+    id: string; epoch_utc: string; horizon_hours: number; sources_count: number; policies: string[]
+    region: { id: string; name: string; bbox_wgs84: [number, number, number, number] }
+    weather: { type: string; mean_cloud_fraction: number; wind_median_m_s: number }
+  }
+  source_model: { placement: string; min_separation_m: number; flux_prior: { family: string; median_kg_h: number; sigma_ln: number; min_kg_h: number; max_kg_h: number }; regimes: { name: string; weight: number; mean_on_hours: number; mean_off_hours: number }[] }
+  planner: { lookahead_hours: number; replan_on: string[]; weights: Record<string, number>; utility: string; solver: Record<string, string | number>; max_visits_per_source_per_solve: number }
+  scenario_families: string[]
+  spacecraft: { id: string; virtual: boolean; profile_version: string; sensor_ids: string[]; orbit: Record<string, string | number>; attitude: Record<string, number>; resources: Record<string, number> }[]
+  sensors: { id: string; calibration_status: string; gsd_nadir_m: number; exposure_seconds: number; min_sun_elevation_deg: number; q50_ref_kg_h: number; q90_ref_kg_h: number; ref_wind_m_s: number; false_positive_prob: number; retrieval_success_prob: number; data_bytes_per_scene: number; energy_wh_per_scene: number }[]
+  fixture: { manifest: { provider: string; dataset: string; citation_text: string; fixture_status: string; files: { path: string; sha256: string; size_bytes: number }[] } | null; features: { id: string; time_utc: string | null; longitude: number | null; latitude: number | null; rate: string | number | null; geometry_type: string; quality: string }[] }
+  pinned_data: { earth_orientation: { filename: string; url: string; byte_size: number; sha256: string; retrieved_at_utc: string } | null; planetary_ephemeris: { filename: string; url: string; byte_size: number; sha256: string; retrieved_at_utc: string } | null }
+  benchmark_protocol: { path: string; version: number | null; locked: boolean; families: string[]; policies: string[]; primary_metric: string | null; seed_count_rule: string | null; seed_files: string[] }
+}
 
 export function parseRun(value: unknown): RunRecord {
   if (!value || typeof value !== 'object') throw new Error('Run response must be an object')

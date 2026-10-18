@@ -14,16 +14,16 @@ import zlib
 from collections import Counter, defaultdict
 from collections.abc import Iterable, Mapping
 from functools import lru_cache
+from itertools import pairwise
 from pathlib import Path
 
 import astropy.units as u
 import numpy as np
-from astropy.coordinates import AltAz, CartesianRepresentation, EarthLocation, ITRS, TEME, get_sun
+from astropy.coordinates import ITRS, TEME, AltAz, CartesianRepresentation, EarthLocation, get_sun
 from astropy.time import Time
 from astropy.utils import iers
-from sgp4.api import Satrec, WGS72
+from sgp4.api import WGS72, Satrec, jday
 from sgp4.earth_gravity import wgs72
-from sgp4.ext import jday
 
 from aether.config import ScenarioConfig, SensorProfile, SpacecraftProfile
 from aether.contracts.models import (
@@ -32,6 +32,7 @@ from aether.contracts.models import (
     Plan,
     ScheduleValidation,
     ScheduleViolation,
+    Selection,
     Source,
 )
 
@@ -106,12 +107,14 @@ def _load_pinned_eop():
         raise ValueError(f"EOP SHA-256 mismatch: expected {expected}, got {actual}")
     iers.conf.auto_download = False
     iers.conf.auto_max_age = None
-    return iers.IERS_A.open(table_path)
+    return iers.IERS_A.open(str(table_path))
 
 
 def _satellite_itrs_km(satellite: Satrec, when: Time) -> np.ndarray:
-    ut1 = when.ut1
-    error, position_km, _ = satellite.sgp4(float(ut1.jd1), float(ut1.jd2))
+    # SGP4 epochs and elapsed time use UTC; UT1 belongs only in the Earth-frame
+    # rotation performed by Astropy below. See Astropy's satellite coordinates example.
+    utc = when.utc
+    error, position_km, _ = satellite.sgp4(float(utc.jd1), float(utc.jd2))
     if error:
         raise RuntimeError(f"SGP4 propagation failed with error code {error}")
     teme = TEME(CartesianRepresentation(np.asarray(position_km) * u.km), obstime=when)
@@ -134,9 +137,7 @@ def _geometry(
         target_to_satellite = -los / los_norm
         lat = math.radians(source.lat)
         lon = math.radians(source.lon)
-        up = np.array(
-            [math.cos(lat) * math.cos(lon), math.cos(lat) * math.sin(lon), math.sin(lat)]
-        )
+        up = np.array([math.cos(lat) * math.cos(lon), math.cos(lat) * math.sin(lon), math.sin(lat)])
         elevation_deg = math.degrees(
             math.asin(float(np.clip(np.dot(target_to_satellite, up), -1.0, 1.0)))
         )
@@ -154,9 +155,7 @@ def _geometry(
 def _slew_seconds(
     first_los: np.ndarray, second_los: np.ndarray, profile: SpacecraftProfile
 ) -> float:
-    angle_deg = math.degrees(
-        math.acos(float(np.clip(np.dot(first_los, second_los), -1.0, 1.0)))
-    )
+    angle_deg = math.degrees(math.acos(float(np.clip(np.dot(first_los, second_los), -1.0, 1.0))))
     return angle_deg / profile.attitude.slew_rate_deg_s + profile.attitude.settle_seconds
 
 
@@ -167,6 +166,9 @@ def check_schedule(
     spacecraft_profiles: Mapping[str, SpacecraftProfile],
     sensor_profile: SensorProfile,
     scenario: ScenarioConfig,
+    *,
+    committed: Iterable[ObservationWindow] = (),
+    committed_selections: Iterable[Selection] = (),
 ) -> CheckReport:
     """Validate a Plan against exact option membership, independent geometry, and resources.
 
@@ -174,6 +176,9 @@ def check_schedule(
     ``option_id`` is looked up only inside the named window; a mismatch is UNKNOWN_OPTION.
     """
     window_items = tuple(windows.values()) if isinstance(windows, Mapping) else tuple(windows)
+    committed_items = tuple(committed)
+    committed_selection_items = tuple(committed_selections)
+    window_items += committed_items
     window_map = {window.id: window for window in window_items}
     violations: list[ScheduleViolation] = []
 
@@ -186,7 +191,19 @@ def check_schedule(
     selected: list[tuple[ObservationWindow, AcquisitionOption, Source, SpacecraftProfile]] = []
     seen_window_ids: set[str] = set()
 
-    for selection in plan.selections:
+    selections = tuple(plan.selections) + committed_selection_items
+    committed_by_window: dict[str, list] = defaultdict(list)
+    for selection in committed_selection_items:
+        committed_by_window[selection.window_id].append(selection)
+    for committed_window in committed_items:
+        fixed = committed_by_window.get(committed_window.id, [])
+        if len(fixed) != 1:
+            add(
+                "COMMITTED_ACQUISITION",
+                tuple(selection.option_id for selection in fixed),
+                f"committed window {committed_window.id} requires exactly one explicit selection",
+            )
+    for selection in selections:
         window = window_map.get(selection.window_id)
         if window is None:
             add("UNKNOWN_WINDOW", (selection.option_id,), selection.window_id)
@@ -248,7 +265,7 @@ def check_schedule(
     for spacecraft_id, tasks in by_spacecraft.items():
         profile = spacecraft_profiles[spacecraft_id]
         tasks.sort(key=lambda item: (item[1].start_utc, item[1].option_id))
-        for previous, current in zip(tasks, tasks[1:]):
+        for previous, current in pairwise(tasks):
             _, first, _, _, first_end = previous
             _, second, _, second_start, _ = current
             if second.start_utc < first.end_utc:
@@ -263,12 +280,21 @@ def check_schedule(
                         f"available {available_s:.6f}s; required {required_s:.6f}s",
                     )
 
-    source_counts = Counter(window.source_id for window, *_ in evaluated)
+    # PR-O03 limits visits in this solve, not over the mission lifetime. Completed
+    # committed tasks still constrain resources and slew, but are outside this solve's
+    # source count. Future frozen tasks remain in the count.
+    committed_ids = {selection.option_id for selection in committed_selection_items}
+    source_tasks = [
+        item
+        for item in evaluated
+        if item[1].option_id not in committed_ids or item[1].end_utc > plan.created_at_sim_utc
+    ]
+    source_counts = Counter(window.source_id for window, *_ in source_tasks)
     for source_id, count in source_counts.items():
         if count > scenario.planner.max_visits_per_source_per_solve:
             ids = [
                 option.option_id
-                for window, option, *_ in evaluated
+                for window, option, *_ in source_tasks
                 if window.source_id == source_id
             ]
             add("SOURCE_LIMIT", ids, f"source {source_id} has {count} visits")

@@ -20,5 +20,5 @@ class PlanningContext:
     committed: tuple[ObservationWindow, ...]  # already executed or frozen; constrain slew/resources
     utilities: dict[str, CandidateUtility]  # by window_id, computed by the runner from beliefs
     posterior_mean_flux_kg_h: dict[str, float]  # by source_id; for largest_first
-    committed_selections: tuple[Selection, ...] = ()  # selected options in committed windows
     p_active_by_source: dict[str, float]  # by source_id; predicted P(active) at now_utc
+    committed_selections: tuple[Selection, ...] = ()  # selected options in committed windows

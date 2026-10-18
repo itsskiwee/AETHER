@@ -17,6 +17,7 @@ Reserved namespaces (add new ones to this list in the same PR that uses them):
     "outcome"   (source_id, spacecraft_id, sensor_id, minute_bucket_iso)
                                                      validity, detection, flux error, FP flux draws
     "weather"   ("cloud" | "wind" | "forecast" | "wind_analysis", ...)  synthetic weather fields
+    "wind_forecast" (issue_time, valid_hour)          lead-dependent wind forecast errors
     "placement" ()                                   synthetic source locations
     "requests"  ()                                   Poisson request stream for first_feasible (B1)
     "solver"    (policy_id, plan_revision)           CP-SAT random_seed via derive_seed()
@@ -32,7 +33,17 @@ from datetime import datetime
 import numpy as np
 
 RESERVED_NAMESPACES = frozenset(
-    {"truth", "outcome", "weather", "placement", "requests", "solver", "reference", "bootstrap"}
+    {
+        "truth",
+        "outcome",
+        "weather",
+        "wind_forecast",
+        "placement",
+        "requests",
+        "solver",
+        "reference",
+        "bootstrap",
+    }
 )
 
 

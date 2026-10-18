@@ -9,14 +9,14 @@ Public functions:
 * ``build_satellite(profile)`` builds a deterministic SGP4/Skyfield ``EarthSatellite``.
 * ``load_ephemeris()`` opens only a local DE421 file whose SHA-256 is recorded in a sidecar.
 * ``generate_windows(cfg, sources, start_utc, end_utc)`` returns usable and rejected access
-  windows, with discrete acquisition options whose LOS is evaluated at each option start.
+  windows, with discrete acquisition options whose LOS is evaluated at exposure start and end.
 * ``slew_time_s(prev, nxt, attitude)`` estimates the slew between option LOS vectors. The
   independent schedule checker must implement its own calculation.
 
 Window discovery uses the configured coarse step (2 s in the current registered scenario), then
-bisects each detected boundary to the configured tolerance. Skyfield's built-in timescale tables
-are used so a satellite propagation or offline geometry call never downloads Earth-orientation
-data. Solar illumination additionally requires the pinned local DE421 ephemeris.
+bisects each detected boundary to the configured tolerance. The pinned local IERS table supplies
+UTC/UT1 and polar motion so satellite propagation and offline geometry never download
+Earth-orientation data. Solar illumination additionally requires the pinned local DE421 ephemeris.
 """
 
 from __future__ import annotations
@@ -26,15 +26,17 @@ import json
 import math
 import re
 import zlib
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import numpy as np
-from sgp4.api import Satrec, WGS72
+from sgp4.api import WGS72, Satrec
 from sgp4.earth_gravity import wgs72
-from skyfield.api import EarthSatellite, load, load_file, wgs84
+from skyfield.api import EarthSatellite, Loader, load_file, wgs84
+from skyfield.data import iers
 from skyfield.framelib import itrs
 
 from aether.config import AttitudeConfig, ScenarioConfig, SpacecraftProfile
@@ -49,6 +51,7 @@ from aether.contracts.models import (
 _SHA256_RE = re.compile(r"^[0-9a-fA-F]{64}$")
 _LTDN_TOLERANCE_S = 120.0  # ORB-02: registered ±2 min
 _DE421_URL = "https://ssd.jpl.nasa.gov/ftp/eph/planets/bsp/de421.bsp"
+_EOP_URL = "https://datacenter.iers.org/products/eop/rapid/standard/finals2000A.all"
 
 
 def _repo_root() -> Path:
@@ -57,8 +60,41 @@ def _repo_root() -> Path:
 
 @lru_cache(maxsize=1)
 def _timescale() -> Any:
-    """Use Skyfield's packaged time data; do not fetch IERS data at runtime."""
-    return load.timescale(builtin=True)
+    """Load UTC/UT1 tables from the shared pinned IERS file, with no runtime download."""
+    directory = _repo_root() / "data" / "eop"
+    path = directory / "finals2000A.all"
+    manifest_path = directory / "manifest.json"
+    if not path.is_file():
+        raise FileNotFoundError(f"Pinned Earth-orientation table is missing: {path}")
+    if not manifest_path.is_file():
+        raise ValueError(f"Missing Earth-orientation manifest: {manifest_path}")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    expected = manifest.get("sha256")
+    if not isinstance(expected, str) or not _SHA256_RE.fullmatch(expected):
+        raise ValueError(f"Missing or invalid EOP SHA-256 in {manifest_path}")
+    if manifest.get("url") != _EOP_URL:
+        raise ValueError(f"EOP manifest URL must be {_EOP_URL}")
+    if manifest.get("byte_size") != path.stat().st_size:
+        raise ValueError("EOP byte size does not match its pin manifest")
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(block)
+    actual = digest.hexdigest()
+    if actual.lower() != expected.lower():
+        raise ValueError(f"EOP SHA-256 mismatch: expected {expected.lower()}, got {actual}")
+    return _load_verified_timescale(str(directory), actual)
+
+
+@lru_cache(maxsize=1)
+def _load_verified_timescale(directory: str, sha256: str) -> Any:
+    """Parse the already hash-verified local IERS file through Skyfield's supported loader."""
+    del sha256  # The digest is part of the cache key, invalidating it if the pin changes.
+    timescale = Loader(directory, verbose=False).timescale(builtin=False)
+    with (Path(directory) / "finals2000A.all").open("rb") as stream:
+        finals = iers.parse_x_y_dut1_from_finals_all(stream)
+    iers.install_polar_motion_table(timescale, finals)
+    return timescale
 
 
 def load_ephemeris() -> Any:
@@ -88,9 +124,7 @@ def load_ephemeris() -> Any:
             digest.update(block)
     actual = digest.hexdigest()
     if actual.lower() != expected.lower():
-        raise ValueError(
-            f"DE421 SHA-256 mismatch: expected {expected.lower()}, got {actual}"
-        )
+        raise ValueError(f"DE421 SHA-256 mismatch: expected {expected.lower()}, got {actual}")
     if manifest.get("byte_size") != ephemeris_path.stat().st_size:
         raise ValueError("DE421 byte size does not match its first-fetch manifest")
     return _load_verified_kernel(str(ephemeris_path), actual)
@@ -153,9 +187,7 @@ def build_satellite(profile: SpacecraftProfile) -> EarthSatellite:
 def _check_sgp4(satellite: EarthSatellite, times: Any) -> None:
     """Raise with the SGP4 error code rather than accepting an invalid propagated state."""
     if np.ndim(times.whole) == 0:
-        error_code, _, _ = satellite.model.sgp4(
-            float(times.whole), float(times.ut1_fraction)
-        )
+        error_code, _, _ = satellite.model.sgp4(float(times.whole), float(times.ut1_fraction))
         if error_code:
             raise RuntimeError(f"SGP4 propagation failed with error code {error_code}")
         return
@@ -268,9 +300,7 @@ def _reason_for_state(
     return tuple(reasons)
 
 
-def _sample_datetimes(
-    start_utc: datetime, end_utc: datetime, step_s: float
-) -> list[datetime]:
+def _sample_datetimes(start_utc: datetime, end_utc: datetime, step_s: float) -> list[datetime]:
     span_s = (end_utc - start_utc).total_seconds()
     count = int(math.floor(span_s / step_s))
     samples = [start_utc + timedelta(seconds=i * step_s) for i in range(count + 1)]
@@ -280,9 +310,7 @@ def _sample_datetimes(
 
 
 def _in_blackout(profile: SpacecraftProfile, when_utc: datetime) -> bool:
-    return any(
-        blackout.start_utc <= when_utc < blackout.end_utc for blackout in profile.blackouts
-    )
+    return any(blackout.start_utc <= when_utc < blackout.end_utc for blackout in profile.blackouts)
 
 
 def _refine_transition(
@@ -297,12 +325,14 @@ def _refine_transition(
     sun: Any,
     tolerance_s: float,
     sun_elevation_fn: Callable[[Source, Any], Any] | None = None,
+    *,
+    inside_right: bool = True,
 ) -> datetime:
-    """Return the midpoint of a state-transition bracket at the configured precision.
+    """Return the bracket endpoint inside the requested interval (PR-R04).
 
-    Returning the first sample in the right-hand state is appropriate for one side of an
-    interval and wrong for the other. The bracket midpoint gives both adjacent intervals the
-    same boundary estimate, with a maximum error of half the requested tolerance.
+    A midpoint can be outside either physical constraint. Keep the known right-state endpoint
+    at interval entry and the known left-state endpoint at exit; never round geometry into
+    feasibility. The resulting conservative edge is within the configured time tolerance.
     """
     left = left_utc
     right = right_utc
@@ -323,7 +353,7 @@ def _refine_transition(
             right = mid
         else:
             left = mid
-    return left + (right - left) / 2
+    return right if inside_right else left
 
 
 def _minimum_off_nadir_time(
@@ -351,9 +381,7 @@ def _minimum_off_nadir_time(
     ratio = (math.sqrt(5.0) - 1.0) / 2.0
 
     def objective(when: datetime) -> float:
-        return _scalar_geometry(
-            satellite, source, when, earth, sun, sun_elevation_fn
-        )[0]
+        return _scalar_geometry(satellite, source, when, earth, sun, sun_elevation_fn)[0]
 
     x1 = hi - (hi - lo) * ratio
     x2 = lo + (hi - lo) * ratio
@@ -399,8 +427,9 @@ def _option_times(
             # Keep endpoints whenever possible; remove the selected interior time closest to a
             # neighbor, which avoids clustering the retained option grid.
             removable.sort(
-                key=lambda t: min(
-                    abs((t - other).total_seconds()) for other in selected if other != t
+                key=lambda t: (
+                    min(abs((t - other).total_seconds()) for other in selected if other != t),
+                    t,
                 )
             )
             selected.remove(removable[0])
@@ -473,6 +502,9 @@ def _make_window(
                 satellite, source, option_start, earth, sun, sun_elevation_fn
             )
             option_end = option_start + timedelta(seconds=duration_s)
+            _, _, _, end_los_unit = _scalar_geometry(
+                satellite, source, option_end, earth, sun, sun_elevation_fn
+            )
             options.append(
                 AcquisitionOption(
                     option_id=acquisition_option_id(window_id, option_start),
@@ -482,6 +514,7 @@ def _make_window(
                     off_nadir_deg=off,
                     sun_elevation_deg=sun_elevation,
                     los_unit_ecef=los_unit,
+                    end_los_unit_ecef=end_los_unit,
                 )
             )
     if not reasons and not options:
@@ -517,9 +550,7 @@ def _ltdn_error_seconds(profile: SpacecraftProfile, ephemeris: Any) -> float:
     """Compare configured LTDN with the descending-node local solar time at orbit epoch."""
     epoch = profile.orbit.epoch_utc
     t = _timescale().from_datetime(epoch)
-    sun_ra_deg = (
-        ephemeris["earth"].at(t).observe(ephemeris["sun"]).apparent().radec()[0].degrees
-    )
+    sun_ra_deg = ephemeris["earth"].at(t).observe(ephemeris["sun"]).apparent().radec()[0].degrees
     descending_node_ra_deg = (profile.orbit.raan_deg + 180.0) % 360.0
     signed_offset_deg = (descending_node_ra_deg - sun_ra_deg + 180.0) % 360.0 - 180.0
     actual_hours = (12.0 + signed_offset_deg / 15.0) % 24.0
@@ -677,6 +708,7 @@ def generate_windows(
                             sun,
                             tolerance_s,
                             sun_elevation_fn,
+                            inside_right=False,
                         )
                     midpoint = left + (right - left) / 2
                     orbit_number = _orbit_number(satellite, midpoint)
@@ -723,11 +755,16 @@ def slew_time_s(
     nxt: AcquisitionOption,
     attitude: AttitudeConfig,
 ) -> float:
-    """Return LOS-to-LOS slew time plus settle time, in seconds."""
+    """Return exposure-end to next-start LOS slew plus settle time, in seconds.
+
+    Legacy fixtures without an end vector retain their original start-vector behavior.
+    Generated options always include the exposure-end vector.
+    """
+    previous_los = prev.end_los_unit_ecef or prev.los_unit_ecef
     delta = math.acos(
         float(
             np.clip(
-                np.dot(np.asarray(prev.los_unit_ecef), np.asarray(nxt.los_unit_ecef)),
+                np.dot(np.asarray(previous_los), np.asarray(nxt.los_unit_ecef)),
                 -1.0,
                 1.0,
             )

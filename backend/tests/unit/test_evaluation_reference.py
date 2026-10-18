@@ -1,7 +1,6 @@
 """EVL-08: oracle reference policy values and capacity/demand diagnostics."""
 
 from datetime import timedelta
-from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -14,9 +13,12 @@ from aether.contracts import (
     PolicyId,
     Regime,
     RunRecord,
+    Selection,
     Source,
 )
+from aether.contracts.models import acquisition_option_id
 from aether.evaluation.reference import OraclePolicy, capacity_report, gate_report
+from aether.planning.context import PlanningContext
 from aether.simulation.truth_types import SourceTruth, TruthHistory
 
 
@@ -27,9 +29,8 @@ def cfg(base_config_path):
 
 def _window(wid, source, start, pass_id="p1", sat="vsat_a"):
     opt = AcquisitionOption(
-        id=f"{wid}#0",
+        option_id=acquisition_option_id(wid, start),
         window_id=wid,
-        index=0,
         start_utc=start,
         end_utc=start + timedelta(seconds=3),
         off_nadir_deg=5.0,
@@ -68,7 +69,7 @@ def truth(cfg):
 
 
 def _ctx(cfg, windows, utilities, p_now):
-    return SimpleNamespace(
+    return PlanningContext(
         run_id="r", revision=0, now_utc=cfg.simulation_epoch_utc, cause="test", cfg=cfg,
         windows=tuple(windows), committed=(), utilities=utilities,
         posterior_mean_flux_kg_h={}, p_active_by_source=p_now,
@@ -92,7 +93,8 @@ def test_oracle_picks_the_most_wrong_belief_when_windows_conflict(cfg, truth):
                {"A": 0.9, "B": 0.9})  # fmt: skip
     plan = OraclePolicy(truth).plan(ctx)
     assert plan.policy_id is PolicyId.ORACLE
-    assert plan.selected_option_ids == ("wb#0",)
+    assert plan.selections == (Selection(window_id="wb", option_id=wb.options[0].option_id),)
+    assert plan.selected_window_ids == ("wb",)
 
 
 def _run(windows, sources=("A", "B"), acquisitions=()):

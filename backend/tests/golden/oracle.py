@@ -47,8 +47,7 @@ def brute_force_optimum(
     if missing:
         raise KeyError(f"missing candidate utilities for windows: {missing}")
     utility_by_option = {
-        option.option_id: utilities[window.id].integer_utility
-        for window, option in candidates
+        option.option_id: utilities[window.id].integer_utility for window, option in candidates
     }
 
     best_ids: tuple[str, ...] = ()

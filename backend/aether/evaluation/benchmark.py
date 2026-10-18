@@ -31,13 +31,29 @@ from aether.contracts.enums import PolicyId
 from aether.contracts.models import RunRecord
 from aether.evaluation.metrics import Score, score_run
 from aether.evaluation.protocol import check_seed_access, file_sha256, load_protocol, read_seeds
-from aether.evaluation.stats import PairedBootstrap, paired_bootstrap, success_verdict
+from aether.evaluation.stats import PairedBootstrap, holm, paired_bootstrap, success_verdict
 from aether.simulation.truth_types import TruthHistory
 
 RunFn = Callable[[ScenarioBundle, PolicyId, int], tuple[RunRecord, TruthHistory]]
 
 _KEY = re.compile(r"^(?P<metric>[^\[]+)(?:\[(?P<breakdown>[^\]]+)\])?$")
 RECALL_METRIC = "high_impact_recall_at_5"
+# Which sign of (a - b) favours policy a. Written into every comparison so no reader has to guess.
+LOWER_IS_BETTER = {"brier_active_state", "log_loss_active_state", "ece_active_state",
+                   "time_to_corroboration_hours", "solver_runtime_p95_s"}  # fmt: skip
+HIGHER_IS_BETTER = {RECALL_METRIC, "valid_acquisition_fraction"}
+MISSPECIFIED_FAMILIES = (
+    "m1_persistence_wrong", "m2_pod_optimistic", "m3_forecast_overconfident", "m4_false_positives",
+)  # fmt: skip
+
+
+def metric_direction(metric: str) -> str | None:
+    """ "lower" or "higher" is better; None when the metric has a target, not a direction."""
+    if metric in LOWER_IS_BETTER:
+        return "lower"
+    if metric in HIGHER_IS_BETTER:
+        return "higher"
+    return None
 
 
 def default_run_fn(bundle: ScenarioBundle, policy_id: PolicyId, seed: int):
@@ -100,7 +116,8 @@ def _compare(
     pairs = [(v[a], v[b]) for _, v in sorted(by_seed.items())
              if v.get(a) is not None and v.get(b) is not None]  # fmt: skip
     excluded = len(by_seed) - len(pairs)
-    base = {"family": family, "a": a, "b": b, "metric": metric, "n_pairs": len(pairs),
+    base = {"family": family, "a": a, "b": b, "metric": metric,
+            "better_direction": metric_direction(metric), "n_pairs": len(pairs),
             "n_excluded_undefined": excluded}  # fmt: skip
     if len(pairs) < 2:
         return base | {"result": None, "note": "insufficient samples (< 2 defined pairs)"}
@@ -133,7 +150,7 @@ def benchmark(
         for seed in seeds:
             for policy in proto.policies:
                 run, truth = run_fn(bundle, policy, seed)
-                if run.policy_id is not policy or run.family != family:
+                if run.policy_id is not policy or run.family != family or run.seed != seed:
                     raise RuntimeError(f"runner mislabelled run {run.run_id}")
                 scores: dict[str, Score] = score_run(run, truth, bundle.model)
                 for k in scores:
@@ -165,6 +182,8 @@ def benchmark(
         for c in comparisons
         if c["a"] == a and c["b"] == b and c["metric"] == proto.primary_metric and c["result"]
     }
+    misspecified = {f: primary[f].p_value for f in MISSPECIFIED_FAMILIES if f in primary}
+    holm_primary = {f: asdict(h) for f, h in holm(misspecified).items()}
     violations = int(sum(r["feasibility_checker_violations"] or 0 for r in rows))
     verdict = None
     if "m0_well_specified" in primary:
@@ -181,6 +200,7 @@ def benchmark(
         "config_hashes": config_hashes,
         "total_checker_violations": violations,
         "comparisons": comparisons,
+        "holm_primary": holm_primary,  # primary comparison, m1..m4, family-wise alpha 0.05
         "success_verdict": verdict,
         "note": "Tuning-seed results; not a pre-registered test." if lock_tag is None else None,
     }

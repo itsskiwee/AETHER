@@ -1,11 +1,44 @@
 # AETHER — Validation Report (L3)
 
-**Status, 17 Oct 2026: no benchmark has run.** The runner (INT-03) doesn't exist yet. Every number
-in this file is a definition, a decision or a test fixture. None of it is an experimental result.
-Results sections are added only from `benchmark-confidence-intervals.json` files, with their
-protocol hash and lock tag.
+## Current status — offline demo delivery (17 Oct 2026)
 
 Owner: L3 (Evaluation & integrity). Code: `backend/aether/evaluation/`.
+
+The offline delivery acceptance is complete for the documented demo scope. The actual
+`configs/demo.yaml`, seed-1000 records contain 40 plans, 40 validation records, and 35 acquisitions
+for `largest_first`, and 52 plans, 52 validation records, and 47 acquisitions for `adaptive_eig`.
+Both have zero checker violations. `runs/demo/acceptance.json` records byte-identical separate-
+process replay, verified export reloads, outcome counts, and the hour-20 forecast revision evidence.
+The adaptive record changes selected option IDs after the forecast revision; largest-first retains
+its selections. This is demonstration evidence for the recorded event and plans.
+
+The recorded backend suite passed **294 tests**. The production frontend build succeeded, and the
+final browser suite passed **13 tests**, including actual artifact/API replay; the documented fresh
+backend installation passed all 14 API tests. See `docs/demo-console.md` for the walkthrough.
+
+The actual base-config development comparison contains six records for one family
+(`m0_well_specified`), three policies, and seeds 1000 and 1001. Its interval artifact records two
+pairs, marks the results preliminary and insufficient for research claims, and has
+`success_verdict: null`. `experiments/protocol.yaml` remains unlocked and no holdout validation was
+run. These results do not establish scientific gate completion. Artifacts are in
+`runs/demo/benchmark/`.
+
+## Historical pre-delivery findings — 17 Oct 2026, superseded for delivery status
+
+An earlier real-runner smoke failed on a candidate at 40.002881° against the configured 40° limit;
+one attempt wrote no run artifact. An intermediate integration snapshot also recorded pointing and
+slew checker violations. The same pre-delivery period recorded a TestClient hang at
+`/api/runs/run-a` and no runner-backed benchmark output. Those findings described the earlier
+working tree. The accepted RunRecords, current API/browser replay, and final test logs above
+supersede them for offline delivery status.
+
+The implementation notes attributed the boundary failures to midpoint transition estimates,
+UT1/UTC handling in the independent checker, unavailable pinned polar-motion data, and using
+exposure-start rather than exposure-end LOS for planner slew. These corrections support the final
+artifact checks; they do not establish science or holdout validation. The checker continues to
+propagate independently and performs its own Astropy transforms. A seed-1000 boundary regression
+checks the options in the problematic pass; the UTC correction follows the
+[official Astropy satellite recipe](https://docs.astropy.org/en/stable/coordinates/satellites.html).
 
 ---
 
@@ -76,21 +109,51 @@ Notes for the reviewer:
    it as "oracle-informed greedy reference".
 3. Capacity/demand is reported per tuning seed as acquisitions / (sources × passes). A ratio near
    1 means the policies can differ only in ordering.
-4. **Open input needed:** `seed_count_rule` needs a pre-stated **minimum effect** (Brier
-   difference). The protocol doesn't state one. `stats.seeds_for_power(sd, min_effect)` is ready;
-   someone must choose `min_effect` before locking.
+4. **Seed-count procedure:** `seed_count_rule` uses the approved **minimum effect** (absolute paired
+   Brier difference). The user approved **0.01 Brier points** for 80% power on 17 Oct 2026; this is
+   now recorded in the still-unlocked protocol. `stats.seeds_for_power(sd, min_effect)` can compute
+   the required count after valid tuning-seed paired SD is available.
 
 ## 4. Known caveats that apply to any future result
 
-- **Persistence may be overstated about 2× vs the Permian** (L2, `model-card-source-state.md`
-  SCI-08). Adaptive revisits may look better here than on real Permian intermittency. Report
-  per-regime results and m1 with this caveat. The regime decision rests with L1 and the user.
-- **Truth flux prior clips at [30, 30 000] kg/h while the belief truncates** (PR-B06, needs L6).
-  About 1.8% of sources sit at exactly 30 kg/h, so m0 flux coverage near the floor may be slightly
-  off until this is fixed.
+- **Persistence is uncalibrated to Cusworth's 26% statistic.** The user decided to retain current
+  m0 assumptions and benchmark scope, with the regime values explicitly treated as unverified.
+  Cusworth's statistic is detected-plume counts per overflight for selected sources with at least
+  three overflights; it is not an unconditional active fraction. See the updated SCI-08 discussion
+  in `model-card-source-state.md`. Report regime-stratified results and the registered m1 sensitivity
+  family without claiming the current parameters are calibrated to that study.
+- **Flux prior forms now agree by construction:** truth uses an inverse-CDF draw from the truncated
+  lognormal and the belief integrates that same truncated distribution. The previous clipping / 1.8%
+  endpoint-mass caveat is stale. The 5,000-source KS test is included in the recorded 294-test
+  backend suite.
 - The success criterion compares against `largest_first`. The `greedy_eig` comparison is reported
   with equal prominence and isn't optional.
 
-## 5. Results
+## 5. Completed offline demo acceptance
 
-None yet. The first entry will be the G4.5 verdict on tuning seeds.
+- The recorded backend suite passed **294 tests** (`runs/demo/rehearsal/backend-tests.log`). The
+  production frontend build succeeded, and the final browser suite passed **13 tests**, including
+  actual artifact/API replay (`runs/demo/rehearsal/browser-tests.log`). The documented fresh backend
+  installation passed all 14 API tests (`docs/demo-console.md`).
+- The two demo RunRecords have one validation record per plan and zero checker violations. Acceptance
+  records byte-identical replay and verified export reloads (`runs/demo/acceptance.json`).
+- The actual base-config development batch has six RunRecords and zero checker violations. This is
+  execution and display evidence for one family and two development seeds, not a research verdict.
+
+## 6. Scientific gates
+
+| Gate / scope | Current status | Evidence and remaining work |
+|---|---|---|
+| G3 — Inference | **Not established as a scientific result** | The development artifacts contain evaluator scores, but they cover only two seeds in m0. SCI-10 calibration and model-assumption review remain unfinished. |
+| G4.5 — Discriminability | **Not run** | The comparison batch has no oracle/random results; the gate quantities and tuning-seed paired variation are not established by this batch. |
+| G5 — Science | **Unfinished** | Only the m0 family and two development seeds are present. The protocol is unlocked and no holdout validation was run. |
+
+The offline demo acceptance (G6 scope) is complete for the documented demonstration: actual records,
+replay/export checks, production API/browser replay, 294 backend tests, and 13 browser tests are
+recorded above and in `docs/demo-console.md`. The hour-20 forecast event is logged, and the adaptive
+record changes selected option IDs, demonstrating feedback behavior in the simulated run.
+
+The two-seed comparisons remain preliminary and insufficient for research claims. `experiments/protocol.yaml`
+is still unlocked, and no holdout validation is represented here. The retained m0 persistence
+assumptions remain unverified. The approved 0.01 Brier-point minimum effect is recorded in the
+protocol, while valid tuning-seed variance for the seed-count procedure remains to be established.

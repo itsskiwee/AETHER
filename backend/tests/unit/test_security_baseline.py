@@ -25,18 +25,58 @@ from aether.netpolicy import DisallowedURLError, assert_public_address, require_
 REPO = Path(__file__).resolve().parents[3]
 SCANNED_DIRS = ("backend/aether", "backend/tests", "scripts")
 
-UNSAFE_YAML_CALLS = {"load", "load_all", "full_load", "full_load_all", "unsafe_load",
-                     "unsafe_load_all"}
+UNSAFE_YAML_CALLS = {
+    "load",
+    "load_all",
+    "full_load",
+    "full_load_all",
+    "unsafe_load",
+    "unsafe_load_all",
+}
 UNSAFE_YAML_LOADERS = {"Loader", "FullLoader", "UnsafeLoader"}
-PICKLE_MODULES = {"pickle", "cPickle", "_pickle", "joblib", "dill", "cloudpickle", "marshal",
-                  "shelve"}
+PICKLE_MODULES = {
+    "pickle",
+    "cPickle",
+    "_pickle",
+    "joblib",
+    "dill",
+    "cloudpickle",
+    "marshal",
+    "shelve",
+}
 PICKLE_ATTRS = {"read_pickle", "to_pickle"}
-NETWORK_MODULES = {"requests", "httpx", "urllib3", "aiohttp", "socket", "http", "ftplib",
-                   "smtplib", "earthaccess", "cdsapi", "paramiko"}
+NETWORK_MODULES = {
+    "requests",
+    "httpx",
+    "urllib3",
+    "aiohttp",
+    "socket",
+    "http",
+    "ftplib",
+    "smtplib",
+    "earthaccess",
+    "cdsapi",
+    "paramiko",
+}
 NETWORK_SUBMODULES = {"urllib.request"}
-COMMAND_MODULES = {"spacepackets", "ccsds", "pyccsds", "yamcs", "openc3", "cosmos", "fprime",
-                   "fprime_gds", "cfs", "cfe", "satnogs", "gnuradio", "serial", "can",
-                   "pymavlink", "dronekit"}
+COMMAND_MODULES = {
+    "spacepackets",
+    "ccsds",
+    "pyccsds",
+    "yamcs",
+    "openc3",
+    "cosmos",
+    "fprime",
+    "fprime_gds",
+    "cfs",
+    "cfe",
+    "satnogs",
+    "gnuradio",
+    "serial",
+    "can",
+    "pymavlink",
+    "dronekit",
+}
 COMMAND_NAME = re.compile(
     r"(telecommand|uplink|tc_frame|command_(spacecraft|satellite)|send_command|tasking_request)",
     re.IGNORECASE,
@@ -86,15 +126,20 @@ def pickle_violations(tree: ast.AST) -> list[str]:
                 ):
                     out.append("allow_pickle enabled")
             func = node.func
-            if (isinstance(func, ast.Attribute) and func.attr == "load"
-                    and isinstance(func.value, ast.Name) and func.value.id == "torch"):
+            if (
+                isinstance(func, ast.Attribute)
+                and func.attr == "load"
+                and isinstance(func.value, ast.Name)
+                and func.value.id == "torch"
+            ):
                 out.append("torch.load")
     return out
 
 
 def network_imports(tree: ast.AST) -> list[str]:
-    return [m for m in _imported_modules(tree)
-            if _root(m) in NETWORK_MODULES or m in NETWORK_SUBMODULES]
+    return [
+        m for m in _imported_modules(tree) if _root(m) in NETWORK_MODULES or m in NETWORK_SUBMODULES
+    ]
 
 
 def command_violations(tree: ast.AST) -> list[str]:

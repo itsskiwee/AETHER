@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 
 import numpy as np
+from scipy.special import ndtr, ndtri
 
 from aether.config import ScenarioConfig, SourcesConfig
 from aether.contracts.enums import Regime
@@ -48,24 +49,20 @@ def generate_truth(
         rng = keyed_rng(seed, "truth", source.id)
         regime = Regime(rng.choice([r.name for r in source_cfg.regimes], p=regime_probs))
         regime_cfg = regime_configs[regime]
+        prior = source_cfg.flux_prior
+        mu_ln = np.log(prior.median_kg_h)
+        sigma_ln = prior.sigma_ln
+        cdf_min = ndtr((np.log(prior.min_kg_h) - mu_ln) / sigma_ln)
+        cdf_max = ndtr((np.log(prior.max_kg_h) - mu_ln) / sigma_ln)
         median_flux = float(
-            np.clip(
-                rng.lognormal(
-                    np.log(source_cfg.flux_prior.median_kg_h),
-                    source_cfg.flux_prior.sigma_ln,
-                ),
-                source_cfg.flux_prior.min_kg_h,
-                source_cfg.flux_prior.max_kg_h,
-            )
+            np.exp(mu_ln + sigma_ln * ndtri(cdf_min + rng.random() * (cdf_max - cdf_min)))
         )
         active = np.zeros(hours, dtype=bool)
         flux = np.zeros(hours, dtype=float)
         active[0] = rng.random() < regime_cfg.stationary_p_active
         for hour in range(hours):
             if hour:
-                p_switch = (
-                    regime_cfg.p_on_to_off if active[hour - 1] else regime_cfg.p_off_to_on
-                )
+                p_switch = regime_cfg.p_on_to_off if active[hour - 1] else regime_cfg.p_off_to_on
                 active[hour] = not active[hour - 1] if rng.random() < p_switch else active[hour - 1]
             if active[hour]:
                 flux[hour] = median_flux * np.exp(

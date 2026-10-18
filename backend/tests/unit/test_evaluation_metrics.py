@@ -63,7 +63,7 @@ def _belief(sid, t, p, ci, regimes=None):
 def _acq(sid, t, outcome):
     return SimulatedAcquisition(
         id=f"acq-{sid}",
-        option_id=f"w-{sid}#0",
+        option_id=f"w-{sid}@20250101T000000Z",
         window_id=f"w-{sid}",
         source_id=sid,
         spacecraft_id="vsat_a",
@@ -284,13 +284,13 @@ def test_checker_accounting(run, cfg):
             cause="test",
             objective_weights={},
             candidate_window_ids=(),
-            selected_option_ids=(),
+            selections=(),
             solver_status=SolverStatus.OPTIMAL,
             objective_value=0.0,
             best_bound=0.0,
             runtime_s=rt,
         )
-        for rev, rt in ((0, 1.0), (1, 3.0), (2, 2.0))
+        for rev, rt in ((0, 1.0), (1, 3.0), (2, 2.0), (3, None))
     )
     validations = (
         ScheduleValidation(plan_revision=0, ok=True, violations=(), checker_version="t"),
@@ -307,8 +307,14 @@ def test_checker_accounting(run, cfg):
     out = metrics.solver_and_checker(_run(cfg, run.beliefs, plans=plans, validations=validations))
     assert out["feasibility_checker_violations"] == 2
     assert out["plans_failing_validation"] == 1
-    assert out["plans_without_validation"] == 1
+    assert out["plans_without_validation"] == 2
     assert out["solver_runtime_p95_s"] == pytest.approx(np.percentile([1.0, 3.0, 2.0], 95))
+
+    unmeasured = tuple(p.model_copy(update={"runtime_s": None}) for p in plans)
+    assert (
+        metrics.solver_and_checker(_run(cfg, run.beliefs, plans=unmeasured))["solver_runtime_p95_s"]
+        is None
+    )
 
 
 def test_missing_snapshot_raises(run, truth, cfg):

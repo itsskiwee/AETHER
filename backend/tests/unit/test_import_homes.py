@@ -10,7 +10,8 @@ import aether.config as config_module
 
 BACKEND = Path(__file__).resolve().parents[2]
 CONFIG_NAMES = {
-    name for name, obj in vars(config_module).items()
+    name
+    for name, obj in vars(config_module).items()
     if isinstance(obj, type) and obj.__module__ == "aether.config"
 }
 

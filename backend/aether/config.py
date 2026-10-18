@@ -23,11 +23,19 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from aether.contracts.enums import PolicyId, Regime
-from aether.contracts.models import UtcDatetime
+from aether.contracts.models import FrozenDict, UtcDatetime
 
 
 class Cfg(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
+
+    @model_validator(mode="after")
+    def _freeze_nested_mappings(self):
+        for name in type(self).model_fields:
+            value = getattr(self, name)
+            if isinstance(value, dict) and not isinstance(value, FrozenDict):
+                object.__setattr__(self, name, FrozenDict(value))
+        return self
 
 
 # --- Region and sources ----------------------------------------------------------------------
@@ -338,7 +346,7 @@ class ScenarioConfig(Cfg):
     family: str = "m0_well_specified"
     simulation_epoch_utc: UtcDatetime
     horizon_hours: float = Field(gt=0, le=24 * 30)
-    random_seed: int
+    random_seed: int = Field(ge=0)
     historical_data_mode: Literal["historical_context_only"]
     orbital_mode: Literal["virtual_taskable_constellation"]
     region: RegionConfig

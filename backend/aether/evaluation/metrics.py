@@ -273,7 +273,7 @@ def acquisition_counts(run: RunRecord) -> dict[str, Score]:
 
 
 def solver_and_checker(run: RunRecord) -> dict[str, Score]:
-    runtimes = [p.runtime_s for p in run.plans]
+    runtimes = [p.runtime_s for p in run.plans if p.runtime_s is not None]
     validated = {v.plan_revision: v for v in run.validations}
     return {
         "plans_count": len(run.plans),

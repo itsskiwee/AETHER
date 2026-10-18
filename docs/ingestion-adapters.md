@@ -59,3 +59,15 @@ the exact API response/file, source URL, retrieval timestamp, terms version and 
 geodesic distance (`pyproj.Geod`). Connected components make grouping deterministic and transitively
 consistent. Generated sources remain `UNATTRIBUTED`; the earliest plume in each group is retained
 as `seeded_from_plume_id`. This is a spatial grouping heuristic, not a facility attribution method.
+
+## Reproducible scenario source construction
+
+`build_sources(cfg, plumes=(), seed=None)` is the public runner entry point. It filters supplied
+real plume records to `cfg.region`, clusters them at `cfg.sources.min_separation_m`, then fills to
+`cfg.sources.count` with longitude/latitude samples inside the configured region bounds. Fill
+candidates violating the minimum WGS84 geodesic separation are rejected. The fill stream is keyed
+by the run seed in the `placement` RNG namespace; omitting the seed uses `cfg.random_seed`.
+
+When no real source observations are supplied, the result is wholly synthetic and every generated
+source has `UNATTRIBUTED` status and no seeded plume ID. The synthetic EMIT-shaped fixture is
+deliberately refused by the real-data parser and is never used as provider observations.

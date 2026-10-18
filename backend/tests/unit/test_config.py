@@ -7,8 +7,13 @@ from pydantic import ValidationError
 from aether.config import RegimeConfig, SolverConfig, load_scenario
 
 FAMILIES = [
-    "m0_well_specified", "m1_persistence_wrong", "m2_pod_optimistic",
-    "m3_forecast_overconfident", "m4_false_positives", "r1_resource_scarce", "h168_long_horizon",
+    "m0_well_specified",
+    "m1_persistence_wrong",
+    "m2_pod_optimistic",
+    "m3_forecast_overconfident",
+    "m4_false_positives",
+    "r1_resource_scarce",
+    "h168_long_horizon",
 ]
 
 
@@ -34,8 +39,10 @@ def test_demo_extends_base_with_event(demo_config_path, base_config_path):
 
 
 def test_hash_is_stable(base_config_path):
-    assert (load_scenario(base_config_path).model.config_hash()
-            == load_scenario(base_config_path).model.config_hash())
+    assert (
+        load_scenario(base_config_path).model.config_hash()
+        == load_scenario(base_config_path).model.config_hash()
+    )
 
 
 def test_seed_override_is_the_only_seed(base_config_path):
@@ -61,8 +68,12 @@ def test_regime_rejects_impossible_chain():
 
 def test_reproducible_solver_requires_single_worker():
     with pytest.raises(ValidationError):
-        SolverConfig(mode="reproducible", max_deterministic_time=30, num_workers=8,
-                     fast_mode_wall_time_seconds=10)
+        SolverConfig(
+            mode="reproducible",
+            max_deterministic_time=30,
+            num_workers=8,
+            fast_mode_wall_time_seconds=10,
+        )
 
 
 def test_coarse_step_must_not_miss_short_windows(tmp_path, base_config_path):

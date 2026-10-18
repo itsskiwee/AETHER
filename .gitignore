@@ -15,3 +15,6 @@ data/raw/
 .netrc
 node_modules/
 frontend/dist/
+frontend/test-results/
+frontend/playwright-report/
+*.tsbuildinfo

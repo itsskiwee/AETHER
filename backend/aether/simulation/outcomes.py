@@ -118,5 +118,3 @@ def _standard_normal(uniform: float) -> float:
     from scipy.special import ndtri
 
     return float(ndtri(min(max(uniform, 1e-15), 1.0 - 1e-15)))
-
-
