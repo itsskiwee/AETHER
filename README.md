@@ -1,58 +1,58 @@
 # AETHER
-A research prototype: we developed and tested a **simulated** methane observation planner. It decides which methane source hypotheses virtual, taskable Earth-observation satellites should look at next, so as to collect the most useful evidence.
 
-**SIMULATED MISSION · offline replay.** NASA EMIT provided real observed methane plume records. The checked-in pinned sample is 20 EMIT L2B CH4PLM V002 Permian plume records from 2023–2024, together with their provider metadata and raster files. These records place the simulated source hypotheses. They are historical location context only. They never set simulated truth, present-day activity or the flux prior. Spacecraft, sensor responses, weather, acquisitions and ground truth are all simulated. AETHER does not task real satellites, and it does not verify emissions or reductions.
+**Open-source methane observation planning.** AETHER asks where a methane-hunting satellite should look next. It combines **real** NASA EMIT plume observations and **real** satellite orbits with a **simulated** fleet and planner that decides which site to observe to learn the most. Every run is reproducible and every input is fingerprinted. MIT licensed.
 
-**The virtual fleet.** The four simulated satellites are shown as **Pip** (`vsat_a`), **Wren** (`vsat_b`), **Juniper** (`vsat_c`) and **Mochi** (`vsat_d`). The names are display names only (`frontend/src/fleet.ts`); configs, run records and export hashes keep the IDs.
+## Run it on your machine
 
-## View the saved demonstration
+You need **Python 3.12+**, **Node.js 20+** and **Git**. Then:
 
-The repository includes both accepted pinned-data demo records. View them without
-waiting for simulation or installing browser test tools:
+```bash
+git clone https://github.com/itsskiwee/AETHER.git
+cd AETHER
+bash scripts/quickstart.sh                                        # macOS / Linux
+powershell -ExecutionPolicy Bypass -File scripts\quickstart.ps1   # Windows
+```
+
+The script installs everything into the project folder, fetches fresh public data, builds the app and opens **http://127.0.0.1:8080/?view=globe**. The first run takes a few minutes. Add `--offline` (macOS/Linux) or `-Offline` (Windows) to skip the data refresh and use the snapshot in the repository.
+
+**What you get**
+
+- **A 3D globe** showing the ISS (which carries NASA EMIT), Landsat 8 and 9 and Sentinel-5P, with positions calculated in your browser from published orbital elements. It also shows the 20 real EMIT plume sites in the Permian Basin and a replay of the simulated mission.
+- **Real data pages**: the 20 pinned EMIT V002 records, the newest EMIT plume files over the Permian from NASA's CMR catalogue, and the next real satellite passes over the sites.
+- **Simulation pages**: the planner's decision timeline, how its beliefs change, the policy test with its honest results, and verifiable run exports.
+
+**Where the data comes from.** Each run of the quickstart refreshes orbital elements from CelesTrak and the EMIT plume list from NASA CMR. Both are public and need no account. The 20 EMIT records, the planetary ephemeris and the Earth-orientation tables are pinned in the repository and verified by SHA-256 on every run. If a refresh fails, the last good copy is kept; nothing is made up.
+
+## What is real and what is simulated
+
+| Real | Simulated |
+|---|---|
+| 20 NASA EMIT plume records (2023–2024), with locations, rates and uncertainties | Four virtual satellites: **Pip** (`vsat_a`), **Wren** (`vsat_b`), **Juniper** (`vsat_c`) and **Mochi** (`vsat_d`) |
+| Newest EMIT plume listings from NASA CMR | Their sensor, the weather and every observation outcome |
+| Orbits of the ISS, Landsat 8/9 and Sentinel-5P (calculated positions, not telemetry) | The hidden "true" emissions used to score planners |
+| Upcoming real passes over the plume sites | The planner's decisions (OR-Tools CP-SAT), each re-checked by an independent checker |
+
+AETHER does not task real satellites and does not verify emissions or reductions. The fleet names are display names only (`frontend/src/fleet.ts`); configs, run records and export hashes keep the IDs.
+
+**Line endings.** The repository's `.gitattributes` disables line-ending conversion, because every pinned data file is checked by SHA-256 and byte size. If you cloned with an older Git that ignored it, re-clone with `git clone -c core.autocrlf=false`.
+
+<details><summary>Manual setup (instead of the quickstart)</summary>
 
 ```bash
 python -m venv backend/.venv
 backend/.venv/bin/pip install -e './backend[geo,api]'
 npm --prefix frontend ci
+PYTHONPATH=backend:. backend/.venv/bin/python -m scripts.build_globe_data   # add --offline to skip the refresh
 npm --prefix frontend run build
 PYTHONPATH=backend backend/.venv/bin/python -m uvicorn scripts.hosted_app:app --host 127.0.0.1 --port 8080
 ```
 
-On Windows (PowerShell), clone with `git clone -c core.autocrlf=false …`. The repository's
-`.gitattributes` already disables line-ending conversion, because every pinned data file is
-verified by SHA-256 and byte size. Then:
+On Windows, use `backend\.venv\Scripts\python` and separate `PYTHONPATH` entries with `;`. For container hosting, see [hosted replay](docs/hosted-replay.md); for Cloudflare, see [Cloudflare hosting](docs/cloudflare-hosting.md). The workspace is described in [the workspace guide](docs/frontend-workspace.md).
+</details>
 
-```powershell
-py -3.13 -m venv backend\.venv
-backend\.venv\Scripts\python -m pip install -e "./backend[geo,api]"
-npm --prefix frontend ci; npm --prefix frontend run build
-$env:PYTHONPATH = "$PWD\backend"
-backend\.venv\Scripts\python -m uvicorn scripts.hosted_app:app --host 127.0.0.1 --port 8080
-```
+## Contributing
 
-Open **http://127.0.0.1:8080**. Initial dependency installation needs network access;
-recorded replay then runs offline. This serves the production console and API together.
-For local container hosting, see [hosted replay instructions](docs/hosted-replay.md).
-For the Cloudflare Workers and Containers deployment, see
-[Cloudflare hosting](docs/cloudflare-hosting.md).
-The saved sample contains two demo policies and a completed six-run development
-comparison on two seeds. It is labelled preliminary and insufficient for research
-claims. No benchmark win is claimed. See the [workspace guide](docs/frontend-workspace.md).
-
-### Current satellite context
-
-The **Satellite context** link opens `/?view=live`: publicly published Landsat
-orbital elements, propagated position estimates and NASA EMIT catalogue entries,
-with retrieval times, observation times and hashes. To enable provider refresh:
-
-```bash
-AETHER_ENABLE_LIVE=1 AETHER_PYTHON=backend/.venv/bin/python sh scripts/serve_hosted.sh
-```
-
-Upstream inputs are cached for two hours; positions are recalculated on request.
-This is provider data and modelled position context, not live telemetry or a
-real-time methane feed. It does not change recorded planning or benchmark evidence.
-See [hosting and data semantics](docs/hosted-replay.md) for failure states and deployment.
+Issues and pull requests are welcome. Read [`AGENTS.md`](AGENTS.md) first: it holds the project's hard rules (provenance never changes, missing data is never a negative, no unseeded randomness, honest wording). The offline test suite must stay green (`cd backend && pytest`), and so must the browser tests (`npm --prefix frontend run test:e2e`). Security reports: see [`SECURITY.md`](SECURITY.md).
 
 ## Regenerate the demo and development comparison
 
