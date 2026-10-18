@@ -1,0 +1,408 @@
+{
+  "config_hashes": {
+    "m0_well_specified": {
+      "model": "4698090aa9a16ca9f5af027967cd2ade1ed01af22649a46dbba56cf9e87bffe3",
+      "seed_for_hash": 1000,
+      "truth": "4698090aa9a16ca9f5af027967cd2ade1ed01af22649a46dbba56cf9e87bffe3"
+    },
+    "m1_persistence_wrong": {
+      "model": "3d1da63480d32ad1b3bea0a1cce8f7a3e665a8383b0a2d9ebce70ee671566627",
+      "seed_for_hash": 1000,
+      "truth": "f7b424222d2b3988179cef1c36ddebc2de397e10c16c1078b10be8495ea158af"
+    },
+    "m2_pod_optimistic": {
+      "model": "857a775f78a2b61bf549db51ef4057289692a60d61e3c985cdb6fac1a4f0173e",
+      "seed_for_hash": 1000,
+      "truth": "4b67bb8304eccc9ed38e965e408f288876df78866f66f6e984713bf4bff5f373"
+    },
+    "m3_forecast_overconfident": {
+      "model": "3a3280b7bfefac5086fffb4e7f5339c6fb4a3a49edf5f6aa96241d0be63ff454",
+      "seed_for_hash": 1000,
+      "truth": "61afd3988e7e0ea26a25fd7e1ccf7b1ffbff5706abf426b502d58f18236b0b71"
+    },
+    "m4_false_positives": {
+      "model": "e846daccf5ddc509e516c085e276801fb085d183e47031729cfdef0c62d73c7f",
+      "seed_for_hash": 1000,
+      "truth": "7b1f6ffa77d88751a3272ce086d03aafa241349ff938500c2d04e1855fe68287"
+    },
+    "r1_resource_scarce": {
+      "model": "36b5bce6ac12917b74775109c4c96a4c674b9bdfa446a765f2d3fa389592b037",
+      "seed_for_hash": 1000,
+      "truth": "36b5bce6ac12917b74775109c4c96a4c674b9bdfa446a765f2d3fa389592b037"
+    }
+  },
+  "environment": {
+    "code_sha256": "c79062f59f2454a1f5096e3bb8a08419f71508f4447981316b8d42b77059987d",
+    "code_version": "0.1.0",
+    "cpu_count": 12,
+    "git_commit": "272aba5bba90ebee54d18b3f1d74a09093930972",
+    "git_dirty_paths": [],
+    "machine": "x86_64",
+    "python": "3.14.7",
+    "runtime_inputs": {
+      "package_versions": {
+        "astropy": "8.0.2",
+        "numpy": "2.5.4",
+        "ortools": "9.15.6755",
+        "pydantic": "2.14.1",
+        "pyyaml": "6.0.3",
+        "scipy": "1.18.1",
+        "sgp4": "2.27",
+        "skyfield": "1.55"
+      },
+      "pinned_data_sha256": {
+        "data/eop/README.md": "134134b8e10112b7c1f2dadc04f6c0928bee9619aeb47e11f3204b42aac91a70",
+        "data/eop/finals2000A.all": "bfa2066aab0400b075357f573af6081e0068a518993609eee0c5ca991bab0845",
+        "data/eop/manifest.json": "193f70e3ddefa7e161afcd8d2cbb8a5b51ed0b0a60b7ccee761d35e707fb4deb",
+        "data/ephemeris/de421.bsp": "a20a7139da04cbc462454634918e9a9ca69127044e2cc9d4f9c16e238d2deedc",
+        "data/ephemeris/manifest.json": "61adedbdb403bf1acceaa5b7de265a03e919fcaafd3f874f35282b4231c562ed"
+      }
+    }
+  },
+  "families": [
+    "m0_well_specified",
+    "m1_persistence_wrong",
+    "m2_pod_optimistic",
+    "m3_forecast_overconfident",
+    "m4_false_positives",
+    "r1_resource_scarce"
+  ],
+  "family_scope_rule": "gate passes only if it passes in every family evaluated (D9)",
+  "input_datasets": [
+    {
+      "dataset_id": "emit-l2b-ch4plm-002-permian-v1",
+      "in_region_count": 20,
+      "manifest_path": "data/manifests/emit_permian.json",
+      "manifest_sha256": "216cf916269f10e5a0dd0bd08b224cef2956bfa0d6990443eddf8c6a87982c55",
+      "normalized_sha256": "ba4305b3876abfca607cb8a994918a945fbd168291466dc169712b5973c94343",
+      "record_count": 20,
+      "seeded_source_count": 20,
+      "uniform_fill_count": 0
+    }
+  ],
+  "label": "SIMULATED MISSION \u2014 G4.5 discriminability gate (tuning seeds; reference policies only; not a policy comparison)",
+  "overall_passed": false,
+  "per_family": {
+    "m0_well_specified": {
+      "capacity_random_feasible": {
+        "acquisitions": {
+          "max": 42.0,
+          "mean": 37.43333333333333,
+          "min": 32.0,
+          "n": 30
+        },
+        "acquisitions_per_pass": {
+          "max": 6.0,
+          "mean": 5.347619047619049,
+          "min": 4.571428571428571,
+          "n": 30
+        },
+        "capacity_to_demand_ratio": {
+          "max": 0.3,
+          "mean": 0.2673809523809524,
+          "min": 0.22857142857142856,
+          "n": 30
+        },
+        "passes": {
+          "max": 7.0,
+          "mean": 7.0,
+          "min": 7.0,
+          "n": 30
+        },
+        "passes_per_72h": {
+          "max": 7.0,
+          "mean": 7.0,
+          "min": 7.0,
+          "n": 30
+        }
+      },
+      "gap_mean_random_minus_oracle": 0.00249851109797126,
+      "mean_brier": {
+        "oracle": 0.19546846923027966,
+        "random_feasible": 0.19796698032825097
+      },
+      "n_seeds": 30,
+      "passed": false,
+      "reference_checker_violations": 0,
+      "rule": "mean(random - oracle) > 2 * sd(random - oracle)",
+      "sd_paired": 0.012809067060717874,
+      "se_paired": 0.0023386049899171914,
+      "seeds_where_oracle_better": 17,
+      "threshold_2sd": 0.025618134121435748
+    },
+    "m1_persistence_wrong": {
+      "capacity_random_feasible": {
+        "acquisitions": {
+          "max": 42.0,
+          "mean": 37.43333333333333,
+          "min": 32.0,
+          "n": 30
+        },
+        "acquisitions_per_pass": {
+          "max": 6.0,
+          "mean": 5.347619047619049,
+          "min": 4.571428571428571,
+          "n": 30
+        },
+        "capacity_to_demand_ratio": {
+          "max": 0.3,
+          "mean": 0.2673809523809524,
+          "min": 0.22857142857142856,
+          "n": 30
+        },
+        "passes": {
+          "max": 7.0,
+          "mean": 7.0,
+          "min": 7.0,
+          "n": 30
+        },
+        "passes_per_72h": {
+          "max": 7.0,
+          "mean": 7.0,
+          "min": 7.0,
+          "n": 30
+        }
+      },
+      "gap_mean_random_minus_oracle": 5.3636493160756175e-05,
+      "mean_brier": {
+        "oracle": 0.15839839554783186,
+        "random_feasible": 0.1584520320409926
+      },
+      "n_seeds": 30,
+      "passed": false,
+      "reference_checker_violations": 0,
+      "rule": "mean(random - oracle) > 2 * sd(random - oracle)",
+      "sd_paired": 0.008958106756130818,
+      "se_paired": 0.001635519047624093,
+      "seeds_where_oracle_better": 14,
+      "threshold_2sd": 0.017916213512261636
+    },
+    "m2_pod_optimistic": {
+      "capacity_random_feasible": {
+        "acquisitions": {
+          "max": 42.0,
+          "mean": 37.43333333333333,
+          "min": 32.0,
+          "n": 30
+        },
+        "acquisitions_per_pass": {
+          "max": 6.0,
+          "mean": 5.347619047619049,
+          "min": 4.571428571428571,
+          "n": 30
+        },
+        "capacity_to_demand_ratio": {
+          "max": 0.3,
+          "mean": 0.2673809523809524,
+          "min": 0.22857142857142856,
+          "n": 30
+        },
+        "passes": {
+          "max": 7.0,
+          "mean": 7.0,
+          "min": 7.0,
+          "n": 30
+        },
+        "passes_per_72h": {
+          "max": 7.0,
+          "mean": 7.0,
+          "min": 7.0,
+          "n": 30
+        }
+      },
+      "gap_mean_random_minus_oracle": 0.0009692049424647658,
+      "mean_brier": {
+        "oracle": 0.20051424961546171,
+        "random_feasible": 0.20148345455792646
+      },
+      "n_seeds": 30,
+      "passed": false,
+      "reference_checker_violations": 0,
+      "rule": "mean(random - oracle) > 2 * sd(random - oracle)",
+      "sd_paired": 0.010925980327556168,
+      "se_paired": 0.0019948019627533987,
+      "seeds_where_oracle_better": 15,
+      "threshold_2sd": 0.021851960655112336
+    },
+    "m3_forecast_overconfident": {
+      "capacity_random_feasible": {
+        "acquisitions": {
+          "max": 42.0,
+          "mean": 37.43333333333333,
+          "min": 32.0,
+          "n": 30
+        },
+        "acquisitions_per_pass": {
+          "max": 6.0,
+          "mean": 5.347619047619049,
+          "min": 4.571428571428571,
+          "n": 30
+        },
+        "capacity_to_demand_ratio": {
+          "max": 0.3,
+          "mean": 0.2673809523809524,
+          "min": 0.22857142857142856,
+          "n": 30
+        },
+        "passes": {
+          "max": 7.0,
+          "mean": 7.0,
+          "min": 7.0,
+          "n": 30
+        },
+        "passes_per_72h": {
+          "max": 7.0,
+          "mean": 7.0,
+          "min": 7.0,
+          "n": 30
+        }
+      },
+      "gap_mean_random_minus_oracle": -0.00040662501076119405,
+      "mean_brier": {
+        "oracle": 0.19837360533901213,
+        "random_feasible": 0.19796698032825097
+      },
+      "n_seeds": 30,
+      "passed": false,
+      "reference_checker_violations": 0,
+      "rule": "mean(random - oracle) > 2 * sd(random - oracle)",
+      "sd_paired": 0.012305111590865447,
+      "se_paired": 0.002246595730311762,
+      "seeds_where_oracle_better": 15,
+      "threshold_2sd": 0.024610223181730895
+    },
+    "m4_false_positives": {
+      "capacity_random_feasible": {
+        "acquisitions": {
+          "max": 42.0,
+          "mean": 37.43333333333333,
+          "min": 32.0,
+          "n": 30
+        },
+        "acquisitions_per_pass": {
+          "max": 6.0,
+          "mean": 5.347619047619049,
+          "min": 4.571428571428571,
+          "n": 30
+        },
+        "capacity_to_demand_ratio": {
+          "max": 0.3,
+          "mean": 0.2673809523809524,
+          "min": 0.22857142857142856,
+          "n": 30
+        },
+        "passes": {
+          "max": 7.0,
+          "mean": 7.0,
+          "min": 7.0,
+          "n": 30
+        },
+        "passes_per_72h": {
+          "max": 7.0,
+          "mean": 7.0,
+          "min": 7.0,
+          "n": 30
+        }
+      },
+      "gap_mean_random_minus_oracle": 0.002097353486377787,
+      "mean_brier": {
+        "oracle": 0.19649841518363984,
+        "random_feasible": 0.1985957686700176
+      },
+      "n_seeds": 30,
+      "passed": false,
+      "reference_checker_violations": 0,
+      "rule": "mean(random - oracle) > 2 * sd(random - oracle)",
+      "sd_paired": 0.012973751796808172,
+      "se_paired": 0.002368672171528339,
+      "seeds_where_oracle_better": 17,
+      "threshold_2sd": 0.025947503593616344
+    },
+    "r1_resource_scarce": {
+      "capacity_random_feasible": {
+        "acquisitions": {
+          "max": 20.0,
+          "mean": 17.3,
+          "min": 16.0,
+          "n": 30
+        },
+        "acquisitions_per_pass": {
+          "max": 2.857142857142857,
+          "mean": 2.471428571428571,
+          "min": 2.2857142857142856,
+          "n": 30
+        },
+        "capacity_to_demand_ratio": {
+          "max": 0.14285714285714285,
+          "mean": 0.12357142857142858,
+          "min": 0.11428571428571428,
+          "n": 30
+        },
+        "passes": {
+          "max": 7.0,
+          "mean": 7.0,
+          "min": 7.0,
+          "n": 30
+        },
+        "passes_per_72h": {
+          "max": 7.0,
+          "mean": 7.0,
+          "min": 7.0,
+          "n": 30
+        }
+      },
+      "gap_mean_random_minus_oracle": 0.0026471406094103283,
+      "mean_brier": {
+        "oracle": 0.20313820102797459,
+        "random_feasible": 0.2057853416373849
+      },
+      "n_seeds": 30,
+      "passed": false,
+      "reference_checker_violations": 0,
+      "rule": "mean(random - oracle) > 2 * sd(random - oracle)",
+      "sd_paired": 0.010729275396195831,
+      "se_paired": 0.001958888720060545,
+      "seeds_where_oracle_better": 16,
+      "threshold_2sd": 0.021458550792391663
+    }
+  },
+  "protocol_locked": false,
+  "protocol_sha256": "9afbfc76795e202b0e011244f748bd3a212e000919c19a36141cdbbd11c8d6b2",
+  "reference_note": "oracle = oracle-informed greedy reference that reads truth; not a proven upper bound",
+  "seed_subset_only": false,
+  "seeds": [
+    1000,
+    1001,
+    1002,
+    1003,
+    1004,
+    1005,
+    1006,
+    1007,
+    1008,
+    1009,
+    1010,
+    1011,
+    1012,
+    1013,
+    1014,
+    1015,
+    1016,
+    1017,
+    1018,
+    1019,
+    1020,
+    1021,
+    1022,
+    1023,
+    1024,
+    1025,
+    1026,
+    1027,
+    1028,
+    1029
+  ],
+  "seeds_file": "experiments/seeds_dev.txt",
+  "seeds_sha256": "deb917ed5fe0c6aa3a98ef322b79dd8a9a3743df6beb5c44a53a82da17785812",
+  "synthetic_only": false
+}

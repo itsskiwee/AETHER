@@ -8,7 +8,7 @@ The base scenario now places its 20 source hypotheses at 20 pinned historical EM
 |---|---|---|
 | G1-F capacity, integrated scenario | **FAIL**: 7 passes ✓; one pass with at most 2 acquisitions ✗ (minimum 4) | §6, `docs/orbit-model-report.md` |
 | G4.5, synthetic-only m0 pilot (C2-06) | **FAIL** (gap 0.0048 vs 2 SD 0.0441) | §3.1 |
-| G4.5, pinned data, six families, 30 tuning seeds | **FAIL** (m0 gap 0.0025 vs 2 SD 0.0256; the per-family table is in §3.2) | §3.2 |
+| G4.5, pinned data, six families, 30 tuning seeds | **FAIL in all six** (gaps −0.0004 to 0.0026 vs 2 SD 0.0179–0.0259; 0 checker violations) | §3.2 |
 | SCI-10 calibration, m0 pinned, 30 seeds | **Meets the registered criteria** for the truth-independent reference (random_feasible); weak evidence beyond the prior (see caveat) | §3.3 |
 | Power calculation, lock, holdout | **Not run**: blocked by the G4.5 scenario decision | §6 |
 
@@ -111,7 +111,7 @@ comparison.
   bootstrap under-covers slightly at small n. That's one more reason not to trust a single
   marginal family.
 
-## 3. Discriminability gate G4.5 (EVL-08): pilot FAILS on m0; scenario decision pending
+## 3. Discriminability gate G4.5 (EVL-08): FAILS (synthetic pilot and pinned data); scenario decision pending
 
 Rule as written in `protocol.yaml`: mean(random − oracle Brier) > 2 × **SD** of the per-seed paired
 difference on the 30 tuning seeds. Family scope: D9 (all six protocol families must pass).
@@ -212,6 +212,23 @@ Notes for the reviewer:
    the user before lock. It is never silently capped.
 5. If the gate fails, the remedy is a registered **scenario** change (sources, capacity, horizon)
    proposed for human review (Work_Plan G4.5 is "L3 + human"). The planner is never tuned to pass.
+
+### 3.2 Pinned-data gate: six protocol families × 30 tuning seeds (18 Oct 2026). **FAIL**
+
+Scenario: `configs/base.yaml` with the pinned EMIT manifest (20 plume-seeded sources, 0 fill) and each protocol family override. 360 reference runs (oracle-informed greedy reference and random_feasible). Commit `272aba5`, clean tree, code identity `c79062f5…`. Command: `python -m aether.evaluation.gate --repo .. --output-dir ../runs/gate-pinned --workers 9`, with `AETHER_WINDOW_CACHE_DIR` set. Artifacts: `experiments/results/g45-pinned-dev/` (`gate.json`, `gate-seeds.csv`, `timing.jsonl`). The rule is applied as registered: SD, not SE.
+
+| Family | Gap mean(random − oracle) | SD paired | 2 SD threshold | SE (info) | Oracle better | Mean Brier oracle / random | Passes/72 h | Acq./pass (executed) | Capacity/demand | Checker violations | Verdict |
+|---|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|---|
+| m0_well_specified | 0.0025 | 0.0128 | 0.0256 | 0.0023 | 17/30 | 0.1955 / 0.1980 | 7.0 | 5.35 | 0.267 | 0 | **FAIL** |
+| m1_persistence_wrong | 0.0001 | 0.0090 | 0.0179 | 0.0016 | 14/30 | 0.1584 / 0.1585 | 7.0 | 5.35 | 0.267 | 0 | **FAIL** |
+| m2_pod_optimistic | 0.0010 | 0.0109 | 0.0219 | 0.0020 | 15/30 | 0.2005 / 0.2015 | 7.0 | 5.35 | 0.267 | 0 | **FAIL** |
+| m3_forecast_overconfident | -0.0004 | 0.0123 | 0.0246 | 0.0022 | 15/30 | 0.1984 / 0.1980 | 7.0 | 5.35 | 0.267 | 0 | **FAIL** |
+| m4_false_positives | 0.0021 | 0.0130 | 0.0259 | 0.0024 | 17/30 | 0.1965 / 0.1986 | 7.0 | 5.35 | 0.267 | 0 | **FAIL** |
+| r1_resource_scarce | 0.0026 | 0.0107 | 0.0215 | 0.0020 | 16/30 | 0.2031 / 0.2058 | 7.0 | 2.47 | 0.124 | 0 | **FAIL** |
+
+Overall: **FAIL in all six families** (D9 scope; m0 alone also fails). Reference checker violations: 0 in all 360 runs. The SE column is information only. Wall time: 72 min for 360 runs on 9 workers; per run 17.4–796.9 s, median 88.0 s. The maximum is r1's cold geometry, because r1 changes spacecraft storage and therefore the window key.
+
+**Interpretation.** The pinned scenario reproduces the synthetic pilot's finding in every family. Within the 72 h horizon, a reference that knows the true state at each option time gains almost nothing over random feasible looks on the 6-hourly Brier score. The mean random − oracle gap is a small fraction of its per-seed SD. The likely causes are the same as in §3.1: 7 passes per 72 h, 5.35 executed acquisitions per pass and capacity/demand 0.27 (r1: 2.47 and 0.12), a 6 h evaluation grid against 3–24 h activity dynamics, and many active sources below the VS-A Q50. This is a scenario finding. The planner has not been tuned, and neither the reference, the metric nor the SD rule has changed. The remedy is decision H3 (§6).
 
 ### 3.3 SCI-10 calibration on the pinned m0 scenario (18 Oct 2026)
 
