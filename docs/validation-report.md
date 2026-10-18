@@ -115,7 +115,11 @@ dataset named by the config, no explicit plume input). It refuses the holdout li
 - `timing.jsonl`: measured wall time per run (nondeterministic sidecar, never in RunRecords).
 
 A pilot on the pre-wiring, synthetic-placement scenario is labelled as such and is superseded by the
-run on the wired scenario. **Order:** gate on the wired dataset → power calculation → lock.
+run on the wired scenario. **Defect found by the pilot (18 Oct 2026, fixed in C2-04):** `OraclePolicy`
+called `greedy_insert` without `now_utc`, so completed acquisitions counted against the per-solve
+source cap (PR-O03). The oracle could look at each source only once per run (exactly 20
+acquisitions per seed, against random's 32–36). Every oracle result before C2-04 is invalid and was
+discarded. `test_oracle_can_revisit_a_source_observed_in_an_earlier_solve` guards it. **Order:** gate on the wired dataset → power calculation → lock.
 
 Notes for the reviewer:
 
