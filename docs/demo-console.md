@@ -55,51 +55,19 @@ directory in `AETHER_BENCHMARK_DIR`. Comparison generation uses `configs/base.ya
 the scripted demo weather event is excluded from benchmark data. Missing evaluator
 output remains explicitly unavailable in the console.
 
-## Presentation walkthrough
+## Presentation walkthrough (pinned-data demo, 18 Oct 2026)
 
-1. Point out **SIMULATED MISSION**, **OFFLINE ARTIFACTS**, and **REPLAY**. In the
-   run selector, choose `largest_first`, then `adaptive_eig`; these are separate
-   actual simulator records, each with seed 1000.
-   On **Sources**, inspect the location-lineage column and counts for plume-seeded
-   hypotheses versus uniform simulated fill. The historical EMIT panel uses only
-   the selected run's pinned dataset reference. When that reference is attached,
-   it displays the manifest hash, observed UTC times, provider source hashes,
-   nullable rates, and uncertainty kind. The preserved two-run demo predates that
-   field and reports its historical context as unavailable; the console does not
-   substitute the current project selection. A missing retrieval timestamp remains
-   unavailable when the manifest has no authentic retrieval evidence.
-2. Open **Windows** (or press `3`) to inspect spacecraft windows and the table
-   of feasible options. Toggle rejected windows to inspect rejection reasons.
-3. Open **Planner** (`5`). Select a plan revision and inspect its actual option
-   IDs, candidate utility records, independent-checker version, and violation
-   count. A successful archive has one independent validation per plan and zero
-   violations.
-4. Select a revision whose cause is `forecast_revision`. Expand **Recorded
-   forecast events** to see the event time and payload. Inspect the previous
-   revision's added/removed option IDs. Describe the recorded difference; a
-   replan can retain the same choices, and does not guarantee an improvement.
-   The injected event is at simulation hour 20. In the known-good `largest_first`
-   run it causes revision 10, whose selections remain unchanged. The event targets
-   `source-001`, which has no feasible observation window during the affected
-   interval, hours 20–32. For largest-first, this records a forecast-triggered planning revision with
-   no selection change. The scenario was
-   retained without tuning it to manufacture a difference.
-   In `adaptive_eig`, the same event causes revision 11 and selections do change.
-   Its candidate set remains the same 16 windows; 11 option IDs are removed and
-   9 are added. Forecast issuance advances from hour 18 to hour 20 and refreshes
-   weather estimates for other sources. Because `source-001` has no feasible
-   window in the affected interval, this is a forecast-refresh-triggered selection
-   difference, not evidence of avoiding that source's scripted cloud event.
-5. Open **Beliefs** (`4`) and select a source with acquisitions. Inspect
-   P(active), the values table, and the evidence ledger. Detection and valid
-   non-detection are emission evidence; invalid and unobserved outcomes are
-   distinct. Null measured flux remains absent.
-6. Open **Comparison** (`6`). This reads evaluator output rather than deriving
-   claims from the selected demo run. Show sample counts, paired differences,
-   intervals when defined, and the preliminary/insufficient-samples label for
-   fewer than 10 seeds. A single-seed pilot establishes execution, not superiority.
-7. Open **Method** (`7`) for configuration hashes, code identity, provenance,
-   archived input hashes/package versions, and limitations.
+The archive is `runs/demo-pinned/` (or the path given to `scripts/demo.sh`): `configs/demo.yaml`, seed 1000. Its sources sit at 20 pinned EMIT V002 Permian plume locations. Known-good record hashes (canonical JSON): `largest_first` `36b064d9…6ad6`, `adaptive_eig` `8516e1d6…2fdc`. Both are byte-identical in a second process, and both exports reload with every input hash re-verified.
+
+1. Point out **SIMULATED MISSION**, **OFFLINE ARTIFACTS** and **REPLAY**. In the run selector, choose `largest_first`, then `adaptive_eig`. These are separate actual simulator records.
+2. Open **Sources**. The counts read *historical plume seeded: 20* and *uniform synthetic fill: 0*. Each source row names the plume it was seeded from. The **EMIT plume context** panel comes from the run's own `input_dataset` reference: dataset `emit-l2b-ch4plm-002-permian-v1` and its manifest SHA-256, observed UTC times (2023–2024), provider file hashes, ten rates shown as *Not estimated (CRITERIA_NOT_MET)*, and an uncertainty meaning of *unknown*. Say plainly that these are historical detections used as locations. They say nothing about activity in the simulated October 2026 scenario, and a missing plume row is not a non-detection. Retrieval time is null (`PARTIAL` evidence), not invented.
+3. Open **Windows** (`3`) for spacecraft windows and feasible options; toggle rejected windows to show rejection reasons.
+4. Open **Planner** (`5`). Each plan has one independent validation and zero violations (`largest_first`: 41 plans, 37 acquisitions; `adaptive_eig`: 47 plans, 51 acquisitions).
+5. The scripted hour-20 forecast (90% cloud on source 0 for 12 h) logs a `forecast_revision` plan: revision 12 for `largest_first`, revision 13 for `adaptive_eig`. **Neither changes its selections, and this is why.** Source 0's only feasible window in the affected interval (`vsat_c:13`, 20:45 UTC) was a candidate but was not selected before the event (p_valid 0.57, EIG 0.267 bits). After the event its utility record shows p_valid 0.077 and EIG 0.036 bits. The forecast changed the window's value as modelled; it simply was not in the plan. Do not present this revision as cloud avoidance.
+6. Genuine feedback is visible elsewhere. In `adaptive_eig`, 22 replans triggered by informative acquisitions and 10 routine forecast revisions change the future selections; revision 3 drops nine planned options after new evidence. Compare consecutive revisions' option IDs on **Planner**. A changed plan is a recorded decision difference, not proof of a better outcome.
+7. Open **Beliefs** (`4`) and pick a source with acquisitions. Detections and valid non-detections update P(active); invalid acquisitions (24 for `adaptive_eig`, mostly cloud) leave it unchanged. A null measured flux stays absent.
+8. Open **Comparison** (`6`). It reads the evaluator output in `runs/demo-pinned/benchmark/`: two development seeds on m0, labelled PRELIMINARY and INSUFFICIENT SAMPLES, with no success verdict. Also say that G4.5 failed for this scenario (`docs/validation-report.md`), so the benchmark as configured is not expected to separate the policies.
+9. Open **Method** (`7`) for config hashes, the archived input manifest (`lineage_version` 1, 46 input hashes including all 40 pinned raw files), package versions and limitations.
 
 ## Limitations
 
@@ -120,14 +88,17 @@ deviation. The comparison screen shows registered family coverage and the separa
 measured timing sidecar when those artifacts are present; timing is complete-run
 wall time, not solver runtime.
 
-The injected hour-20 cloud event affects a source with no feasible window in its
-hours-20–32 interval. The demonstrated `largest_first` revision retains its
-selections; `adaptive_eig` revision 11 changes selections with the same 16 candidate
-windows and globally refreshed forecast estimates. This does not establish
-targeted cloud avoidance. Both runs establish a logged
-planning revision caused by forecast issuance.
+In the pinned demo, the injected hour-20 cloud event lowers the utility of the target source's
+only affected window, which neither policy had selected; neither revision changes its
+selections (step 5). The demo establishes a logged, forecast-caused planning revision and
+evidence-driven selection changes. It does not establish targeted cloud avoidance. G1-F fails
+for this scenario: pass `vsat_d:13` can hold at most two acquisitions.
 
-## Rehearsal evidence
+## Rehearsal evidence (pinned demo)
+
+See the end of `docs/lanes/completion-claude-1.md` for the final-revision browser, API and Axe results on `runs/demo-pinned`.
+
+## Historical rehearsal evidence (17 Oct, synthetic-placement demo in `AETHER/runs/demo`)
 
 The production launcher was rehearsed against `runs/demo/` using the fresh Python
 environment described above, API port 8001, and console port 4173. The actual
