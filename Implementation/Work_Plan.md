@@ -9,6 +9,18 @@ Read first: `AGENTS.md` (rules), `Implementation/Parameter_Register.md` (every n
 
 ## Integration handoff, 18 Oct 2026 (Claude-1, supersedes lane boundaries for integration only)
 
+### REL-02 product delivery follow-up
+
+The user subsequently asked Codex to connect and finish the product, with a public
+repository submission, probable hosted website, and continued local evidence work.
+Codex works in the separate `lane/REL-02-hosted-replay` branch/worktree
+`AETHER-wt/codex-delivery`, based on int-b `ed1f7fd`. Scope is delivery scripts,
+container configuration, a checked-in accepted demo replay fixture and startup docs.
+This assignment permits the necessary delivery changes across these paths; it does
+not change contracts, scientific parameters, checker independence or gate decisions.
+Claude's active scientific jobs and integration worktrees are preserved. Publication,
+repository visibility changes and paid hosting are not performed by this handoff.
+
 The user assigned Claude-1 (session `aether-be`) to integrate and finish the completion batch across all lanes (`docs/claude-completion-fix-prompt.md` in `AETHER-codex1`, with a six-hour submission deadline: recorded as 14:49 EDT / 18:49 UTC, six hours after this session started at 08:49 EDT). For this handoff Claude-1 may edit any lane's files when integration requires it. Each lane's work enters as a separate scoped commit that names its source worktree and author role. Scientific rules, gates, checker independence, truth isolation and the Parameter Register still bind. Scenario and threshold changes still need a human decision. Branch: `lane/INT-09-completion-integration` in `AETHER-wt/claude-1`, based on `main` 302d0b0. The original accepted offline demo stays untouched in `AETHER` (`ee87199`, `runs/demo`) as the recovery artifact.
 
 Initial inventory (18 Oct, 08:50 EDT): main 302d0b0 clean. C2-06 (`886336e`) was committed but unmerged. Codex-1, -2, -3 and -4 work was uncommitted in `AETHER-codex1/2/3/6`. C2-05 (`1c3e89f`) was already on main. No h168 diagnostic output existed anywhere.

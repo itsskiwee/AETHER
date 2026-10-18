@@ -1,0 +1,346 @@
+{
+  "machine": {
+    "cpu_count": "12",
+    "machine": "x86_64",
+    "platform": "Linux-7.2.5-3-omarchy-x86_64-with-glibc2.44",
+    "processor": "unknown",
+    "python": "3.14.7"
+  },
+  "measured": true,
+  "plan_timings": [
+    {
+      "candidate_window_count": 30,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 5.015636558004189,
+      "revision": 0,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "candidate_window_count": 30,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 3.8157161560011446,
+      "revision": 1,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "candidate_window_count": 30,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 3.9003991819990915,
+      "revision": 2,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "candidate_window_count": 10,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.04832057400199119,
+      "revision": 3,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "candidate_window_count": 10,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.04212215099687455,
+      "revision": 4,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "candidate_window_count": 10,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.04995953400066355,
+      "revision": 5,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "candidate_window_count": 10,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.06691662600496784,
+      "revision": 6,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "candidate_window_count": 10,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.04702893499779748,
+      "revision": 7,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "candidate_window_count": 10,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.048633906997565646,
+      "revision": 8,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "candidate_window_count": 23,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.46039937399473274,
+      "revision": 9,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "candidate_window_count": 21,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.5138200119981775,
+      "revision": 10,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "candidate_window_count": 21,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.43132265599706443,
+      "revision": 11,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "candidate_window_count": 21,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.4756444040031056,
+      "revision": 12,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "candidate_window_count": 21,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.5584691269978066,
+      "revision": 13,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "candidate_window_count": 33,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 4.682229183003074,
+      "revision": 14,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "candidate_window_count": 33,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 12.041176031998475,
+      "revision": 15,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "candidate_window_count": 33,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 5.0160327830017195,
+      "revision": 16,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "candidate_window_count": 33,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 4.108073082003102,
+      "revision": 17,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "candidate_window_count": 33,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 11.555077736993553,
+      "revision": 18,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "candidate_window_count": 40,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 8.19569700500142,
+      "revision": 19,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "candidate_window_count": 40,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 9.711109748001036,
+      "revision": 20,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "candidate_window_count": 40,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 8.10936461899837,
+      "revision": 21,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "candidate_window_count": 40,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 48.565057767002145,
+      "revision": 22,
+      "solver_status": "FEASIBLE"
+    },
+    {
+      "candidate_window_count": 40,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 91.11208671500208,
+      "revision": 23,
+      "solver_status": "FEASIBLE"
+    },
+    {
+      "candidate_window_count": 40,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 108.66588477999903,
+      "revision": 24,
+      "solver_status": "FEASIBLE"
+    },
+    {
+      "candidate_window_count": 29,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 19.115222210006323,
+      "revision": 25,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "candidate_window_count": 29,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 4.851328083997942,
+      "revision": 26,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "candidate_window_count": 29,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 29.899497134996636,
+      "revision": 27,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "candidate_window_count": 29,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 9.87753077200614,
+      "revision": 28,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "candidate_window_count": 29,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 9.50609410800098,
+      "revision": 29,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "candidate_window_count": 29,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 59.313481873003184,
+      "revision": 30,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "candidate_window_count": 29,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 77.30635093899764,
+      "revision": 31,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "candidate_window_count": 29,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 44.3154446099943,
+      "revision": 32,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "candidate_window_count": 29,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 25.208375696995063,
+      "revision": 33,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "candidate_window_count": 9,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.5573933630003012,
+      "revision": 34,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "candidate_window_count": 9,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.6919893129961565,
+      "revision": 35,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "candidate_window_count": 9,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.5665995879971888,
+      "revision": 36,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "candidate_window_count": 9,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.7421219110037782,
+      "revision": 37,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "candidate_window_count": 9,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.7323357489949558,
+      "revision": 38,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "candidate_window_count": 9,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 1.1151864169951295,
+      "revision": 39,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "candidate_window_count": 9,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.8908389150019502,
+      "revision": 40,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "candidate_window_count": 9,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.3052642089969595,
+      "revision": 41,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "candidate_window_count": 0,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.022188905997609254,
+      "revision": 42,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "candidate_window_count": 0,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.023523669995483942,
+      "revision": 43,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "candidate_window_count": 0,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.015592969000863377,
+      "revision": 44,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "candidate_window_count": 0,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.015571903000818565,
+      "revision": 45,
+      "solver_status": "OPTIMAL"
+    },
+    {
+      "candidate_window_count": 0,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.04108701900258893,
+      "revision": 46,
+      "solver_status": "OPTIMAL"
+    }
+  ],
+  "run_id": "permian-p0-demo-adaptive_eig-1000-dce5146a454990c2",
+  "timer": "time.perf_counter",
+  "total_run_wall_s": 757.3576634080018,
+  "windows_source": "process_cache",
+  "windows_wall_s": 0.10700884700054303
+}

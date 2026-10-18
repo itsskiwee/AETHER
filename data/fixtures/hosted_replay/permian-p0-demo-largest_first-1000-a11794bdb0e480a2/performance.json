@@ -1,0 +1,304 @@
+{
+  "machine": {
+    "cpu_count": "12",
+    "machine": "x86_64",
+    "platform": "Linux-7.2.5-3-omarchy-x86_64-with-glibc2.44",
+    "processor": "unknown",
+    "python": "3.14.7"
+  },
+  "measured": true,
+  "plan_timings": [
+    {
+      "candidate_window_count": 30,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.014541816999553703,
+      "revision": 0,
+      "solver_status": "HEURISTIC"
+    },
+    {
+      "candidate_window_count": 30,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.015351349997217767,
+      "revision": 1,
+      "solver_status": "HEURISTIC"
+    },
+    {
+      "candidate_window_count": 30,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.01700315600464819,
+      "revision": 2,
+      "solver_status": "HEURISTIC"
+    },
+    {
+      "candidate_window_count": 10,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.0030951789958635345,
+      "revision": 3,
+      "solver_status": "HEURISTIC"
+    },
+    {
+      "candidate_window_count": 10,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.003607304002798628,
+      "revision": 4,
+      "solver_status": "HEURISTIC"
+    },
+    {
+      "candidate_window_count": 10,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.0033590980019653216,
+      "revision": 5,
+      "solver_status": "HEURISTIC"
+    },
+    {
+      "candidate_window_count": 10,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.003614907996961847,
+      "revision": 6,
+      "solver_status": "HEURISTIC"
+    },
+    {
+      "candidate_window_count": 10,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.003443474000960123,
+      "revision": 7,
+      "solver_status": "HEURISTIC"
+    },
+    {
+      "candidate_window_count": 23,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.011784798996814061,
+      "revision": 8,
+      "solver_status": "HEURISTIC"
+    },
+    {
+      "candidate_window_count": 21,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.01171176000207197,
+      "revision": 9,
+      "solver_status": "HEURISTIC"
+    },
+    {
+      "candidate_window_count": 21,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.012282085997867398,
+      "revision": 10,
+      "solver_status": "HEURISTIC"
+    },
+    {
+      "candidate_window_count": 21,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.012520741998741869,
+      "revision": 11,
+      "solver_status": "HEURISTIC"
+    },
+    {
+      "candidate_window_count": 21,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.013214444996265229,
+      "revision": 12,
+      "solver_status": "HEURISTIC"
+    },
+    {
+      "candidate_window_count": 33,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.035850284999469295,
+      "revision": 13,
+      "solver_status": "HEURISTIC"
+    },
+    {
+      "candidate_window_count": 33,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.03428904400061583,
+      "revision": 14,
+      "solver_status": "HEURISTIC"
+    },
+    {
+      "candidate_window_count": 33,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.031559426002786495,
+      "revision": 15,
+      "solver_status": "HEURISTIC"
+    },
+    {
+      "candidate_window_count": 33,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.032047458000306506,
+      "revision": 16,
+      "solver_status": "HEURISTIC"
+    },
+    {
+      "candidate_window_count": 40,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.05128314699686598,
+      "revision": 17,
+      "solver_status": "HEURISTIC"
+    },
+    {
+      "candidate_window_count": 40,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.05789519900281448,
+      "revision": 18,
+      "solver_status": "HEURISTIC"
+    },
+    {
+      "candidate_window_count": 40,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.04258533399843145,
+      "revision": 19,
+      "solver_status": "HEURISTIC"
+    },
+    {
+      "candidate_window_count": 40,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.05077718899701722,
+      "revision": 20,
+      "solver_status": "HEURISTIC"
+    },
+    {
+      "candidate_window_count": 40,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.05356428600498475,
+      "revision": 21,
+      "solver_status": "HEURISTIC"
+    },
+    {
+      "candidate_window_count": 40,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.05530909500521375,
+      "revision": 22,
+      "solver_status": "HEURISTIC"
+    },
+    {
+      "candidate_window_count": 29,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.04314325899758842,
+      "revision": 23,
+      "solver_status": "HEURISTIC"
+    },
+    {
+      "candidate_window_count": 29,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.04868349099706393,
+      "revision": 24,
+      "solver_status": "HEURISTIC"
+    },
+    {
+      "candidate_window_count": 29,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.059106284999870695,
+      "revision": 25,
+      "solver_status": "HEURISTIC"
+    },
+    {
+      "candidate_window_count": 29,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.05142019300546963,
+      "revision": 26,
+      "solver_status": "HEURISTIC"
+    },
+    {
+      "candidate_window_count": 29,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.04693614199641161,
+      "revision": 27,
+      "solver_status": "HEURISTIC"
+    },
+    {
+      "candidate_window_count": 29,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.04356033699878026,
+      "revision": 28,
+      "solver_status": "HEURISTIC"
+    },
+    {
+      "candidate_window_count": 29,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.0417925150031806,
+      "revision": 29,
+      "solver_status": "HEURISTIC"
+    },
+    {
+      "candidate_window_count": 9,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.018880750001699198,
+      "revision": 30,
+      "solver_status": "HEURISTIC"
+    },
+    {
+      "candidate_window_count": 9,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.016531718996702693,
+      "revision": 31,
+      "solver_status": "HEURISTIC"
+    },
+    {
+      "candidate_window_count": 9,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.01459259200055385,
+      "revision": 32,
+      "solver_status": "HEURISTIC"
+    },
+    {
+      "candidate_window_count": 9,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.009824260996538214,
+      "revision": 33,
+      "solver_status": "HEURISTIC"
+    },
+    {
+      "candidate_window_count": 9,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.01135215199610684,
+      "revision": 34,
+      "solver_status": "HEURISTIC"
+    },
+    {
+      "candidate_window_count": 9,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.012562179996166378,
+      "revision": 35,
+      "solver_status": "HEURISTIC"
+    },
+    {
+      "candidate_window_count": 9,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.008294570005091373,
+      "revision": 36,
+      "solver_status": "HEURISTIC"
+    },
+    {
+      "candidate_window_count": 0,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.0003898570066667162,
+      "revision": 37,
+      "solver_status": "HEURISTIC"
+    },
+    {
+      "candidate_window_count": 0,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.0004544420007732697,
+      "revision": 38,
+      "solver_status": "HEURISTIC"
+    },
+    {
+      "candidate_window_count": 0,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.0003023370009032078,
+      "revision": 39,
+      "solver_status": "HEURISTIC"
+    },
+    {
+      "candidate_window_count": 0,
+      "checker_retry": 0,
+      "policy_plan_wall_s": 0.00033567200443940237,
+      "revision": 40,
+      "solver_status": "HEURISTIC"
+    }
+  ],
+  "run_id": "permian-p0-demo-largest_first-1000-a11794bdb0e480a2",
+  "timer": "time.perf_counter",
+  "total_run_wall_s": 434.6081863360014,
+  "windows_source": "computed",
+  "windows_wall_s": 385.4550244330021
+}

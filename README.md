@@ -3,7 +3,26 @@ A research prototype: we developed and tested a **simulated** methane observatio
 
 **SIMULATED MISSION · offline replay.** NASA EMIT provided real observed methane plume records. The checked-in pinned sample is 20 EMIT L2B CH4PLM V002 Permian plume records from 2023–2024, together with their provider metadata and raster files. These records place the simulated source hypotheses. They are historical location context only. They never set simulated truth, present-day activity or the flux prior. Spacecraft, sensor responses, weather, acquisitions and ground truth are all simulated. AETHER does not task real satellites, and it does not verify emissions or reductions.
 
-## Quickstart (fresh checkout, offline)
+## View the saved demonstration
+
+The repository includes both accepted pinned-data demo records. View them without
+waiting for simulation or installing browser test tools:
+
+```bash
+python -m venv backend/.venv
+backend/.venv/bin/pip install -e './backend[geo,api]'
+npm --prefix frontend ci
+npm --prefix frontend run build
+PYTHONPATH=backend backend/.venv/bin/python -m uvicorn scripts.hosted_app:app --host 127.0.0.1 --port 8080
+```
+
+Open **http://127.0.0.1:8080**. Initial dependency installation needs network access;
+recorded replay then runs offline. This serves the production console and API together.
+For container hosting, see [hosted replay instructions](docs/hosted-replay.md).
+The saved sample contains two demo policies; comparison artifacts are unavailable
+until a completed evaluator batch is supplied. No benchmark win is claimed.
+
+## Regenerate the demo and development comparison
 
 ```bash
 python -m venv backend/.venv
