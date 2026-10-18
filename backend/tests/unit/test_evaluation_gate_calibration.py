@@ -136,3 +136,20 @@ def test_calibration_is_seeded_and_needs_two_seeds():
     assert calibration_report(pts, 200, 3, "x") == calibration_report(pts, 200, 3, "x")
     with pytest.raises(ValueError):
         calibration_report({1: pts[1]})
+
+
+def test_code_identity_change_forces_rerun(repo_root, tmp_path, monkeypatch):
+    CALLS.clear()
+    args = (repo_root, tmp_path, ["m0_well_specified"])
+    run_gate(*args, seed_subset=(1000, 1001), run_fn=counting_fake_run)
+    assert len(CALLS) == 4
+    rec = json.loads((tmp_path / "records/m0_well_specified/oracle/1000.json").read_text())
+    assert rec["identity"]["code_sha256"] == matrix.code_sha256()
+    monkeypatch.setattr(matrix, "_CODE_SHA256", "0" * 64)  # simulate an edited runner/planner
+    run_gate(*args, seed_subset=(1000, 1001), run_fn=counting_fake_run)
+    assert len(CALLS) == 8
+
+
+def test_code_sha256_is_stable_hex():
+    assert matrix.code_sha256() == matrix.code_sha256()
+    assert len(matrix.code_sha256()) == 64

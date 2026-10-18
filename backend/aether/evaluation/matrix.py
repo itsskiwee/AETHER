@@ -12,11 +12,13 @@ a compact, deterministic per-run record:
 
 Measured wall time is written to a separate, explicitly nondeterministic ``timing.jsonl``. Per-run
 records live at ``<out_dir>/records/<family>/<policy>/<seed>.json`` and are reused on a rerun
-only if their identity (config hashes, code version, policy, seed) matches exactly.
+only if their identity (config hashes, code SHA-256 of the imported package, policy, seed)
+matches exactly.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import platform
@@ -27,6 +29,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from time import perf_counter
 
+import aether
 from aether import __version__
 from aether.config import ScenarioBundle, load_scenario
 from aether.contracts.enums import PolicyId
@@ -65,6 +68,31 @@ def calibration_points(run, truth, cfg) -> list[list]:
     ]
 
 
+_CODE_SHA256: str | None = None
+
+
+def code_sha256() -> str:
+    """SHA-256 over every ``*.py`` file of the imported ``aether`` package (relative path + bytes).
+
+    This is the code that actually runs, so a runner/planner/belief edit changes the identity even
+    when ``__version__`` does not. Raises if the package source cannot be read: a record whose code
+    identity is unknown is never reused.
+    """
+    global _CODE_SHA256
+    if _CODE_SHA256 is None:
+        root = Path(aether.__file__).resolve().parent
+        files = sorted(p for p in root.rglob("*.py") if "__pycache__" not in p.parts)
+        if not files:
+            raise RuntimeError(f"cannot determine code identity: no sources under {root}")
+        h = hashlib.sha256()
+        for path in files:
+            rel = path.relative_to(root).as_posix().encode()
+            data = path.read_bytes()
+            h.update(len(rel).to_bytes(8, "little") + rel + len(data).to_bytes(8, "little") + data)
+        _CODE_SHA256 = h.hexdigest()
+    return _CODE_SHA256
+
+
 def _identity(bundle: ScenarioBundle, family: str, policy: str, seed: int) -> dict:
     return {
         "family": family,
@@ -73,6 +101,7 @@ def _identity(bundle: ScenarioBundle, family: str, policy: str, seed: int) -> di
         "model_config_hash": bundle.model.config_hash(),
         "truth_config_hash": bundle.truth.config_hash(),
         "code_version": __version__,
+        "code_sha256": code_sha256(),
     }
 
 
@@ -132,6 +161,7 @@ def execution_environment(repo: Path) -> dict:
         "git_commit": git("rev-parse", "HEAD"),
         "git_dirty_paths": (git("status", "--porcelain") or "").splitlines(),
         "code_version": __version__,
+        "code_sha256": code_sha256(),
         "python": platform.python_version(),
         "machine": platform.machine(),
         "cpu_count": os.cpu_count(),
