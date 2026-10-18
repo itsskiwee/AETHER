@@ -95,6 +95,8 @@ export default function App() {
   const [real, setReal] = useState<RealBundle | null>(null)
   const [realError, setRealError] = useState('')
   const [now, setNow] = useState(() => Date.now())
+  const [failed, setFailed] = useState<string[]>([])
+  const fail = (what: string) => setFailed(f => f.includes(what) ? f : [...f, what])
 
   const navigate = useCallback((next: View) => {
     setView(next); setMenu(false)
@@ -112,9 +114,9 @@ export default function App() {
       setRunId(previous => previous || runs.find(item => item.policy_id === 'adaptive_eig')?.run_id || runs[0]?.run_id || '')
       if (!runs.length) setRunError('No recorded simulation runs in this deployment.')
     }).catch(() => { if (!signal.aborted) setRunError('The simulation archive is unavailable. Real-data pages still work.') })
-    get<ProjectSnapshot>('/api/project', signal).then(p => setProject(p?.scenario?.id ? p : null)).catch(() => undefined)
-    get<BenchmarkRow[]>('/api/benchmark-results.csv', signal).then(r => setRows(Array.isArray(r) ? r : [])).catch(() => undefined)
-    get<BenchmarkReport>('/api/benchmark-confidence-intervals.json', signal).then(r => setReport(Array.isArray(r?.comparisons) ? r : null)).catch(() => undefined)
+    get<ProjectSnapshot>('/api/project', signal).then(p => { if (p?.scenario?.id) setProject(p); else fail('project') }).catch(() => { if (!signal.aborted) fail('project') })
+    get<BenchmarkRow[]>('/api/benchmark-results.csv', signal).then(r => setRows(Array.isArray(r) ? r : [])).catch(() => { if (!signal.aborted) fail('benchmark') })
+    get<BenchmarkReport>('/api/benchmark-confidence-intervals.json', signal).then(r => setReport(Array.isArray(r?.comparisons) ? r : null)).catch(() => { if (!signal.aborted) fail('benchmark') })
     get<BenchmarkProtocol>('/api/benchmark-protocol', signal).then(p => setProtocol(Array.isArray(p?.primary_comparison) ? p : null)).catch(() => undefined)
     return () => controller.abort()
   }, [])
@@ -141,7 +143,7 @@ export default function App() {
       <a className="skip-link" href="#cx-main">Skip to content</a>
       <aside className="cx-sidebar" aria-label="Navigation">
         <a className="cx-brand" href="/?view=globe"><b>AETHER</b><span>Earth observation planning research</span></a>
-        <a className="cx-globe-link" href="/?view=globe"><Icon name="globe" /><span>3D globe</span><small>LIVE VIEW</small></a>
+        <a className="cx-globe-link" href="/?view=globe"><Icon name="globe" /><span>3D globe</span></a>
         {(['real', 'sim'] as const).map(group => <nav key={group} aria-label={group === 'real' ? 'Real data' : 'Simulation'}>
           <div className={`cx-nav-group ${group}`}>{group === 'real' ? 'Real data' : 'Simulation'}</div>
           {views.filter(v => v[3] === group).map(([key, label, icon]) => <button key={key} className={`cx-nav ${view === key ? 'active' : ''}`} aria-current={view === key ? 'page' : undefined} onClick={() => navigate(key)}><Icon name={icon} /><span>{label}</span></button>)}
@@ -161,14 +163,24 @@ export default function App() {
           {view === 'passes' && <Passes real={real} realError={realError} now={now} />}
           {view === 'planner' && needRun(r => <PlannerStory run={r} />)}
           {view === 'beliefs' && needRun(r => <Page kind="sim" kicker="How the planner's knowledge changes" title="Beliefs" intro={<>For every source, the model keeps a probability that it is emitting now and a range for how much. A detection pushes the probability up, a valid non-detection pushes it down, and a missing or cloudy look changes nothing. Pick a source below to follow its history.</>}><div className="cx-legacy"><ScreenContent screen="D" run={r} benchmarks={rows} benchmarkState={rows.length ? 'ready' : 'empty'} report={report} reportState={report ? 'ready' : 'empty'} protocol={protocol} /></div></Page>)}
-          {view === 'comparison' && needRun(r => <PolicyTest run={r} rows={rows} report={report} protocol={protocol} />)}
-          {view === 'setup' && <Setup project={project} />}
+          {view === 'comparison' && needRun(r => <PolicyTest run={r} rows={rows} report={report} protocol={protocol} failed={failed.includes('benchmark')} />)}
+          {view === 'setup' && <Setup project={project} failed={failed.includes('project')} />}
           {view === 'evidence' && needRun(r => <Page kind="sim" kicker="Reproducibility" title="Evidence & exports" intro="Every recorded run can be downloaded as a hashed archive and re-verified offline. The manifest lists every input file and its SHA-256."><a className="cx-primary" href={`/api/runs/${encodeURIComponent(r.run_id)}/export`}><Icon name="download" /> Download verified run export</a><div className="cx-legacy"><ScreenContent screen="G" run={r} benchmarks={rows} benchmarkState={rows.length ? 'ready' : 'empty'} report={report} reportState={report ? 'ready' : 'empty'} protocol={protocol} /><RunManifest run={r} /></div></Page>)}
           <footer className="cx-footer"><span>AETHER · research prototype</span><span>Times in UTC · real-data bundle built {utc(real?.built_at_utc)}</span></footer>
         </main>
       </div>
     </div>
   )
+}
+
+function snapshotAge(real: RealBundle, now: number) {
+  const built = parse(real.real_passes.from_utc)
+  return { hours: (now - built) / 3600000, expired: now > built + real.real_passes.lookahead_hours * 3600000 }
+}
+function Freshness({ real, now }: { real: RealBundle; now: number }) {
+  const age = snapshotAge(real, now)
+  if (age.hours < 6) return null
+  return <div className="cx-warn" role="status">{age.expired ? 'These pass predictions have expired' : `These pass predictions are ${num(age.hours)} h old`}. Run <code>python -m scripts.build_globe_data</code> and rebuild the console to refresh them.</div>
 }
 
 function nextPass(real: RealBundle, now: number) {
@@ -183,16 +195,16 @@ function Overview({ real, realError, run, now, navigate }: { real: RealBundle | 
   const looks = run?.acquisitions.length ?? 0
   const violations = run ? run.validations.reduce((n, v) => n + v.violations.length, 0) : 0
   return <div className="cx-page">
-    <section className="cx-hero">
-      <div><span className="cx-kicker">PERMIAN BASIN · METHANE</span><h1>Where should methane-hunting satellites look next?</h1>
-        <p>Methane leaks switch on and off, and each satellite pass can only look at a few places. AETHER starts from real NASA EMIT plume observations and real satellite orbits, then tests, in a reproducible simulation, a planner that decides which site to look at next to learn the most.</p></div>
+    <header className="cx-page-head cx-head-row">
+      <div><span className="cx-kicker">Permian Basin · methane observation planning</span><h1>Overview</h1>
+        <p>Methane leaks switch on and off, and each satellite pass can only look at a few places. AETHER starts from real NASA EMIT plume observations and real satellite orbits, then tests in simulation a planner that chooses which site to look at next.</p></div>
       <a className="cx-primary" href="/?view=globe"><Icon name="globe" /> Open the 3D globe</a>
-    </section>
+    </header>
     {realError && <div className="cx-empty" role="alert">Real-data bundle unavailable: {realError}</div>}
     <div className="cx-stats">
       <Stat kind="real" label="Real EMIT plume observations" value={String(records.length || '—')} note={records.length ? `${quantified} with a provider emission rate · ${day(records.map(r => r.acquisition_time_utc).sort()[0])} to ${day(records.map(r => r.acquisition_time_utc).sort().slice(-1)[0])}` : 'Loading'} />
       <Stat kind="real" label="Newest EMIT plume granule over the Permian" value={latest ? day(latest.time_start) : '—'} note={latest ? `NASA CMR catalogue · ${real?.emit_recent.granules.length} newest listed` : real?.emit_recent.refresh_status ?? 'Loading'} />
-      <Stat kind="real" label="Next daylit real pass over a plume site" value={next ? next.satellite : '—'} note={next ? `${relative(parse(next.closest_utc) - now)} · ${next.sites_in_swath.length} of 20 sites in swath` : 'None in the look-ahead window'} />
+      <Stat kind="real" label="Next daylit real pass over a plume site" value={next ? next.satellite : '—'} note={next ? `${relative(parse(next.closest_utc) - now)} · ${next.sites_in_swath.length} of 20 sites in swath` : real && snapshotAge(real, now).expired ? 'Pass snapshot expired: rebuild to refresh' : 'None in the look-ahead window'} />
       <Stat kind="sim" label="Simulated looks by the planner" value={run ? String(looks) : '—'} note={run ? `${policyName(run.policy_id)} · ${violations} schedule-checker violations` : 'Loading'} />
     </div>
     <div className="cx-two">
@@ -215,7 +227,7 @@ function Overview({ real, realError, run, now, navigate }: { real: RealBundle | 
       <ul className="cx-list cx-status">
         <li><span className="cx-pill ok">PASSED</span>Data provenance, orbit geometry, an independent checker (0 violations), belief updates, byte-identical replay</li>
         <li><span className="cx-pill fail">FAILED</span>Capacity on the 72 h scenario: one pass supports only 2 looks (the minimum is 4)</li>
-        <li><span className="cx-pill fail">FAILED</span>Discriminability: on the 72 h scenario, even a truth-informed reference cannot beat random looks, so no planner comparison would be informative yet. A 168 h scenario is being tested now</li>
+        <li><span className="cx-pill fail">FAILED</span>Discriminability: on the 72 h scenario, even a truth-informed reference cannot beat random looks, so no planner comparison would be informative yet. A 168 h scenario is under evaluation (H3)</li>
         <li><span className="cx-pill wait">PENDING</span>Locked protocol and held-out benchmark. No claim that one planner beats another is made</li>
       </ul>
     </Card>
@@ -250,6 +262,7 @@ function Passes({ real, realError, now }: { real: RealBundle | null; realError: 
   const swath = real?.real_passes.swath_km ?? {}
   return <Page kind="real" kicker="CelesTrak orbital elements · SGP4 / Skyfield" title="Real satellite passes" intro={<>When will real Earth-observation satellites next fly over the 20 EMIT plume sites? A site counts when it falls inside the instrument's swath. Methane imaging in shortwave infrared needs sunlight, so night passes are marked. These are geometric opportunities from published orbits, not acquisitions and not tasking.</>}>
     {realError && <div className="cx-empty" role="alert">{realError}</div>}
+    {real && <Freshness real={real} now={now} />}
     <div className="cx-sat-grid">{sats.map(s => {
       const next = passes.find(p => p.norad_id === s.norad_id && parse(p.closest_utc) > now)
       const age = s.omm ? (now - parse(s.omm.EPOCH)) / 3600000 : NaN
@@ -297,21 +310,22 @@ function PlannerStory({ run }: { run: RunRecord }) {
   </Page>
 }
 
-function PolicyTest({ run, rows, report, protocol }: { run: RunRecord; rows: BenchmarkRow[]; report: BenchmarkReport | null; protocol: BenchmarkProtocol | null }) {
+function PolicyTest({ run, rows, report, protocol, failed }: { run: RunRecord; rows: BenchmarkRow[]; report: BenchmarkReport | null; protocol: BenchmarkProtocol | null; failed: boolean }) {
   return <Page kind="sim" kicker="Pre-registered benchmark" title="Policy test" intro={<>The question: does the adaptive planner learn the true state of the sources faster than simple rules, like "look at the biggest source first"? Every policy gets the same satellites, the same sources and the same hidden truth. They are scored by Brier score (lower is better). Before any comparison counts, a gate checks that the scenario can tell good planning from random looks at all.</>}>
     <Card title="Where the science stands">
       <ul className="cx-list cx-status">
         <li><span className="cx-pill fail">FAILED</span><b>Discriminability gate, 72 h scenario.</b> In all six test families (30 seeds each), a reference that can see the hidden truth scores almost the same as random looks. Comparing planners there would measure noise, so no comparison is claimed.</li>
-        <li><span className="cx-pill wait">RUNNING</span><b>168 h scenario</b> (60 sources, 16 passes): being evaluated on two machines now. If it passes the gate, it becomes the proposed benchmark scenario after review.</li>
+        <li><span className="cx-pill wait">UNDER EVALUATION</span><b>168 h scenario</b> (60 sources, 16 passes per 168 h): gate run on the tuning seeds started 18 Oct 2026. Adopting it as the benchmark is a recorded human decision (H3), not automatic.</li>
         <li><span className="cx-pill wait">PRELIMINARY</span><b>Two-seed comparison below</b>: shows the pipeline works. With 2 seeds it carries no statistical weight.</li>
       </ul>
     </Card>
+    {failed && <div className="cx-empty" role="alert">The recorded comparison files could not be loaded from the API, so the table below is incomplete.</div>}
     <div className="cx-legacy"><ScreenContent screen="F" run={run} benchmarks={rows} benchmarkState={rows.length ? 'ready' : 'empty'} report={report} reportState={report ? 'ready' : 'empty'} protocol={protocol} /></div>
   </Page>
 }
 
-function Setup({ project }: { project: ProjectSnapshot | null }) {
-  if (!project) return <div className="cx-empty">Loading the scenario configuration…</div>
+function Setup({ project, failed }: { project: ProjectSnapshot | null; failed: boolean }) {
+  if (!project) return <div className="cx-empty" role={failed ? 'alert' : 'status'}>{failed ? 'The scenario configuration could not be loaded from /api/project. Check that the API server is running.' : 'Loading the scenario configuration…'}</div>
   const s = project.sensors[0]
   return <Page kind="sim" kicker="Scenario" title="Setup" intro={`The simulated mission in one page: ${project.scenario.horizon_hours} hours over the Permian Basin, ${project.scenario.sources_count} source sites placed from the real EMIT records, and a virtual fleet.`}>
     <div className="cx-three">

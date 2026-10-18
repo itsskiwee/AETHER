@@ -12,7 +12,7 @@
 .globe-actions button[aria-pressed=true]{border-color:var(--g-real);color:var(--g-real)}
 .globe-primary{background:#1b715e;color:#fff;border-radius:7px;padding:8px 14px;font-size:12px;font-weight:600;text-decoration:none}
 .globe-shell :focus-visible{outline:3px solid var(--g-real);outline-offset:3px}
-.globe-panel{position:absolute;width:330px;max-width:calc(100vw - 32px);background:var(--g-panel);backdrop-filter:blur(8px);border:1px solid var(--g-line);border-radius:12px;padding:16px 18px;font-size:12px}
+.globe-panel{position:absolute;width:330px;max-width:calc(100vw - 32px);background:var(--g-panel);border:1px solid var(--g-line);border-radius:12px;padding:16px 18px;font-size:12px}
 .globe-real{left:24px;top:92px}
 .globe-sim{right:24px;top:92px}
 .globe-panel h2{font-size:16px;font-weight:600;margin:8px 0 4px}
