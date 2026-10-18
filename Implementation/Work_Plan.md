@@ -7,6 +7,39 @@ Read first: `AGENTS.md` (rules), `Implementation/Parameter_Register.md` (every n
 `Implementation/lessons.md` (review findings; closure status in Parameter_Register §0b),
 `backend/aether/*/__init__.py` (the interface each lane implements).
 
+## Completion batch, 18 Oct 2026: six-agent ownership (supersedes the lane table below)
+
+For the completion batch, ownership follows `Implementation/Six_Model_Completion_Prompt.md` and the gap list in `Implementation/Remaining_Work_Assessment_2026-10-18.md`. This replaces the agent assignment in "Lanes and assignment" below. It does not replace any scientific rule: `AGENTS.md`, the gates, checker independence, truth isolation and the Parameter Register all still bind. The original nine-lane build is finished and is not restarted. Task IDs below keep their original meaning.
+
+| Role | Owns (exclusive) | Original lanes |
+|---|---|---|
+| **Claude-1** (large) | `backend/aether/contracts/`, `config.py`, `rng.py`, `cli.py`, `simulation/runner.py`, `configs/`, root governance docs (`AGENTS.md`, `CLAUDE.md`, this file, `Implementation/Parameter_Register.md`, `Implementation/PRD_Amendments.md`), `.github/`, `scripts/demo.sh`, the P0 requirements-to-evidence matrix, run orchestration, merges to `main`. **Temporarily also owns the production planner** (`planning/cpsat.py`, `policies.py`, `greedy.py`, `context.py`) and the rest of `simulation/` and `weather/` for fixes routed from other roles | L1, L5, L6 |
+| **Claude-2** (large) | `backend/aether/sensors/`, `belief/`, `evaluation/`, `experiments/`, `docs/model-card-*.md`, `docs/validation-report.md`, `docs/experiment-protocol.md` | L2, L3 |
+| **Codex-1** (small) | `backend/aether/ingestion/`, `data/` (except `data/ephemeris/`, `data/eop/`), `DATA_LICENSES.md`, `CITATIONS.md`, `docs/ingestion-adapters.md`, ingestion tests | L7 |
+| **Codex-2** (small) | `backend/aether/orbit/`, `data/ephemeris/`, `data/eop/`, `scripts/build_orbit_candidate.py`, `docs/orbit-model-report.md`, orbit tests, window artifact generation | L4 |
+| **Codex-3** (small) | `backend/aether/planning/checker.py`, `backend/tests/golden/`, `scripts/feasibility/`, checker and geometry cross-validation tests | L8 |
+| **Codex-4** (small) | `frontend/`, `backend/aether/api/`, UI/API tests, `docs/demo-console.md`, comparison/walkthrough docs | L9 |
+
+Rules for this batch:
+
+1. Only Claude-1 merges to `main` or changes contracts, config, CLI or runner. Other roles open a request with a concrete failing example.
+2. Nobody edits another role's files. Send the owner an issue with a failing test or command.
+3. Each role works on its own branch (`lane/<TASK-ID>-short-name`) in its own worktree, and keeps `docs/lanes/completion-<role>.md` (for example `completion-claude-1.md`) with done/doing/blocked, changed files, checks run and evidence paths.
+4. Old `docs/lanes/L*.md` notes are history. Before acting on a "blocked" or "uncommitted" label there, check the current source and artifacts.
+5. Scope stays at amended P0. ERA5 replay, Carbon Mapper, operational tasking and raster flux inversion are out of scope unless the user requests them.
+6. Human participation is still required at G4.5 (scenario changes) and G5/G6 sign-off.
+
+Batch task IDs (new; acceptance in the completion prompt):
+
+| ID | Owner | Deliverable |
+|---|---|---|
+| DATA-01 | Codex-1 | Actual-schema EMIT parsing, full inventory, pinned 10–20-record Permian manifest and normalized regional input (interface: `docs/dataset-interface.md`) |
+| DATA-02 | Claude-1 | Wire the pinned dataset into `windows`, `simulate`, default benchmark and export; hash every input; report real-seeded vs uniform-fill counts |
+| PERF-01 | Claude-1 | Measured timing in a separate performance artifact; RunRecord bytes unchanged |
+| GATE-01 | Claude-2 (+ Claude-1 orchestration) | G4.5 on 30 development seeds, then power calculation and protocol lock bound to dataset/config/code identity |
+| CAP-01 | Codex-2 (+ Codex-3 confirmation) | G1-F evidence: ≥ 5 passes/72 h and ≥ 4 feasible acquisitions/pass on the integrated source scenario |
+| REL-01 | Claude-1 | P0 requirements-to-evidence matrix and final evidence package |
+
 ## Status of Wave 0 (done)
 
 Already in the repo and tested (`cd backend && pytest`, 32 passing):
