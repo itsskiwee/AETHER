@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Iterable
 from datetime import datetime
 from fractions import Fraction
-from typing import Iterable
 
 from aether.config import PlannerConfig, SpacecraftProfile
 from aether.contracts.models import (
@@ -64,16 +64,12 @@ def conflict_pairs(
             if not _can_sequence(wi, oi, wj, oj, profile):
                 pairs.add(tuple(sorted((oi.option_id, oj.option_id))))
         for wc, oc in fixed:
-            if wi.spacecraft_id == wc.spacecraft_id and not _can_sequence(
-                wi, oi, wc, oc, profile
-            ):
+            if wi.spacecraft_id == wc.spacecraft_id and not _can_sequence(wi, oi, wc, oc, profile):
                 pairs.add(tuple(sorted((oi.option_id, oc.option_id))))
     for i, (wi, oi) in enumerate(fixed):
         profile = spacecraft[wi.spacecraft_id]
         for wj, oj in fixed[i + 1 :]:
-            if wi.spacecraft_id == wj.spacecraft_id and not _can_sequence(
-                wi, oi, wj, oj, profile
-            ):
+            if wi.spacecraft_id == wj.spacecraft_id and not _can_sequence(wi, oi, wj, oj, profile):
                 raise ValueError(f"committed acquisitions conflict: {wi.id}, {wj.id}")
     return tuple(sorted(pairs))
 
@@ -86,13 +82,9 @@ def _can_sequence(
     profile: SpacecraftProfile,
 ) -> bool:
     if oi.end_utc <= oj.start_utc:
-        return (oj.start_utc - oi.end_utc).total_seconds() >= slew_time_s(
-            oi, oj, profile.attitude
-        )
+        return (oj.start_utc - oi.end_utc).total_seconds() >= slew_time_s(oi, oj, profile.attitude)
     if oj.end_utc <= oi.start_utc:
-        return (oi.start_utc - oj.end_utc).total_seconds() >= slew_time_s(
-            oj, oi, profile.attitude
-        )
+        return (oi.start_utc - oj.end_utc).total_seconds() >= slew_time_s(oj, oi, profile.attitude)
     return False
 
 
@@ -108,43 +100,87 @@ def can_add(
     planner_cfg: PlannerConfig,
     committed: tuple[ObservationWindow, ...],
     committed_selections: tuple[Selection, ...],
+    now_utc: datetime | None = None,
 ) -> bool:
     """Return whether adding one option preserves the same hard limits as CP-SAT."""
     same = [(w, o) for w, o in selected if w.spacecraft_id == window.spacecraft_id]
-    fixed = [(w, o) for w, o in resolve_committed(committed, committed_selections)
-             if w.spacecraft_id == window.spacecraft_id]
+    fixed = resolve_committed(committed, committed_selections)
     profile = spacecraft[window.spacecraft_id]
-    if any(not _can_sequence(window, option, w, o, profile) for w, o in (*same, *fixed)):
-        return False
-
-    all_acquisitions = [*selected, (window, option)]
-    if (
-        sum(w.source_id == window.source_id for w, _ in all_acquisitions)
-        > planner_cfg.max_visits_per_source_per_solve
+    if any(
+        w.spacecraft_id == window.spacecraft_id and not _can_sequence(window, option, w, o, profile)
+        for w, o in (*same, *fixed)
     ):
         return False
-    orbit_items = [(w, o) for w, o in all_acquisitions if w.spacecraft_id == window.spacecraft_id]
-    same_orbit = [(w, o) for w, o in orbit_items if w.orbit_number == window.orbit_number]
-    if len(same_orbit) > profile.resources.max_acquisitions_per_orbit:
+    if not _source_limit_ok(window, selected, fixed, planner_cfg, now_utc):
         return False
-    if sum(w.data_bytes for w, _ in same_orbit) > profile.resources.storage_bytes:
-        return False
+    return _resource_limits_ok(window, option, selected, fixed, spacecraft)
 
-    orbit_numbers = sorted({w.orbit_number for w, _ in orbit_items})
-    start_orbit = orbit_numbers[0] if orbit_numbers else window.orbit_number
-    prefix = [(w, o) for w, o in orbit_items if w.orbit_number <= window.orbit_number]
-    used = sum((_fraction(w.energy_wh) for w, _ in prefix), Fraction())
-    initial_wh = _fraction(profile.resources.battery_capacity_wh) * max(
-        Fraction(), _fraction(profile.resources.initial_state_of_charge)
-        - _fraction(profile.resources.min_state_of_charge)
+
+def _source_limit_ok(
+    candidate: ObservationWindow,
+    selected: list[tuple[ObservationWindow, AcquisitionOption]],
+    fixed: tuple[tuple[ObservationWindow, AcquisitionOption], ...],
+    planner_cfg: PlannerConfig,
+    now_utc: datetime | None = None,
+) -> bool:
+    visits = 1 + sum(w.source_id == candidate.source_id for w, _ in selected)
+    # PR-O03 is a per-solve cap: completed acquisitions retain resource/temporal
+    # effects, but no longer double-count this solve's information gain.
+    visits += sum(
+        w.source_id == candidate.source_id and (now_utc is None or o.end_utc > now_utc)
+        for w, o in fixed
     )
-    recharge = _fraction(profile.resources.orbit_average_recharge_wh)
-    available = min(
-        _fraction(profile.resources.battery_capacity_wh)
-        * (1 - _fraction(profile.resources.min_state_of_charge)),
-        initial_wh + (window.orbit_number - start_orbit) * recharge,
+    return visits <= planner_cfg.max_visits_per_source_per_solve
+
+
+def _resource_limits_ok(
+    candidate: ObservationWindow,
+    option: AcquisitionOption,
+    selected: list[tuple[ObservationWindow, AcquisitionOption]],
+    fixed: tuple[tuple[ObservationWindow, AcquisitionOption], ...],
+    spacecraft: dict[str, SpacecraftProfile],
+) -> bool:
+    profile = spacecraft[candidate.spacecraft_id]
+    acquisitions = [
+        (window, item)
+        for window, item in (*selected, *fixed)
+        if window.spacecraft_id == candidate.spacecraft_id
+    ]
+    acquisitions.append((candidate, option))
+    by_orbit: dict[int, list[ObservationWindow]] = defaultdict(list)
+    for window, _ in acquisitions:
+        by_orbit[window.orbit_number].append(window)
+
+    resources = profile.resources
+    for orbit_windows in by_orbit.values():
+        if len(orbit_windows) > resources.max_acquisitions_per_orbit:
+            return False
+        if sum(window.data_bytes for window in orbit_windows) > resources.storage_bytes:
+            return False
+
+    capacity_wh = _fraction(resources.battery_capacity_wh)
+    minimum_soc = _fraction(resources.min_state_of_charge)
+    available_wh = max(
+        Fraction(),
+        capacity_wh * (_fraction(resources.initial_state_of_charge) - minimum_soc),
     )
-    return used <= available
+    max_usable_wh = capacity_wh * (1 - minimum_soc)
+    recharge_wh = _fraction(resources.orbit_average_recharge_wh)
+    previous_orbit = None
+    for orbit in sorted(by_orbit):
+        if previous_orbit is not None:
+            available_wh = min(
+                max_usable_wh,
+                available_wh + (orbit - previous_orbit) * recharge_wh,
+            )
+        energy_used_wh = sum(
+            (_fraction(window.energy_wh) for window in by_orbit[orbit]), Fraction()
+        )
+        if energy_used_wh > available_wh:
+            return False
+        available_wh -= energy_used_wh
+        previous_orbit = orbit
+    return True
 
 
 def greedy_insert(
@@ -155,6 +191,7 @@ def greedy_insert(
     planner_cfg: PlannerConfig,
     committed: tuple[ObservationWindow, ...] | list[ObservationWindow],
     committed_selections: tuple[Selection, ...] | list[Selection] = (),
+    now_utc: datetime | None = None,
 ) -> tuple[tuple[Selection, ...], dict[str, datetime]]:
     """Try windows in the supplied order, choosing the earliest feasible option per window."""
     by_id = {window.id: window for window in windows if window.feasible}
@@ -166,12 +203,22 @@ def greedy_insert(
         if window is None or window_id in selected_windows:
             continue
         utility = utilities.get(window_id)
-        if utility is None or utility.expected_info_gain_bits < planner_cfg.min_utility_bits:
+        if (
+            utility is None
+            or utility.expected_info_gain_bits < planner_cfg.min_utility_bits
+            or utility.integer_utility <= 0
+        ):
             continue
         for option in sorted(window.options, key=lambda item: (item.start_utc, item.option_id)):
             if can_add(
-                window, option, selected, spacecraft, planner_cfg,
-                committed, tuple(committed_selections),
+                window,
+                option,
+                selected,
+                spacecraft,
+                planner_cfg,
+                committed,
+                tuple(committed_selections),
+                now_utc,
             ):
                 selected.append((window, option))
                 selected_windows.add(window_id)
@@ -205,7 +252,7 @@ def build_heuristic_plan(
         solver_status="HEURISTIC",
         objective_value=None,
         best_bound=None,
-        runtime_s=0.0,
+        runtime_s=None,
     )
 
 
@@ -217,6 +264,7 @@ def rejection_reasons(
     spacecraft: dict[str, SpacecraftProfile] | None = None,
     committed: Iterable[ObservationWindow] = (),
     committed_selections: Iterable[Selection] = (),
+    now_utc: datetime | None = None,
 ) -> dict[str, str]:
     """Explain each unselected candidate using the planner's closed explanation vocabulary."""
     windows = tuple(windows)
@@ -234,60 +282,42 @@ def rejection_reasons(
         if option is not None:
             chosen.append((window, option))
     fixed = resolve_committed(committed, committed_selections)
-    selected_sources = [w.source_id for w, _ in chosen]
     reasons: dict[str, str] = {}
     for window in windows:
         if window.id in selected_windows:
             continue
         if not window.feasible:
             reason = "INFEASIBLE"
-        elif window.id not in utilities or utilities[window.id].expected_info_gain_bits < planner_cfg.min_utility_bits:
-            reason = "LOW_GAIN"
-        elif selected_sources.count(window.source_id) >= planner_cfg.max_visits_per_source_per_solve:
-            reason = "SOURCE_LIMIT"
-        elif spacecraft is not None and _budget_limited(
-            window, chosen, committed, tuple(committed_selections), spacecraft
+        elif (
+            window.id not in utilities
+            or utilities[window.id].expected_info_gain_bits < planner_cfg.min_utility_bits
+            or utilities[window.id].integer_utility <= 0
         ):
-            reason = "BUDGET"
+            reason = "LOW_GAIN"
         else:
-            reason = "CONFLICT"
+            option_reasons = []
+            if spacecraft is None:
+                option_reasons = ["NOT_SELECTED"] * len(window.options)
+            else:
+                profile = spacecraft[window.spacecraft_id]
+                for option in window.options:
+                    temporal_conflict = any(
+                        other_window.spacecraft_id == window.spacecraft_id
+                        and not _can_sequence(window, option, other_window, other_option, profile)
+                        for other_window, other_option in (*chosen, *fixed)
+                    )
+                    if temporal_conflict:
+                        option_reasons.append("CONFLICT")
+                    elif not _source_limit_ok(window, chosen, fixed, planner_cfg, now_utc):
+                        option_reasons.append("SOURCE_LIMIT")
+                    elif not _resource_limits_ok(window, option, chosen, fixed, spacecraft):
+                        option_reasons.append("BUDGET")
+                    else:
+                        option_reasons.append("NOT_SELECTED")
+            reason = (
+                option_reasons[0]
+                if option_reasons and len(set(option_reasons)) == 1
+                else "NOT_SELECTED"
+            )
         reasons[window.id] = reason
     return reasons
-
-
-def _budget_limited(
-    candidate: ObservationWindow,
-    chosen: list[tuple[ObservationWindow, AcquisitionOption]],
-    committed: tuple[ObservationWindow, ...],
-    committed_selections: tuple[Selection, ...],
-    spacecraft: dict[str, SpacecraftProfile],
-) -> bool:
-    profile = spacecraft[candidate.spacecraft_id]
-    fixed = [
-        (w, o) for w, o in resolve_committed(committed, committed_selections)
-        if w.spacecraft_id == candidate.spacecraft_id
-    ]
-    all_items = [
-        *(item for item in chosen if item[0].spacecraft_id == candidate.spacecraft_id),
-        *fixed,
-    ]
-    all_items.append((candidate, candidate.options[0]))
-    same_orbit = [w for w, _ in all_items if w.orbit_number == candidate.orbit_number]
-    if len(same_orbit) > profile.resources.max_acquisitions_per_orbit:
-        return True
-    if sum(w.data_bytes for w in same_orbit) > profile.resources.storage_bytes:
-        return True
-    first_orbit = min(w.orbit_number for w, _ in all_items)
-    prefix = [w for w, _ in all_items if w.orbit_number <= candidate.orbit_number]
-    used = sum((_fraction(w.energy_wh) for w in prefix), Fraction())
-    capacity = _fraction(profile.resources.battery_capacity_wh)
-    minimum = _fraction(profile.resources.min_state_of_charge)
-    initial = capacity * max(Fraction(), _fraction(profile.resources.initial_state_of_charge) - minimum)
-    available = min(
-        capacity * (1 - minimum),
-        initial
-        + (candidate.orbit_number - first_orbit)
-        * _fraction(profile.resources.orbit_average_recharge_wh),
-    )
-    return used > available
-

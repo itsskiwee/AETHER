@@ -27,21 +27,21 @@ Represent what the planner believes about each source hypothesis (provenance `MO
 
 ### Cusworth et al. 2021 [S16]: what could be checked
 
-The journal paper (ES&T Letters 8(7):567–573, DOI 10.1021/acs.estlett.1c00173) is paywalled (HTTP 403 from this environment). Verified from public sources:
+The publisher's primary article page and abstract are accessible. The methods and results describe persistence as `f = M/N`: detected plume count divided by overflight count at a source. The summary includes 1,100 sources with at least three overflights (average eight), and reports mean persistence 0.26; sources are initially identified because they produced a detected plume. The paper also reports persistence falling between one and three overflights and stabilizing within 1σ of 0.26 for N ≥ 3. This is a selected, detection-conditioned sample, not a direct estimate of the unconditional stationary active fraction of all facilities. The paper's definition does **not** support treating 0.26 as a direct calibration target for the regime-mixture π.
 
 | Fact | Value | Source |
 |---|---|---|
 | Survey | ~55 000–57 000 km² of the Permian, Sep–Nov 2019, airborne imaging spectrometers | EGU21-13824 abstract; NASA/JPL release (2 Jun 2021) |
-| Average persistence | **26 %** | EGU21-13824 abstract ("CH4 sources exhibited 26% persistence on average"); the journal text was **not** checked |
+| Average persistence | **26 %** for sources with ≥3 airborne overflights | Cusworth et al. publisher article page, Methods and Results |
 | Sources seen on ≥ 3 flights | 1 100; most persistent class 123 (plumes on 50–100 % of revisits, ~29 % of detected CH₄); next 258 (~23 %); remaining ~2/3 (~48 %) | NASA/JPL release |
 | Heavy tail | 20 % of facilities emit 60 % of the point-source budget | EGU21-13824 abstract |
 | Detection threshold of the campaign | ~10 kg/h ("super-emitter" definition) | NASA/JPL release |
 
-Links: https://meetingorganizer.copernicus.org/EGU21/EGU21-13824.html · https://www.jpl.nasa.gov/news/study-identifies-methane-super-emitters-in-largest-us-oilfield/
+Primary source: [Cusworth et al. 2021, ACS publisher article](https://pubs.acs.org/doi/10.1021/acs.estlett.1c00173). Supporting overview: https://www.jpl.nasa.gov/news/study-identifies-methane-super-emitters-in-largest-us-oilfield/.
 
 ### Finding: the register's consistency argument doesn't hold as written
 
-The register (§4) argues "detection persistence ≈ π × POD < π, so a modelled mean π of 0.29 is consistent with ~0.26 observed." That compares a population-average activity fraction with a statistic that can only be computed **for sources the survey detected at least once**. The selection inflates the observed fraction.
+The register's former argument that "mean π = 0.29 is consistent with ~0.26" compared a population-average activity fraction with a detection-conditioned statistic. The publisher's article confirms that persistence is M/N over overflights for detected source locations, with inclusion requiring at least three overflights. The selection and finite revisit schedules mean the observed average is not the unconditional π. It is also not a simple `π × POD` statistic: the campaign used source-specific detection counts and revisit denominators, and the published methods do not furnish a single effective POD or uniform revisit schedule with which to invert the value.
 
 Model analogue (exact enumeration over detection histories, POD = 1 because the airborne limit of ~10 kg/h is far below the 300 kg/h median; `persistence_check.py`, reproduced below):
 
@@ -52,19 +52,29 @@ Model analogue (exact enumeration over detection histories, POD = 1 because the 
 | 5 | 72 h | 0.47 | 0.78 |
 | 8 | 24 h | 0.42 | 0.61 |
 
-So under the most likely reading of "persistence", the PR-P20..P22 regimes imply roughly **0.42–0.59**, not ~0.26. Matching 26 % would need far less activity: more episodic weight and/or shorter on-periods. The unconditional mean π of 0.29 only matches if Cusworth's 26 % is averaged over every surveyed site, including never-detected ones. The abstract's wording suggests it isn't.
+This enumeration is a **sensitivity diagnostic**, not a reproduction of the study: it assumes regular revisit spacings, a single detection probability, and a source population drawn from the AETHER regime mixture. It cannot be used to infer that the paper's value implies a particular AETHER π. It does show that the current model produces higher detected revisit fractions in these simplified cases.
 
 Options:
 
 | Option | Effect | Risk |
 |---|---|---|
-| (a) Keep PR-P20..P22 and correct the register's claim to "not verified; may overstate persistence by ~2×" | No code change; honest | Benchmark may be more persistent (easier for adaptive revisits) than the Permian |
-| (b) Recalibrate the regimes so the selected-source statistic ≈ 0.26 for the paper's revisit counts | Literature-consistent | Needs the paper's exact definition and revisit distribution (paywalled). Lower persistence reduces discriminability (gate G4.5) |
-| (c) Keep (a) as m0 and add a lower-persistence family | Shows sensitivity directly | One more family in the multiplicity correction |
+| (a) Keep PR-P20..P22 as scenario assumptions and report the 0.26 comparison as non-like-for-like | Does not silently convert a detection statistic into unconditional activity; no benchmark-scope change | Does not validate those regime parameters |
+| (b) Recalibrate the regimes to reproduce the study's selected-source M/N statistic | Could provide a targeted phenomenological match | Requires matching source selection, overflight counts/timing, detectability and source distribution; 0.26 alone does not identify those parameters |
+| (c) Add an alternate persistence family after defining a separate calibration target | Makes sensitivity explicit | Changes benchmark scope and multiplicity family; requires approval and a protocol amendment |
 
-**Decision (17 Oct 2026, L1 + L2):** (a) done (Register §4 "known mismatch"; PR-P20..P22 marked "[A] may overstate persistence (SCI-08)"), (c) adopted with `m1_persistence_wrong` as the lower-persistence sensitivity family, (b) deferred until the paper's methods have been read. L1 reproduced the numbers independently and added: m1 gives 0.42 at POD = 1 and 0.33 at POD = 0.6; with no persistent sources at all, 0.36 / 0.29. Reaching ~0.26 therefore needs both less persistence **and** an airborne POD below 1, not just a weight change. Whether to add a calibrated family (m5) before the protocol lock is with the user and L3.
+**Current recommendation (17 Oct 2026):** retain the existing regime values and benchmark scope pending approval; describe them as unverified assumptions and do not claim they are calibrated to Cusworth's 0.26. Keep the existing m1 sensitivity family as defined, without treating it as a fitted alternative. A dedicated recalibration or new family is a separate protocol decision. The model card's previous claim that the selection-adjusted value was roughly 0.42–0.59 is superseded as a calibration interpretation; retain that enumeration only as a toy-model diagnostic, not evidence of a twofold discrepancy.
 
-**Original recommendation:** (a) now, plus (c). The existing `m1_persistence_wrong` family already shifts mass toward EPISODIC in truth, which covers part of (c). Do (b) only after someone reads the paper's methods section. This is a judgment call for L1/L3 and the user, so I haven't changed any config value. PR-P20..P22 stay **[A]**.
+**Approval needed:** Should the benchmark retain its existing m0 regime assumptions and scope (recommended), or should L1/L3 define a new calibrated scenario/family and update the protocol before lock? No parameter or benchmark scope has been changed here. PR-P20..P22 remain **[A]**.
+
+## Truncated flux prior implementation evidence
+
+`simulation/truth.py` draws each source's static flux with an inverse-CDF transform between the
+truncated lognormal CDF limits. The belief integrates the same truncated density into its log-flux
+grid (PR-B06). This removes the endpoint atoms caused by clipping. Deterministic acceptance
+evidence is in `tests/unit/test_simulation_science.py`: a 5,000-source keyed sample is checked with
+a one-sample KS test against the truncated CDF, endpoint equality is rejected, repeated seeds are
+compared exactly, and reordering source inputs must not change a source's draw. These tests have
+been added but could not be executed in this environment because pytest is not installed.
 
 ### EMIT fixture comparison (flux prior PR-P10)
 

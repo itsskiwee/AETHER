@@ -8,7 +8,9 @@ from aether.contracts import (
     AcquisitionOption,
     BeliefSnapshot,
     ObservationOutcome,
+    ObservationWindow,
     SimulatedAcquisition,
+    acquisition_option_id,
 )
 from aether.rng import derive_seed, keyed_rng
 
@@ -16,12 +18,21 @@ T0 = datetime(2026, 10, 17, tzinfo=UTC)
 
 
 def _acq(**kw):
-    base = dict(id="a1", option_id="w1#0", window_id="w1", source_id="s1",
-                spacecraft_id="vsat_a", sensor_id="vs_a_point_source",
-                time_utc=datetime(2026, 10, 17, tzinfo=UTC),
-                outcome=ObservationOutcome.VALID_NON_DETECTION, measured_flux_kg_h=None,
-                off_nadir_deg=12.0, wind_estimate_m_s=3.0, scene_cloud_fraction=0.1,
-                rng_key="k")
+    base = dict(
+        id="a1",
+        option_id="w1#0",
+        window_id="w1",
+        source_id="s1",
+        spacecraft_id="vsat_a",
+        sensor_id="vs_a_point_source",
+        time_utc=datetime(2026, 10, 17, tzinfo=UTC),
+        outcome=ObservationOutcome.VALID_NON_DETECTION,
+        measured_flux_kg_h=None,
+        off_nadir_deg=12.0,
+        wind_estimate_m_s=3.0,
+        scene_cloud_fraction=0.1,
+        rng_key="k",
+    )
     base.update(kw)
     return SimulatedAcquisition(**base)
 
@@ -66,21 +77,68 @@ def test_acquisition_carries_no_true_environment():
 
 
 def test_option_requires_unit_los_and_id_format():
-    good = dict(id="w1#0", window_id="w1", index=0, start_utc=T0,
-                end_utc=T0.replace(second=3), off_nadir_deg=5.0, sun_elevation_deg=40.0,
-                los_unit_ecef=(1.0, 0.0, 0.0))
-    AcquisitionOption(**good)
+    good = dict(
+        option_id=acquisition_option_id("w1", T0),
+        window_id="w1",
+        start_utc=T0,
+        end_utc=T0.replace(second=3),
+        off_nadir_deg=5.0,
+        sun_elevation_deg=40.0,
+        los_unit_ecef=(1.0, 0.0, 0.0),
+    )
+    assert AcquisitionOption(**good).end_los_unit_ecef is None
+    with_end = AcquisitionOption(**{**good, "end_los_unit_ecef": (0.0, 1.0, 0.0)})
+    assert AcquisitionOption.model_validate_json(with_end.model_dump_json()) == with_end
+    with pytest.raises(ValidationError):
+        AcquisitionOption(**{**good, "end_los_unit_ecef": (2.0, 0.0, 0.0)})
     with pytest.raises(ValidationError):
         AcquisitionOption(**{**good, "los_unit_ecef": (2.0, 0.0, 0.0)})
     with pytest.raises(ValidationError):
-        AcquisitionOption(**{**good, "id": "w1-0"})
+        AcquisitionOption(**{**good, "option_id": "w1-0"})
+
+
+def test_window_rejects_options_with_the_same_start_time():
+    option = AcquisitionOption(
+        option_id=acquisition_option_id("w1", T0),
+        window_id="w1",
+        start_utc=T0,
+        end_utc=T0.replace(second=3),
+        off_nadir_deg=5.0,
+        sun_elevation_deg=40.0,
+        los_unit_ecef=(1.0, 0.0, 0.0),
+    )
+    with pytest.raises(ValidationError, match="option IDs must be unique"):
+        ObservationWindow(
+            id="w1",
+            spacecraft_id="sat",
+            sensor_id="sensor",
+            source_id="s1",
+            start_utc=T0,
+            end_utc=T0.replace(second=3),
+            pass_id="pass",
+            orbit_number=1,
+            feasible=True,
+            min_off_nadir_deg=5.0,
+            options=(option, option),
+            duration_s=3.0,
+            energy_wh=1.0,
+            data_bytes=1,
+        )
 
 
 def test_belief_snapshot_coherence():
-    good = dict(source_id="s1", state_time_utc=T0, p_active=0.3,
-                regime_probs={"PERSISTENT": 0.2, "INTERMITTENT": 0.5, "EPISODIC": 0.3},
-                flux_median_kg_h=300.0, flux_ci90_kg_h=(80.0, 1500.0), entropy_bits=0.88,
-                model_version="t", evidence_ids=(), received_new_evidence=False)
+    good = dict(
+        source_id="s1",
+        state_time_utc=T0,
+        p_active=0.3,
+        regime_probs={"PERSISTENT": 0.2, "INTERMITTENT": 0.5, "EPISODIC": 0.3},
+        flux_median_kg_h=300.0,
+        flux_ci90_kg_h=(80.0, 1500.0),
+        entropy_bits=0.88,
+        model_version="t",
+        evidence_ids=(),
+        received_new_evidence=False,
+    )
     BeliefSnapshot(**good)
     with pytest.raises(ValidationError):
         BeliefSnapshot(**{**good, "regime_probs": {"PERSISTENT": 0.9, "EPISODIC": 0.3}})

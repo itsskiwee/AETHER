@@ -1,0 +1,12 @@
+.archive-marker{display:inline-block;width:6px;height:6px;background:#aeb5ad;margin-right:8px;vertical-align:1px}
+.verdict-panel{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:13px;align-items:center;background:#fff;border:1px solid var(--line);padding:15px 17px;margin:0 0 22px}
+.verdict-pass{border-left:3px solid #587965}.verdict-not-met{border-left:3px solid #a98252}
+.verdict-seal{width:32px;height:32px;border:1px solid #d8dfd8;border-radius:50%;display:grid;place-items:center;color:#596c5f;font:16px Georgia}
+.verdict-pass .verdict-seal{color:#3e6f50;background:#f0f5f1}.verdict-copy h2,.comparison-heading h2{font:400 17px Newsreader,Georgia,serif;margin:4px 0;color:#354139}
+.verdict-copy p{font-size:10px;line-height:1.55;color:#626a63;margin:3px 0 0}
+.verdict-meta{display:grid;gap:5px;text-align:right;font:10px var(--mono);letter-spacing:.06em;color:#626962}.verdict-meta strong{font:500 13px var(--mono);color:#354139}
+.comparison-heading{display:flex;align-items:end;justify-content:space-between;gap:12px;margin:5px 1px 10px}.comparison-heading h2{font-size:19px}.comparison-heading>.mono{color:#636b64;font-size:10px}
+.comparison-panel{overflow:hidden}.interval-state{font:10px var(--mono);letter-spacing:.025em;padding:5px 6px;border:1px solid #d9dfd9;display:inline-block;white-space:normal;line-height:1.35}
+.interval-state.favours-a{color:#2f5a3b;background:#f0f5f1;border-color:#2f5a3b}.interval-state.favours-b{color:#7a3b2e;background:#faf1ee;border:1px dashed #7a3b2e}.interval-state.neutral{color:#606b62;background:#f7f8f6}.interval-state.insufficient{color:#835a2c;background:#faf4e9;border-color:#e5d5b8}
+.table-footnote{font-size:11px;color:#565f57;line-height:1.5;padding:0 12px 11px;margin:7px 0 0}.aggregate-panel{margin-top:14px;overflow:hidden}
+@media(max-width:760px){.verdict-panel{grid-template-columns:34px minmax(0,1fr);padding:12px}.verdict-meta{grid-column:2;text-align:left;display:flex;align-items:center;gap:8px}.comparison-heading{align-items:flex-start;flex-direction:column}}

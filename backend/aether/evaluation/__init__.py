@@ -18,4 +18,7 @@ Interface (tasks EVL-01..EVL-08; definitions and decisions in docs/validation-re
     reference.capacity_report, reference.gate_report   (G4.5)
     benchmark.benchmark(protocol_path, seeds_path, out_dir, run_fn=default_run_fn) -> dict
         writes benchmark-runs.csv, benchmark-results.csv, benchmark-confidence-intervals.json
+    development.development_comparison(repo, out_dir, seeds=(1000,)) -> dict
+        base.yaml only, approved development seeds, preliminary evaluator artifacts and measured
+        complete-run wall time in a separate nondeterministic sidecar; never a holdout verdict
 """

@@ -11,7 +11,12 @@ import numpy as np
 import pytest
 
 from aether.contracts import BeliefSnapshot, PolicyId, Regime, RunRecord, Source
-from aether.evaluation.benchmark import benchmark
+from aether.evaluation.benchmark import (
+    MISSPECIFIED_FAMILIES,
+    _compare,
+    benchmark,
+    metric_direction,
+)
 from aether.evaluation.metrics import evaluation_times
 from aether.evaluation.protocol import ProtocolLockError
 from aether.rng import keyed_rng
@@ -92,17 +97,69 @@ def test_undefined_recall_is_excluded_and_counted(report):
     assert all(c["n_excluded_undefined"] == 0 and c["n_pairs"] == 30 for c in rec)
 
 
+def test_undefined_pairs_are_excluded_not_zeroed():
+    rows = [{"family": "f", "policy": pol, "seed": seed, "m": val}
+            for seed, (va, vb) in enumerate([(0.5, 0.25), (None, 0.5), (1.0, 0.5), (0.75, None)])
+            for pol, val in (("a", va), ("b", vb))]  # fmt: skip
+    c = _compare(rows, "f", "a", "b", "m", resamples=100, level=0.95, seed=1)
+    assert (c["n_pairs"], c["n_excluded_undefined"]) == (2, 2)
+    assert c["result"]["mean_diff"] == pytest.approx(0.375)  # (0.25 + 0.5) / 2, no zero-filling
+    one = _compare(rows[:4], "f", "a", "b", "m", resamples=100, level=0.95, seed=1)
+    assert one["result"] is None and "insufficient" in one["note"]
+
+
+def test_comparisons_state_direction_and_holm(report):
+    rep, _ = report
+    dirs = {c["metric"]: c["better_direction"] for c in rep["comparisons"]}
+    assert dirs == {"brier_active_state": "lower", "high_impact_recall_at_5": "higher"}
+    assert set(rep["holm_primary"]) == set(MISSPECIFIED_FAMILIES)
+    assert all(h["reject"] for h in rep["holm_primary"].values())
+    assert metric_direction("flux_interval_coverage_90") is None  # has a target, not a direction
+
+
 def test_holdout_refused_while_protocol_unlocked(repo_root, tmp_path):
     with pytest.raises(ProtocolLockError):
         holdout = repo_root / "experiments/seeds_holdout.txt"
         benchmark(repo_root / "experiments/protocol.yaml", holdout, tmp_path, run_fn=fake_run)
 
 
-def test_mislabelled_run_rejected(repo_root, tmp_path):
+@pytest.mark.parametrize(
+    "update",
+    [{"policy_id": PolicyId.ORACLE}, {"family": "m1_persistence_wrong"}, {"seed": -1}],
+    ids=["policy", "family", "seed"],
+)
+def test_mislabelled_run_rejected(repo_root, tmp_path, update):
     def wrong(bundle, policy, seed):
         run, truth = fake_run(bundle, policy, seed)
-        return run.model_copy(update={"policy_id": PolicyId.ORACLE}), truth
+        return run.model_copy(update=update), truth
 
     with pytest.raises(RuntimeError, match="mislabelled"):
         benchmark(repo_root / "experiments/protocol.yaml",
                   repo_root / "experiments/seeds_dev.txt", tmp_path, run_fn=wrong)  # fmt: skip
+
+
+def test_development_comparison_is_preliminary_and_round_trippable(repo_root, tmp_path):
+    from aether.evaluation.development import POLICIES, development_comparison
+
+    report = development_comparison(repo_root, tmp_path, (1000, 1001), run_fn=fake_run)
+    assert report["preliminary"] and report["insufficient_samples"]
+    assert "insufficient samples" in report["note"]
+    assert report["success_verdict"] is None
+    assert {c["b"] for c in report["comparisons"]} == {"largest_first", "greedy_eig"}
+    assert all(c["n_pairs"] == 2 and c["result"] for c in report["comparisons"])
+    runs = [RunRecord.model_validate_json(p.read_text()) for p in tmp_path.glob("*/run.json")]
+    assert len(runs) == 2 * len(POLICIES)
+    timing = json.loads((tmp_path / "development-timing.json").read_text())
+    assert timing["complete_comparison_elapsed_s"] > 0
+    assert all(r["complete_run_elapsed_s"] > 0 for r in timing["runs"])
+
+
+@pytest.mark.parametrize("seeds", [(), (1000, 1000), (2000,)])
+def test_development_comparison_rejects_unapproved_seeds_before_running(repo_root, tmp_path, seeds):
+    from aether.evaluation.development import development_comparison
+
+    def forbidden(*args):
+        pytest.fail("runner must not execute for rejected seed request")
+
+    with pytest.raises(ValueError, match="approved development seeds"):
+        development_comparison(repo_root, tmp_path, seeds, run_fn=forbidden)

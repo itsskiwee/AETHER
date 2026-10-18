@@ -13,7 +13,8 @@ Public API
     Parse Carbon Mapper plume GeoJSON/API FeatureCollections. ``emission_auto`` and
     ``emission_uncertainty_auto`` are accepted only with the documented kg/hr meaning.
 ``sha256_file(path)``, ``build_manifest(...)``, ``plumes_in_region(...)``,
-``cluster_to_sources(plumes, min_separation_m)``
+``cluster_to_sources(plumes, min_separation_m)``,
+``build_sources(cfg, plumes=(), seed=None)``
 
 Malformed features produce row-level diagnostics and are excluded. No missing plume record is
 interpreted as a non-detection or as an acquisition. Every accepted feature retains its original
@@ -26,14 +27,16 @@ import hashlib
 import json
 import math
 import re
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Iterable, Mapping
+from typing import Any
 
-from aether.config import RegionConfig
+from aether.config import RegionConfig, ScenarioConfig
 from aether.contracts.enums import MissingReason, UncertaintyKind
 from aether.contracts.models import DataSource, PlumeObservation, Source
+from aether.rng import keyed_rng
 
 ADAPTER_VERSION = "aether-ingestion/0.1.0"
 TRANSFORMATION_VERSION = "aether-geojson-normalization/1"
@@ -272,9 +275,7 @@ def plumes_in_region(
     ]
 
 
-def cluster_to_sources(
-    plumes: Iterable[PlumeObservation], min_separation_m: float
-) -> list[Source]:
+def cluster_to_sources(plumes: Iterable[PlumeObservation], min_separation_m: float) -> list[Source]:
     """Deterministically group nearby plume centroids into unattributed source hypotheses.
 
     Connected components are used: every pair joined by a chain of distances at or below the
@@ -329,6 +330,62 @@ def cluster_to_sources(
     return result
 
 
+def build_sources(
+    cfg: ScenarioConfig,
+    plumes: Iterable[PlumeObservation] = (),
+    seed: int | None = None,
+) -> list[Source]:
+    """Construct the configured source set by clustering real plumes, then seeded uniform fill.
+
+    Runner interface: pass the model scenario, validated plume records available to the run (or
+    an empty iterable), and the run seed. Random fill is uniform in the configured longitude and
+    latitude bounds; candidates violating minimum WGS84 geodesic separation are rejected.
+    """
+    source_cfg = cfg.sources
+    seed = cfg.random_seed if seed is None else seed
+    selected: list[Source] = []
+    if source_cfg.placement == "emit_fixture_then_uniform":
+        selected = cluster_to_sources(
+            plumes_in_region(plumes, cfg.region), source_cfg.min_separation_m
+        )
+    selected = sorted(selected, key=lambda source: source.id)[: source_cfg.count]
+    if len(selected) == source_cfg.count:
+        return selected
+
+    if _WGS84_GEOD is None and source_cfg.min_separation_m > 0:
+        raise RuntimeError(
+            "build_sources requires the optional geo dependencies for minimum-separation "
+            "sampling; install aether[geo]"
+        )
+    lon_min, lat_min, lon_max, lat_max = cfg.region.bbox_wgs84
+    rng = keyed_rng(seed, "placement")
+    selected_ids = {source.id for source in selected}
+    while len(selected) < source_cfg.count:
+        index = len(selected)
+        lon = float(rng.uniform(lon_min, lon_max))
+        lat = float(rng.uniform(lat_min, lat_max))
+        if source_cfg.min_separation_m > 0 and any(
+            _distance_m(lon, lat, existing.lon, existing.lat) < source_cfg.min_separation_m
+            for existing in selected
+        ):
+            continue
+        source_id = f"source-uniform-{index:04d}"
+        while source_id in selected_ids:
+            index += 1
+            source_id = f"source-uniform-{index:04d}"
+        selected.append(
+            Source(
+                id=source_id,
+                lon=lon,
+                lat=lat,
+                seeded_from_plume_id=None,
+                attribution_status="UNATTRIBUTED",
+            )
+        )
+        selected_ids.add(source_id)
+    return selected
+
+
 class _RowError(ValueError):
     def __init__(self, code: str, message: str):
         super().__init__(message)
@@ -370,9 +427,7 @@ def _read_features(
             )
         ]
     if not isinstance(features, list):
-        return [], [
-            IngestDiagnostic(None, None, "INVALID_DOCUMENT", "features must be an array")
-        ]
+        return [], [IngestDiagnostic(None, None, "INVALID_DOCUMENT", "features must be an array")]
     valid_features = []
     for row, feature in enumerate(features):
         if not isinstance(feature, dict) or feature.get("type") != "Feature":
@@ -432,9 +487,9 @@ def _is_example_only(path: str | Path) -> bool:
     metadata = document.get("metadata") if isinstance(document, dict) else None
     if not isinstance(metadata, dict):
         return False
-    return metadata.get("synthetic") is True or str(
-        metadata.get("fixture_status", "")
-    ).startswith("EXAMPLE_ONLY")
+    return metadata.get("synthetic") is True or str(metadata.get("fixture_status", "")).startswith(
+        "EXAMPLE_ONLY"
+    )
 
 
 def _as_feature(record: Any) -> dict[str, Any]:
@@ -506,9 +561,7 @@ def _validate_geometry(value: Any) -> dict[str, Any]:
     return value
 
 
-def _feature_geometry(
-    feature: Mapping[str, Any], props: Mapping[str, Any]
-) -> dict[str, Any]:
+def _feature_geometry(feature: Mapping[str, Any], props: Mapping[str, Any]) -> dict[str, Any]:
     geometry = feature.get("geometry")
     if geometry is not None:
         return geometry
@@ -630,8 +683,7 @@ def _emit_time_from_filename(name: str) -> datetime | None:
 
 def _number(value: Any) -> float | None:
     if value is None or (
-        isinstance(value, str)
-        and value.strip().upper() in {"", "N/A", "NA", "NULL", "NONE"}
+        isinstance(value, str) and value.strip().upper() in {"", "N/A", "NA", "NULL", "NONE"}
     ):
         return None
     if isinstance(value, bool):
@@ -743,6 +795,7 @@ __all__ = [
     "TRANSFORMATION_VERSION",
     "IngestDiagnostic",
     "build_manifest",
+    "build_sources",
     "cluster_to_sources",
     "parse_carbon_mapper_geojson",
     "parse_emit_plume_geojson",

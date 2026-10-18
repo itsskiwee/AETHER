@@ -10,9 +10,10 @@ holdout result means something.
 2. **Gate G4.5.** Run `random_feasible` and `oracle` on the tuning seeds and record the verdict in
    `docs/validation-report.md` §3. If it fails, change the **scenario** (sources, capacity,
    horizon), never the planner.
-3. **Fix open inputs.** Set the minimum effect for the seed-count rule, pick the holdout seed count
-   from the tuning-seed SD, and settle any metric decision in validation-report §1.1 that a
-   reviewer wants changed.
+3. **Fix open inputs.** The user approved a minimum absolute paired Brier difference of **0.01**
+   for the 80% power seed-count rule on 17 Oct 2026. Once tuning-seed SD is available, calculate and
+   report the required holdout count (capped at the pre-registered budget of 100). Settle any metric
+   decision in validation-report §1.1 that a reviewer wants changed before locking.
 4. **Lock.** Set `locked: true`, commit `experiments/protocol.yaml`, then tag that commit
    (for example `git tag protocol-v1-locked`). Only the user or L1 commits.
 5. **Holdout.** `benchmark(protocol, experiments/seeds_holdout.txt, out_dir)` now runs.

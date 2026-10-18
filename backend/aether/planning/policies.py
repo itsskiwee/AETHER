@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from datetime import timedelta
 from typing import Protocol
 
 from aether.contracts.enums import PolicyId
@@ -34,10 +35,17 @@ class _GreedyPolicy:
             ctx.cfg.planner,
             ctx.committed,
             ctx.committed_selections,
+            now_utc=ctx.now_utc,
         )
         self.last_rejection_reasons = rejection_reasons(
-            ctx.windows, selected, ctx.utilities, ctx.cfg.planner,
-            ctx.cfg.spacecraft, ctx.committed, ctx.committed_selections,
+            ctx.windows,
+            selected,
+            ctx.utilities,
+            ctx.cfg.planner,
+            ctx.cfg.spacecraft,
+            ctx.committed,
+            ctx.committed_selections,
+            now_utc=ctx.now_utc,
         )
         return build_heuristic_plan(
             run_id=ctx.run_id,
@@ -57,23 +65,31 @@ class FirstFeasible(_GreedyPolicy):
     def plan(self, ctx: PlanningContext) -> Plan:
         rate = ctx.cfg.evaluation.first_feasible_request_rate_per_source_per_day
         horizon_days = ctx.cfg.planner.lookahead_hours / 24.0
-        rng = keyed_rng(ctx.cfg.random_seed, "requests")
-        first_request: dict[str, float] = {}
+        first_request = {}
         sources = sorted({window.source_id for window in ctx.windows})
         for source_id in sources:
+            rng = keyed_rng(ctx.cfg.random_seed, "requests", source_id)
             count = int(rng.poisson(rate * horizon_days))
             arrivals = sorted(float(value) for value in rng.uniform(0.0, horizon_days, count))
             if arrivals:
-                first_request[source_id] = arrivals[0]
-        source_order = sorted(sources, key=lambda s: (first_request.get(s, float("inf")), s))
+                first_request[source_id] = ctx.now_utc + timedelta(days=arrivals[0])
+        source_order = sorted(sources, key=lambda s: (first_request.get(s, ctx.now_utc), s))
         by_source: dict[str, list] = defaultdict(list)
         for window in ctx.windows:
-            by_source[window.source_id].append(window)
+            if window.source_id in first_request:
+                request_time = first_request[window.source_id]
+                if any(option.start_utc >= request_time for option in window.options):
+                    by_source[window.source_id].append(window)
         ordered_ids = [
             window.id
             for source_id in source_order
-            for window in sorted(by_source[source_id], key=lambda w: (w.start_utc, w.id))
-            if source_id in first_request
+            for window in sorted(
+                by_source[source_id],
+                key=lambda w: (
+                    min(o.start_utc for o in w.options if o.start_utc >= first_request[source_id]),
+                    w.id,
+                ),
+            )
         ]
         return self._greedy(ctx, ordered_ids)
 
@@ -107,15 +123,14 @@ class StaticPriority:
     def plan(self, ctx: PlanningContext) -> Plan:
         if ctx.revision == 0:
             initial: dict[str, list[CandidateUtility]] = defaultdict(list)
-            for window in ctx.windows:
+            for window in sorted(ctx.windows, key=lambda item: item.id):
                 if window.id in ctx.utilities:
                     initial[window.source_id].append(ctx.utilities[window.id])
             self._priority_by_source = {
                 source_id: max(
-                    ((u.expected_info_gain_bits, u.integer_utility) for u in utilities),
-                    key=lambda pair: pair[0],
+                    ((u.expected_info_gain_bits, u.integer_utility) for u in source_utilities),
                 )
-                for source_id, utilities in initial.items()
+                for source_id, source_utilities in sorted(initial.items())
             }
         static_utilities = {}
         source_for_window = {window.id: window.source_id for window in ctx.windows}
@@ -136,8 +151,14 @@ class StaticPriority:
             )
         plan, _ = _cp_plan(ctx, self.policy_id, static_utilities)
         self.last_rejection_reasons = rejection_reasons(
-            ctx.windows, plan.selections, static_utilities, ctx.cfg.planner,
-            ctx.cfg.spacecraft, ctx.committed, ctx.committed_selections,
+            ctx.windows,
+            plan.selections,
+            static_utilities,
+            ctx.cfg.planner,
+            ctx.cfg.spacecraft,
+            ctx.committed,
+            ctx.committed_selections,
+            now_utc=ctx.now_utc,
         )
         return plan
 
@@ -151,8 +172,14 @@ class AdaptiveEig:
     def plan(self, ctx: PlanningContext) -> Plan:
         plan, _ = _cp_plan(ctx, self.policy_id, ctx.utilities)
         self.last_rejection_reasons = rejection_reasons(
-            ctx.windows, plan.selections, ctx.utilities, ctx.cfg.planner,
-            ctx.cfg.spacecraft, ctx.committed, ctx.committed_selections,
+            ctx.windows,
+            plan.selections,
+            ctx.utilities,
+            ctx.cfg.planner,
+            ctx.cfg.spacecraft,
+            ctx.committed,
+            ctx.committed_selections,
+            now_utc=ctx.now_utc,
         )
         return plan
 
@@ -176,7 +203,7 @@ class RandomFeasible(_GreedyPolicy):
 
     def plan(self, ctx: PlanningContext) -> Plan:
         rng = keyed_rng(ctx.cfg.random_seed, "reference", self.policy_id.value)
-        order = [w.id for w in ctx.windows]
+        order = sorted(w.id for w in ctx.windows)
         if order:
             order = [order[index] for index in rng.permutation(len(order))]
         return self._greedy(ctx, order)
@@ -208,4 +235,3 @@ __all__ = [
     "RandomFeasible",
     "StaticPriority",
 ]
-

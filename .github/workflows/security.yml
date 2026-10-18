@@ -57,8 +57,12 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e '.[dev,geo,api]' pip-audit==2.10.1
       - name: Audit installed environment
-        # The local aether package is not on PyPI, so skip it rather than fail on "not found".
-        run: pip-audit --strict --progress-spinner off --skip-editable
+        # Exclude the local AETHER checkout from the requirements input. pip-audit 2.10.1 emits
+        # SkippedDependency for editable packages, and --strict intentionally fails on any such
+        # skip; using --skip-editable and --strict together therefore fails before auditing.
+        run: |
+          python -m pip freeze --exclude-editable > /tmp/aether-audit-requirements.txt
+          pip-audit --strict --progress-spinner off -r /tmp/aether-audit-requirements.txt
 
   policy:
     name: security policy tests

@@ -1,0 +1,66 @@
+import { expect, test } from '@playwright/test'
+
+// Opt-in acceptance against the running API and real simulator archive. No route mocks.
+// Start scripts/serve-demo.sh, then run AETHER_LIVE_SMOKE=1 npm run test:e2e -- live-artifacts.
+test('actual demo artifacts replay through production console and API', async ({ page, request }) => {
+  test.skip(process.env.AETHER_LIVE_SMOKE !== '1', 'Requires generated demo and running artifact API')
+  const pageErrors: string[] = []
+  page.on('pageerror', (error) => pageErrors.push(error.message))
+  const indexResponse = await request.get('/api/runs')
+  expect(indexResponse.ok()).toBeTruthy()
+  const index = await indexResponse.json()
+  await page.goto('/')
+  await expect(page.getByText('SIMULATED MISSION', { exact: true })).toBeVisible()
+  for (const policy of ['largest_first', 'adaptive_eig']) {
+    const entry = index.find((item: { policy_id: string; seed: number }) => item.policy_id === policy && item.seed === 1000)
+    expect(entry, `Actual seed 1000 ${policy} run`).toBeTruthy()
+    const response = await request.get(`/api/runs/${entry.run_id}`)
+    expect(response.ok()).toBeTruthy()
+    const run = await response.json()
+    expect(run.code_version).not.toContain('fixture')
+    expect(run.plans.length).toBeGreaterThan(0)
+    expect(run.validations).toHaveLength(run.plans.length)
+    expect(run.validations.every((item: { ok: boolean; violations: unknown[] }) => item.ok && item.violations.length === 0)).toBeTruthy()
+    expect(run.acquisitions.length).toBeGreaterThan(0)
+    await page.getByLabel('Select archived run').selectOption(entry.run_id)
+    await expect.poll(() => new URL(page.url()).searchParams.get('run')).toBe(entry.run_id)
+    await expect(page.locator('main')).not.toContainText('Reading run archive')
+    await page.getByRole('navigation').getByRole('button', { name: /Windows/ }).click()
+    await expect(page.getByRole('table', { name: 'Observation window details' })).toBeVisible()
+    await page.getByRole('navigation').getByRole('button', { name: /Planner/ }).click()
+    const injected = run.events.find((event: { event_type: string; payload: { injected?: boolean } }) => event.event_type === 'FORECAST_REVISED' && event.payload.injected === true)
+    expect(injected, 'Scripted forecast injection must be recorded').toBeTruthy()
+    const revision = run.plans.find((plan: { cause: string; created_at_sim_utc: string }) => plan.cause === 'forecast_revision' && Date.parse(plan.created_at_sim_utc) === Date.parse(injected.event_time_sim_utc))
+    expect(revision).toBeTruthy()
+    await page.getByLabel('PLAN REVISION').selectOption(String(revision.revision))
+    await expect(page.locator('main')).toContainText('forecast_revision')
+    await expect(page.locator('main')).toContainText('0 violations')
+    await page.getByText(/Recorded forecast events/).click()
+    await expect(page.getByRole('table', { name: 'Recorded forecast revisions' })).toContainText('FORECAST_REVISED')
+    await expect(page.getByRole('table', { name: 'Recorded forecast revisions' })).toContainText('"injected":true')
+    await page.getByRole('navigation').getByRole('button', { name: /Beliefs/ }).click()
+    await page.getByRole('combobox', { name: 'Select source', exact: true }).selectOption(run.acquisitions[0].source_id)
+    await expect(page.getByRole('table', { name: 'Evidence and acquisition outcomes' })).toBeVisible()
+    await expect(page.locator('main')).not.toContainText('NaN')
+  }
+  await page.getByRole('navigation').getByRole('button', { name: /Comparison/ }).click()
+  const comparison = await request.get('/api/benchmark-confidence-intervals.json')
+  expect(comparison.ok(), 'Actual evaluator comparison must be available').toBeTruthy()
+  const report = await comparison.json()
+  expect(report.comparisons.length).toBeGreaterThan(0)
+  await expect(page.locator('main')).toContainText('TUNING SEEDS')
+  const table = page.getByRole('table', { name: 'Paired benchmark comparisons with confidence intervals, direction and protocol role' })
+  await expect(table).toBeVisible()
+  for (const item of report.comparisons.filter((item: { metric: string }) => item.metric === 'brier_active_state')) {
+    const row = table.getByRole('row').filter({ hasText: `${item.a} − ${item.b}` }).filter({ hasText: item.family }).filter({ hasText: 'brier active state' })
+    await expect(row).toContainText(String(item.n_pairs))
+    if (item.result == null) await expect(row).toContainText('no interval')
+    else {
+      const number = new Intl.NumberFormat('en-CA', { maximumFractionDigits: 4 })
+      await expect(row).toContainText(number.format(item.result.mean_diff))
+      await expect(row).toContainText(`[${number.format(item.result.lo)}, ${number.format(item.result.hi)}]`)
+    }
+  }
+  if (report.n_seeds < 10) await expect(page.locator('main')).toContainText('INSUFFICIENT SAMPLES')
+  expect(pageErrors).toEqual([])
+})

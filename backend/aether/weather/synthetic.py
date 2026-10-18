@@ -20,9 +20,7 @@ class WeatherModel(Protocol):
 
     def wind_truth(self, source_id: str, t_utc: datetime) -> float: ...
 
-    def cloud_forecast(
-        self, source_id: str, t_utc: datetime, issued_at_utc: datetime
-    ) -> float: ...
+    def cloud_forecast(self, source_id: str, t_utc: datetime, issued_at_utc: datetime) -> float: ...
 
     def wind_forecast(self, source_id: str, t_utc: datetime, issued_at_utc: datetime) -> float: ...
 
@@ -111,9 +109,7 @@ class SyntheticWeather:
             return np.empty((0, 0))
         coords = np.asarray([[s.lon, s.lat] for s in self.sources], dtype=float)
         lat0 = math.radians(float(np.mean(coords[:, 1])))
-        xy_km = np.column_stack(
-            (coords[:, 0] * 111.32 * math.cos(lat0), coords[:, 1] * 110.57)
-        )
+        xy_km = np.column_stack((coords[:, 0] * 111.32 * math.cos(lat0), coords[:, 1] * 110.57))
         distances = np.linalg.norm(xy_km[:, None, :] - xy_km[None, :, :], axis=2)
         covariance = np.exp(-distances / self.truth_cfg.cloud.spatial_corr_length_km)
         eigenvalues, eigenvectors = np.linalg.eigh(covariance)
@@ -148,9 +144,7 @@ class SyntheticWeather:
             latent[:, h] = phi * latent[:, h - 1] + innovation_scale * (
                 self._spatial_factor @ rng.standard_normal(len(self.sources))
             )
-        field[:] = np.clip(
-            cfg.median_m_s * np.exp(cfg.sigma_ln * latent), cfg.min_m_s, cfg.max_m_s
-        )
+        field[:] = np.clip(cfg.median_m_s * np.exp(cfg.sigma_ln * latent), cfg.min_m_s, cfg.max_m_s)
         return field
 
     def _index_and_fraction(self, t_utc: datetime) -> tuple[int, float]:
@@ -194,7 +188,15 @@ class SyntheticWeather:
             raise ValueError("weather times must be timezone-aware")
         interval_s = self.model_cfg.forecast.issue_interval_hours * 3600.0
         elapsed_s = (now_utc - self.epoch_utc).total_seconds()
-        return self.epoch_utc + timedelta(seconds=math.floor(elapsed_s / interval_s) * interval_s)
+        regular = self.epoch_utc + timedelta(
+            seconds=math.floor(elapsed_s / interval_s) * interval_s
+        )
+        injections = (
+            self.epoch_utc + timedelta(hours=event.at_hour)
+            for event in self.truth_events
+            if event.at_hour * 3600.0 <= elapsed_s
+        )
+        return max([regular, *injections])
 
     def _check_issue(self, issued_at_utc: datetime) -> None:
         if issued_at_utc.tzinfo is None or issued_at_utc.utcoffset() is None:
@@ -202,12 +204,20 @@ class SyntheticWeather:
         if issued_at_utc > self.epoch_utc + timedelta(hours=self.horizon_hours):
             raise IndexError("forecast issue is outside weather horizon")
 
-    def cloud_forecast(
-        self, source_id: str, t_utc: datetime, issued_at_utc: datetime
-    ) -> float:
+    def cloud_forecast(self, source_id: str, t_utc: datetime, issued_at_utc: datetime) -> float:
         self._check_issue(issued_at_utc)
         event = self._active_event(source_id, t_utc)
-        if event is not None:
+        # A scripted revision is new information at injection time, never a forecast of a
+        # future intervention. Before that time use the unmodified synthetic cloud field.
+        known_event = any(
+            item.target_source_index == self._source_index[source_id]
+            and self.epoch_utc + timedelta(hours=item.at_hour) <= issued_at_utc
+            and item.at_hour
+            <= _utc_hours(t_utc - self.epoch_utc)
+            < item.at_hour + item.duration_hours
+            for item in self.truth_events
+        )
+        if event is not None and known_event:
             return event
         issue = self.latest_issue_time(issued_at_utc)
         lead_h = max(0.0, _utc_hours(t_utc - issue))
@@ -224,22 +234,20 @@ class SyntheticWeather:
             issue.isoformat(),
             t_utc.isoformat(),
         )
-        logit = _logit(self.cloud_truth(source_id, t_utc)) + rng.normal(0.0, sigma)
+        baseline_cloud = float(expit(self._at(self._cloud, source_id, t_utc)))
+        logit = _logit(baseline_cloud) + rng.normal(0.0, sigma)
         return float(expit(logit))
 
-    def wind_forecast(
-        self, source_id: str, t_utc: datetime, issued_at_utc: datetime
-    ) -> float:
+    def wind_forecast(self, source_id: str, t_utc: datetime, issued_at_utc: datetime) -> float:
         self._check_issue(issued_at_utc)
         if source_id not in self._source_index:
             raise KeyError(f"unknown source {source_id!r}")
         issue = self.latest_issue_time(issued_at_utc)
         valid_h_index = int(max(0.0, _utc_hours(t_utc - self.epoch_utc)))
         valid_hour = self.epoch_utc + timedelta(hours=valid_h_index)
-        lead_h = max(0.0, _utc_hours(valid_hour - issue))
-        sigma = min(0.25 + 0.005 * lead_h, 0.45)  # [A] PR-W14, pending register entry from L1
-        if self._family == "m3_forecast_overconfident":
-            sigma *= 2.0
+        # PR-B04 uses the registered flat PR-W13 uncertainty for planning-time wind forecasts;
+        # a separate lead-dependent forecast parameter has not been approved or registered.
+        sigma = self.truth_cfg.wind.analysis_error_sigma_ln
         key = (issue.isoformat(), valid_hour.isoformat())
         if key not in self._wind_forecast_errors:
             rng = keyed_rng(self.seed, "wind_forecast", *key)
@@ -260,7 +268,11 @@ class SyntheticWeather:
         """Return the noisy post-acquisition wind estimate; never expose truth to inference."""
         sigma = self.truth_cfg.wind.analysis_error_sigma_ln
         rng = keyed_rng(
-            self.seed, "weather", "wind_analysis", source_id, t_utc.replace(minute=0, second=0, microsecond=0).isoformat()
+            self.seed,
+            "weather",
+            "wind_analysis",
+            source_id,
+            t_utc.replace(minute=0, second=0, microsecond=0).isoformat(),
         )
         return float(
             np.clip(
@@ -300,6 +312,9 @@ def build_synthetic_weather(
     seed: int | None = None,
 ) -> SyntheticWeather:
     """Build synthetic weather; truth and forecast config views may differ by family."""
-    if cfg_truth.weather.type != "synthetic_scenario" or model_cfg.weather.type != "synthetic_scenario":
+    if (
+        cfg_truth.weather.type != "synthetic_scenario"
+        or model_cfg.weather.type != "synthetic_scenario"
+    ):
         raise ValueError("build_synthetic_weather requires synthetic_scenario weather configs")
     return SyntheticWeather(cfg_truth, sources, model_cfg=model_cfg, seed=seed)

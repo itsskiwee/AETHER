@@ -160,3 +160,44 @@ def test_brier_reduction_values_persistent_over_episodic(cfg):
     r_per = _brier(per, SourceBelief.prior("s0", per), 18, evals, 40)
     r_epi = _brier(epi, SourceBelief.prior("s0", epi), 18, evals, 40)
     assert r_per > 5 * r_epi
+
+
+def test_brier_reduction_matches_independent_enumeration_oracle(cfg):
+    """Enumerate each model state and category, then propagate each posterior to eval times."""
+    b = SourceBelief.prior("s0", cfg).predict(_at(cfg, 18))
+    sensor = cfg.sensors[SENSOR_ID]
+    wind, cloud, theta = 4.0, 0.3, 10.0
+    at_h, eval_h, next_h = 18, (18, 24, 30), 36
+    pv = p_valid(sensor, cloud, theta, 40.0)
+    pod_grid = b.model.pod_active(sensor, wind, theta)
+    p_detection = np.stack([np.full_like(pod_grid, sensor.false_positive_prob), pod_grid], axis=0)
+    category_tensors = []
+    for likelihood in (p_detection, 1.0 - p_detection):
+        category_tensors.append(b.tensor * likelihood[None, :, :])
+
+    oracle = 0.0
+    for tau_h in eval_h:
+        steps = b.model.step_matrices(tau_h - at_h)
+        baseline = np.einsum("rab,rag->rbg", steps, b.tensor)
+        p0 = float(baseline[:, 1, :].sum() / baseline.sum())
+        expected_risk = 0.0
+        for category, likelihood in enumerate((p_detection, 1.0 - p_detection)):
+            mass = 0.0
+            active_mass = 0.0
+            for r in range(b.tensor.shape[0]):
+                for z in range(2):
+                    for g in range(b.tensor.shape[2]):
+                        mass += b.tensor[r, z, g] * likelihood[z, g]
+                        if z == 1:
+                            active_mass += b.tensor[r, z, g] * likelihood[z, g]
+            if mass == 0:
+                continue
+            posterior_at = category_tensors[category] / mass
+            posterior_tau = np.einsum("rab,rag->rbg", steps, posterior_at)
+            p_tau = float(posterior_tau[:, 1, :].sum())
+            expected_risk += mass * p_tau * (1.0 - p_tau)
+            assert 0.0 <= active_mass <= mass
+        oracle += p0 * (1.0 - p0) - expected_risk
+    oracle *= pv
+    actual = _brier(cfg, b, at_h, eval_h, next_h, wind=wind, cloud=cloud)
+    assert actual == pytest.approx(oracle, abs=1e-12)

@@ -10,9 +10,17 @@ Rules:
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from typing import Annotated
+from typing import Annotated, Any
 
-from pydantic import AfterValidator, BaseModel, ConfigDict, Field, computed_field, model_validator
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    ConfigDict,
+    Field,
+    ModelWrapValidatorHandler,
+    computed_field,
+    model_validator,
+)
 
 from aether.contracts.enums import (
     AcquisitionStatus,
@@ -40,6 +48,71 @@ Probability = Annotated[float, Field(ge=0.0, le=1.0, allow_inf_nan=False)]
 
 class Contract(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
+
+    @model_validator(mode="after")
+    def _freeze_nested_mappings(self):
+        """Freeze dict fields recursively; Pydantic's frozen flag is otherwise shallow."""
+        for name in type(self).model_fields:
+            value = getattr(self, name)
+            if isinstance(value, dict) and not isinstance(value, FrozenDict):
+                object.__setattr__(self, name, FrozenDict(value))
+        return self
+
+
+class FrozenDict(dict):
+    """JSON-serializable mapping that rejects normal mutation at every nested level."""
+
+    def __init__(self, value=()):
+        dict.__init__(
+            self,
+            (
+                (key, _freeze_json_value(item))
+                for key, item in sorted(dict(value).items(), key=lambda pair: str(pair[0]))
+            ),
+        )
+
+    def __setitem__(self, key, value):
+        raise TypeError("contract mappings are immutable")
+
+    def __delitem__(self, key):
+        raise TypeError("contract mappings are immutable")
+
+    def clear(self):
+        raise TypeError("contract mappings are immutable")
+
+    def pop(self, *args, **kwargs):
+        raise TypeError("contract mappings are immutable")
+
+    def popitem(self):
+        raise TypeError("contract mappings are immutable")
+
+    def setdefault(self, *args, **kwargs):
+        raise TypeError("contract mappings are immutable")
+
+    def update(self, *args, **kwargs):
+        raise TypeError("contract mappings are immutable")
+
+    def __ior__(self, other):
+        raise TypeError("contract mappings are immutable")
+
+
+def _freeze_json_value(value):
+    if isinstance(value, dict):
+        return FrozenDict(value)
+    if isinstance(value, (list, tuple)):
+        return tuple(_freeze_json_value(item) for item in value)
+    return value
+
+
+def revalidate_contract(value: Contract) -> Contract:
+    """Re-run the concrete schema and invariants at an inter-lane hand-off.
+
+    ``model_copy(update=...)`` intentionally skips Pydantic validation. Consumers must call this
+    helper before trusting a contract received across a boundary.
+    """
+    if not isinstance(value, Contract):
+        raise TypeError(f"expected a Contract, got {type(value).__name__}")
+    return type(value).model_validate(value.model_dump(mode="python"))
 
 
 # --- Real data -------------------------------------------------------------------------------
@@ -143,7 +216,8 @@ class AcquisitionOption(Contract):
     end_utc: UtcDatetime  # start + sensor exposure
     off_nadir_deg: float
     sun_elevation_deg: float
-    los_unit_ecef: tuple[float, float, float]
+    los_unit_ecef: tuple[float, float, float]  # exposure start
+    end_los_unit_ecef: tuple[float, float, float] | None = None
 
     @model_validator(mode="after")
     def _consistent(self) -> AcquisitionOption:
@@ -152,6 +226,8 @@ class AcquisitionOption(Contract):
         if self.end_utc <= self.start_utc:
             raise ValueError("end_utc must be after start_utc")
         _check_unit(self.los_unit_ecef)
+        if self.end_los_unit_ecef is not None:
+            _check_unit(self.end_los_unit_ecef)
         return self
 
 
@@ -210,7 +286,7 @@ class CandidateUtility(Contract):
     """Objective components computed BEFORE the solve (PRD FR-OPT-001)."""
 
     window_id: str
-    plan_revision: int
+    plan_revision: int = Field(ge=0)
     expected_info_gain_bits: float
     decision_relevance: float
     latency_s: float
@@ -228,7 +304,7 @@ class Selection(Contract):
 class Plan(Contract):
     run_id: str
     policy_id: PolicyId
-    revision: int
+    revision: int = Field(ge=0)
     created_at_sim_utc: UtcDatetime
     cause: str
     objective_weights: dict[str, float]
@@ -237,8 +313,25 @@ class Plan(Contract):
     solver_status: SolverStatus
     objective_value: float | None
     best_bound: float | None
-    runtime_s: float
+    runtime_s: float | None = Field(default=None, ge=0, allow_inf_nan=False)
     validation_ok: bool | None = None  # set by the independent checker, never by the solver
+
+    @model_validator(mode="wrap")
+    @classmethod
+    def _validate_selected_window_ids(
+        cls, value: Any, handler: ModelWrapValidatorHandler[Plan]
+    ) -> Plan:
+        if isinstance(value, dict) and "selected_window_ids" in value:
+            value = value.copy()
+            selected_window_ids = value.pop("selected_window_ids")
+            plan = handler(value)
+            if (
+                not isinstance(selected_window_ids, (list, tuple))
+                or tuple(selected_window_ids) != plan.selected_window_ids
+            ):
+                raise ValueError("selected_window_ids must match selections in order")
+            return plan
+        return handler(value)
 
     @model_validator(mode="after")
     def _unique_selected_windows(self) -> Plan:
@@ -260,7 +353,7 @@ class ScheduleViolation(Contract):
 
 
 class ScheduleValidation(Contract):
-    plan_revision: int
+    plan_revision: int = Field(ge=0)
     ok: bool
     violations: tuple[ScheduleViolation, ...]
     checker_version: str
@@ -328,7 +421,7 @@ class BeliefSnapshot(Contract):
 class RunEvent(Contract):
     event_id: str
     run_id: str
-    sequence_number: int
+    sequence_number: int = Field(ge=1)
     event_time_sim_utc: UtcDatetime
     event_type: EventType
     actor: str
@@ -348,7 +441,7 @@ class RunRecord(Contract):
     policy_id: PolicyId
     scenario_id: str
     family: str
-    seed: int
+    seed: int = Field(ge=0)
     model_config_hash: str
     truth_config_hash: str
     code_version: str

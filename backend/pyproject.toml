@@ -22,7 +22,12 @@ dependencies = [
 [project.optional-dependencies]
 geo = ["shapely>=2.0", "pyproj>=3.6"]
 api = ["fastapi>=0.110", "uvicorn>=0.29"]
-dev = ["pytest>=8.0", "hypothesis>=6.100", "ruff>=0.5"]
+dev = [
+  "pytest>=8.0",
+  "hypothesis>=6.100",
+  "ruff>=0.5",
+  "httpx>=0.28.1",
+]
 
 [project.scripts]
 aether = "aether.cli:main"

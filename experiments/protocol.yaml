@@ -33,8 +33,8 @@ analysis:
   resamples: 10000
   level: 0.95
 multiplicity: holm_bonferroni across families m1..m4 at family-wise alpha 0.05
-seed_count_rule: holdout seed count fixed from the tuning-seed variance of the paired difference
-  (power 0.8 for a pre-stated minimum effect); 100 is the default upper budget
+seed_count_rule: choose holdout seed count from tuning-seed SD of the paired difference for 80%
+  power at a minimum absolute paired Brier difference of 0.01; 100 is the default upper budget
 success_criterion: >
   adaptive_eig has a negative paired Brier difference vs largest_first with the 95% CI excluding 0
   on m0 AND on at least 2 of {m1, m2, m3, m4} after Holm correction, with zero checker violations.
