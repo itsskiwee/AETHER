@@ -142,6 +142,7 @@ def test_development_comparison_is_preliminary_and_round_trippable(repo_root, tm
     from aether.evaluation.development import POLICIES, development_comparison
 
     report = development_comparison(repo_root, tmp_path, (1000, 1001), run_fn=fake_run)
+    assert report["input_datasets"] == [None]  # the fake runs carry no dataset reference
     assert report["preliminary"] and report["insufficient_samples"]
     assert "insufficient samples" in report["note"]
     assert report["success_verdict"] is None

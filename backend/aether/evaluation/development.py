@@ -49,6 +49,7 @@ def development_comparison(
         raise ValueError("request unique, approved development seeds only")
     base = repo / "configs/base.yaml"
     rows, timings = [], []
+    datasets: set[str] = set()  # the pinned plume dataset each run actually used (DATA-02)
     score_keys: list[str] = []
     out_dir.mkdir(parents=True, exist_ok=True)
     started = perf_counter()
@@ -72,6 +73,9 @@ def development_comparison(
             encoded = run.model_dump_json()
             RunRecord.model_validate_json(encoded)
             scores = score_run(run, truth, bundle.model)
+            ref = getattr(run, "input_dataset", None)
+            datasets.add(json.dumps(None if ref is None else ref.model_dump(mode="json"),
+                                    sort_keys=True))  # fmt: skip
             if scores["plans_without_validation"] or scores["feasibility_checker_violations"]:
                 raise RuntimeError(f"run {run.run_id} failed independent schedule validation")
             run_dir = out_dir / run.run_id
@@ -144,6 +148,7 @@ def development_comparison(
         "lock_tag": None,
         "base_config": "configs/base.yaml",
         "config_hashes": config_hashes,
+        "input_datasets": [json.loads(d) for d in sorted(datasets)],
         "seeds": list(seeds),
         "n_seeds": len(seeds),
         "preliminary": True,
