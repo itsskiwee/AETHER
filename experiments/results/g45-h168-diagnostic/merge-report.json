@@ -1,20 +1,20 @@
 {
   "families": {
     "h168_long_horizon": {
-      "gap_mean_random_minus_oracle": -0.0003803319371257323,
-      "n_seeds": 8,
+      "gap_mean_random_minus_oracle": -0.001757156279285846,
+      "n_seeds": 10,
       "passed": false,
       "reference_checker_violations": 0,
       "status": "SUBSET_DIAGNOSTIC_NOT_A_VERDICT",
-      "threshold_2sd": 0.012666366585236748
+      "threshold_2sd": 0.013382232193358384
     }
   },
   "merge": {
-    "copied": 16,
+    "copied": 20,
     "identical_duplicates": 0
   },
-  "records_sha256": "1b93d166e06d2f71fa16fb0af86b7c6cd4a27cfa4fa2ef406d38bd400d37398f",
+  "records_sha256": "35bea8124d9d60543d776db898bf67f09de542b266d94d6d57c0468175ac7455",
   "sources": [
-    "runs\\g45-h168-diag"
+    "C:\\Users\\rawal\\OneDrive\\Desktop\\Work\\AETHER\\runs\\g45-h168-diag"
   ]
 }

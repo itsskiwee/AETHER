@@ -248,17 +248,17 @@ adaptive_eig: `python -m aether.evaluation.calibration --output-dir runs/sci10-a
 
 **Caveat (strength of evidence).** 5,977 of 7,200 evaluation points lie in the 0.2–0.3 bin, around the stationary prior of 0.291. Coverage is likewise dominated by sources whose interval is still close to the prior, and truth is drawn from that prior. The criteria therefore test posterior calibration *after observation* only weakly: the bins away from the prior hold 36–674 points, with wide CIs. The compact gate records do not mark which sources were observed, so observed-only coverage is not reported. adaptive_eig calibration (the Work_Plan's default pair) is listed under "not run" in §6.
 
-### 3.4 h168_long_horizon diagnostic for decision H3 (8 tuning seeds, 18 Oct 2026). **Does not separate**
+### 3.4 h168_long_horizon diagnostic for decision H3 (10 tuning seeds, 18 Oct 2026). **Does not separate**
 
 Claude-2's proposed check before adopting H3 option A: the G4.5 rule, run unchanged on `h168_long_horizon` (168 h, 60 sources: 20 plume-seeded, 40 uniform fill per seed) for the first ten tuning seeds. Reference policies only. Same oracle reference, same metric, same SD rule. This is a **subset diagnostic, not the registered 30-seed verdict** (`seed_subset_only: true`). Records: Windows 11 / Python 3.13.9, merged with `scripts/merge_gate_records.py`, which derives the verdict through `run_gate` with a run function that refuses to compute.
 
 | Quantity | Value |
 |---|---|
-| Seeds | 1000, 1002, 1003, 1004, 1005, 1006, 1007, 1009 |
-| Mean random − oracle Brier gap | -0.0004 |
-| Paired SD | 0.0063 (SE 0.0022) |
-| Required (2 × SD) | 0.0127 |
-| Seeds where the oracle beat random | 4 / 8 |
+| Seeds | 1000, 1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009 |
+| Mean random − oracle Brier gap | -0.0018 |
+| Paired SD | 0.0067 (SE 0.0021) |
+| Required (2 × SD) | 0.0134 |
+| Seeds where the oracle beat random | 4 / 10 |
 | Passes per 72 h (random_feasible) | 6.86 (16 per 168 h on every seed) |
 | Executed acquisitions per pass | 6.69 to 7.62 |
 | Capacity / demand | 0.116 |
