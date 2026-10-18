@@ -8,7 +8,6 @@ runs/
 artifacts/
 *.bsp
 !data/ephemeris/de421.bsp
-data/raw/
 .env
 .env.*
 !.env.example
