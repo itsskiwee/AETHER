@@ -56,3 +56,9 @@ Pending human decisions H1–H6 (G1-F demo contingency, D9 sign-off, G4.5 remedy
 
 - A peer session ran `aether.evaluation.gate --output-dir runs/g45-smoke` in the original `AETHER` checkout during this work. It is not part of this integration, and that checkout's `runs/demo` was not touched by Claude-1.
 - Bulk raw files: switching an older checkout (for example `AETHER` at `ee87199`) to this branch makes git remove the now-untracked bulk files from that working tree. They stay recoverable from commit `a70976e`. Copy them aside first if that checkout is ever switched.
+
+## REL-05 ship hardening (18 Oct 2026, afternoon)
+
+- **Windows checkout fixed.** `core.autocrlf=true` converted the pinned manifest, normalized records, EOP table and replay fixtures to CRLF, so every SHA-256 and byte-size pin failed. The hosted app refused to start and two backend tests failed. `.gitattributes` (`* -text`) now makes every checkout byte-exact. Fresh Windows checkout: manifest `216cf916…982c55` matches the pin.
+- **Cross-machine merge.** `scripts/merge_gate_records.py` merges G4.5 matrix records from several machines. It stops on any byte difference between two copies of a record, and derives the verdict through `run_gate` with a run function that refuses to compute. A family with only some tuning seeds is reported as a subset diagnostic, never a verdict.
+- **Deferred on purpose: default-encoding I/O in `backend/aether`.** These sites rely on the platform encoding: `config.py:433`, `evaluation/protocol.py:68,86`, `evaluation/matrix.py:194,275`, `evaluation/benchmark.py:97,258`, `evaluation/gate.py:123`. Every input they read today is ASCII, so nothing breaks yet. Editing them changes `code_sha256`, which every run-matrix record carries in its identity. Doing so while the h168 records were being computed on two machines would have made those records non-reusable. Fix them (`encoding="utf-8"`) in one commit after the h168 evidence is merged, and re-run the suite.

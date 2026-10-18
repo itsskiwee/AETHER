@@ -16,6 +16,18 @@ npm --prefix frontend run build
 PYTHONPATH=backend backend/.venv/bin/python -m uvicorn scripts.hosted_app:app --host 127.0.0.1 --port 8080
 ```
 
+On Windows (PowerShell), clone with `git clone -c core.autocrlf=false …`. The repository's
+`.gitattributes` already disables line-ending conversion, because every pinned data file is
+verified by SHA-256 and byte size. Then:
+
+```powershell
+py -3.13 -m venv backend\.venv
+backend\.venv\Scripts\python -m pip install -e "./backend[geo,api]"
+npm --prefix frontend ci; npm --prefix frontend run build
+$env:PYTHONPATH = "$PWD\backend"
+backend\.venv\Scripts\python -m uvicorn scripts.hosted_app:app --host 127.0.0.1 --port 8080
+```
+
 Open **http://127.0.0.1:8080**. Initial dependency installation needs network access;
 recorded replay then runs offline. This serves the production console and API together.
 For container hosting, see [hosted replay instructions](docs/hosted-replay.md).

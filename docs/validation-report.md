@@ -304,7 +304,19 @@ The development comparison (base config, m0, development seeds 1000 and 1001, 3 
 | H2 | D9 family scope sign-off | all six families (proposed) / m0 only / m0 + 2 of m1–m4. Every option includes m0, which fails, so today's verdict is FAIL under each | All six (D9 as proposed) |
 | H3 | G4.5 scenario remedy | A: h168 base; A+B: h168 + denser fleet; C: evaluation-time metric change (not recommended); D: keep the scenario and accept a likely null | A (Claude-2), only after H1(b) measures h168 capacity; then re-run the 360-run gate (several hours, planning estimate) |
 | H4 | SD-not-SE rule, and the oracle as an oracle-informed greedy reference | Kept as registered (§3 notes 1–2) | Keep |
-| H6 | SCI-10 reliability rule for tiny bins | Keep as written (adaptive_eig fails), or pre-register a minimum bin size or a binomial check for bins whose seed-cluster bootstrap is degenerate, then re-evaluate | Decide before lock. If changed, report both readings |
+| H6 | SCI-10 reliability rule for tiny bins | Keep as written (adaptive_eig fails), or pre-register a minimum bin size or a binomial check for bins whose seed-cluster bootstrap is degenerate, then re-evaluate | **Decided by the user (18 Oct 2026): keep as written.** adaptive_eig is reported as failing the reliability rule; the binomial-consistency note stays as context, not as a pass |
 | H5 | G5/G6 sign-off | Concrete artifacts in `docs/p0-requirements-evidence.md` | Pending the user's review |
 
 The old two-seed demo comparison is preliminary and synthetic-placement only. The pinned-scenario development comparison in §5.1 is also preliminary (two seeds, m0). Neither is a research claim.
+
+## 7. Cross-platform reproducibility (REL-05, 18 Oct 2026)
+
+Base m0, seed 1000, oracle and random_feasible references, re-run on Windows 11 / Python 3.13.9 (Intel Core Ultra 7 258V) and compared with the committed `g45-pinned-dev` values (Linux / Python 3.14.7). Package versions are identical (astropy 8.0.2, numpy 2.5.4, ortools 9.15.6755, scipy 1.18.1, sgp4 2.27, skyfield 1.55).
+
+| Value | Committed (Linux) | Windows | Difference |
+|---|---|---|---|
+| oracle Brier | 0.22919438427351319 | 0.2291943842735133 | ≈ 1e-17 |
+| random_feasible Brier | 0.23797797908569931 | 0.23797797908569926 | ≈ 5e-17 |
+| passes, random_feasible acquisitions | 7, 36 | 7, 36 | exact |
+
+Selections and counts reproduce exactly. Brier scores differ only in the last floating-point digit. Byte-identical replay is therefore a **within-platform** property: same OS, Python build and packages. It is not byte-identical across platforms. Records merged across machines for one gate must come from the same platform, and `scripts/merge_gate_records.py` stops on any byte difference between two copies of a record. The h168 gate records are produced on two Windows / Python 3.13 machines for this reason.
