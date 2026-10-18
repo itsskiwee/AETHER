@@ -16,7 +16,7 @@ import copy
 import hashlib
 import json
 import math
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Literal
 
 import yaml
@@ -97,6 +97,24 @@ class RegimeConfig(Cfg):
         return -1.0 / math.log(lam)
 
 
+class PlumeDatasetConfig(Cfg):
+    """A pinned real-plume dataset (docs/dataset-interface.md). Locations only, never truth.
+
+    ``manifest`` is relative to the repository root. ``manifest_sha256`` is part of the config
+    hash, so a locked protocol binds the exact dataset bytes.
+    """
+
+    manifest: str
+    manifest_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+    @model_validator(mode="after")
+    def _relative(self) -> PlumeDatasetConfig:
+        path = PurePosixPath(self.manifest)
+        if "\\" in self.manifest or path.is_absolute() or ".." in path.parts or not path.parts:
+            raise ValueError("plume_dataset.manifest must be a repo-relative POSIX path")
+        return self
+
+
 class SourcesConfig(Cfg):
     count: int = Field(ge=1, le=500)
     placement: Literal["emit_fixture_then_uniform", "uniform"]
@@ -104,9 +122,13 @@ class SourcesConfig(Cfg):
     flux_prior: FluxPriorConfig
     hourly_variability_sigma_ln: float = Field(ge=0)
     regimes: tuple[RegimeConfig, ...]
+    # None is the documented synthetic-only mode: every source is uniform fill.
+    plume_dataset: PlumeDatasetConfig | None = None
 
     @model_validator(mode="after")
     def _weights(self) -> SourcesConfig:
+        if self.plume_dataset is not None and self.placement != "emit_fixture_then_uniform":
+            raise ValueError("plume_dataset requires placement 'emit_fixture_then_uniform'")
         total = sum(r.weight for r in self.regimes)
         if abs(total - 1.0) > 1e-9:
             raise ValueError(f"regime weights must sum to 1, got {total}")
@@ -396,6 +418,13 @@ class ScenarioBundle(Cfg):
     model: ScenarioConfig
     truth: ScenarioConfig  # restricted: simulation and evaluation only
 
+    @model_validator(mode="after")
+    def _same_inputs(self) -> ScenarioBundle:
+        # Sources are built from the model view; a truth-only dataset would be silently ignored.
+        if self.model.sources.plume_dataset != self.truth.sources.plume_dataset:
+            raise ValueError("sources.plume_dataset cannot differ between model and truth")
+        return self
+
 
 # --- Loading ---------------------------------------------------------------------------------
 
@@ -461,6 +490,7 @@ def load_scenario(
     family_path: str | Path | None = None,
     *,
     seed: int | None = None,
+    synthetic_only: bool = False,
 ) -> ScenarioBundle:
     """Load a base scenario and optionally apply a family override file.
 
@@ -469,6 +499,8 @@ def load_scenario(
     override to the hidden-simulator view only. Unknown paths raise ``KeyError``: overrides never
     create new keys silently. ``seed`` replaces ``random_seed``; every random stream (truth,
     weather, outcomes, solver) derives from it, so different seeds give different weather.
+    ``synthetic_only`` removes ``sources.plume_dataset`` after overrides (explicit uniform-fill
+    mode; the change is visible in the config hash).
     """
     raw = _resolve_raw(Path(base_path))
     if seed is not None:
@@ -484,6 +516,9 @@ def load_scenario(
             _set_path(truth_raw, parts, value)
             if not truth_only:
                 _set_path(model_raw, parts, value)
+    if synthetic_only:
+        for view in (model_raw, truth_raw):
+            view["sources"]["plume_dataset"] = None
     return ScenarioBundle(
         model=ScenarioConfig.model_validate(model_raw),
         truth=ScenarioConfig.model_validate(truth_raw),

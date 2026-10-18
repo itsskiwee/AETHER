@@ -3,6 +3,11 @@
     python -m aether.cli validate --config configs/demo.yaml [--family configs/scenarios/m2_*.yaml]
     python -m aether.cli windows  --config ... --output runs/windows.json
     python -m aether.cli simulate --config ... --policies largest_first,adaptive_eig --seed 1000
+
+``windows`` and ``simulate`` place sources from the config's pinned plume dataset
+(``sources.plume_dataset``, docs/dataset-interface.md). ``--synthetic-only`` is the explicit
+uniform-placement mode; it changes the config hash. A named dataset that is missing or altered
+is an error, never a silent fallback.
     python -m aether.cli benchmark --protocol experiments/protocol.yaml \
         --seeds experiments/seeds_dev.txt
 """
@@ -59,8 +64,15 @@ def _package_version(name: str) -> str | None:
         return None
 
 
+def _dataset_inputs(bundle) -> list[Path]:
+    spec = bundle.model.sources.plume_dataset
+    return [] if spec is None else [_repo_root() / spec.manifest]
+
+
 def _manifest(bundle, config_paths: list[Path], input_paths: list[Path]) -> dict:
+    spec = bundle.model.sources.plume_dataset
     return {
+        "plume_dataset": None if spec is None else spec.model_dump(mode="json"),
         "model_config_hash": bundle.model.config_hash(),
         "truth_config_hash": bundle.truth.config_hash(),
         "config_inputs_sha256": {
@@ -127,17 +139,21 @@ def _validate(args: argparse.Namespace) -> int:
 
 def _windows(args: argparse.Namespace) -> int:
     from aether.orbit import generate_windows
-    from aether.simulation.runner import generate_sources
+    from aether.simulation.runner import resolve_sources
 
-    bundle = load_scenario(args.config, args.family, seed=args.seed)
+    bundle = load_scenario(
+        args.config, args.family, seed=args.seed, synthetic_only=args.synthetic_only
+    )
     cfg = bundle.model
     start = cfg.simulation_epoch_utc
     end = start + timedelta(hours=cfg.horizon_hours)
-    sources = generate_sources(cfg, cfg.random_seed)
+    sources, dataset_ref = resolve_sources(cfg, cfg.random_seed)
     windows = generate_windows(cfg, list(sources), start, end)
     payload = {
         "scenario_id": cfg.scenario_id,
         "seed": cfg.random_seed,
+        "model_config_hash": cfg.config_hash(),
+        "input_dataset": None if dataset_ref is None else dataset_ref.model_dump(mode="json"),
         "sources": [source.model_dump(mode="json") for source in sources],
         "windows": [window.model_dump(mode="json") for window in windows],
     }
@@ -150,7 +166,7 @@ def _simulate(args: argparse.Namespace) -> int:
     from aether.simulation.runner import run_policy
 
     config = Path(args.config).resolve()
-    bundle = load_scenario(config, args.family, seed=args.seed)
+    bundle = load_scenario(config, args.family, seed=args.seed, synthetic_only=args.synthetic_only)
     output_dir = Path(args.output_dir)
     root = _repo_root()
     inputs = [
@@ -158,6 +174,7 @@ def _simulate(args: argparse.Namespace) -> int:
         root / "data/ephemeris/manifest.json",
         root / "data/eop/finals2000A.all",
         root / "data/eop/manifest.json",
+        *_dataset_inputs(bundle),
     ]
     for name in args.policies.split(","):
         policy = PolicyId(name.strip())
@@ -223,6 +240,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--family")
     p.add_argument("--seed", type=int)
     p.add_argument("--output", required=True)
+    p.add_argument("--synthetic-only", action="store_true", help="ignore the plume dataset")
     p.set_defaults(func=_windows)
     p = sub.add_parser("simulate", help="run one or more closed-loop policies")
     p.add_argument("--config", required=True)
@@ -230,6 +248,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--seed", type=int)
     p.add_argument("--policies", default="largest_first,adaptive_eig")
     p.add_argument("--output-dir", default="runs")
+    p.add_argument("--synthetic-only", action="store_true", help="ignore the plume dataset")
     p.set_defaults(func=_simulate)
     p = sub.add_parser("benchmark", help="run the configured tuning-seed benchmark")
     p.add_argument("--protocol", required=True)

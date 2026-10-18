@@ -431,6 +431,31 @@ class RunEvent(Contract):
     model_version: str
 
 
+class InputDatasetRef(Contract):
+    """Identity of the pinned real-plume dataset a run used (docs/dataset-interface.md).
+
+    Historical plumes only place source hypotheses. Counts make the real-seeded versus
+    uniform-fill split visible; ``None`` on a RunRecord means synthetic-only placement.
+    """
+
+    dataset_id: str
+    manifest_path: str
+    manifest_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    normalized_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    record_count: int = Field(ge=0)
+    in_region_count: int = Field(ge=0)
+    seeded_source_count: int = Field(ge=0)
+    uniform_fill_count: int = Field(ge=0)
+
+    @model_validator(mode="after")
+    def _counts(self) -> InputDatasetRef:
+        if self.in_region_count > self.record_count:
+            raise ValueError("in_region_count cannot exceed record_count")
+        if self.seeded_source_count > self.in_region_count:
+            raise ValueError("seeded_source_count cannot exceed in_region_count")
+        return self
+
+
 class RunRecord(Contract):
     """Everything one policy run produced. Serialized to runs/<run_id>/run.json for the UI/API.
 
@@ -453,3 +478,17 @@ class RunRecord(Contract):
     acquisitions: tuple[SimulatedAcquisition, ...]
     beliefs: tuple[BeliefSnapshot, ...]  # at every evaluation time and after every update
     events: tuple[RunEvent, ...]
+    input_dataset: InputDatasetRef | None = None  # None: synthetic-only source placement
+
+    @model_validator(mode="after")
+    def _dataset_counts(self) -> RunRecord:
+        ref = self.input_dataset
+        if ref is None:
+            return self
+        seeded = sum(source.seeded_from_plume_id is not None for source in self.sources)
+        if (ref.seeded_source_count, ref.uniform_fill_count) != (
+            seeded,
+            len(self.sources) - seeded,
+        ):
+            raise ValueError("input_dataset counts disagree with the run's sources")
+        return self
