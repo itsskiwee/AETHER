@@ -49,7 +49,7 @@ cleanup() {
   wait 2>/dev/null || true
 }
 trap cleanup EXIT INT TERM
-"$python_bin" -m uvicorn aether.api:app --host 127.0.0.1 --port "$AETHER_API_PORT" &
+"$python_bin" -m uvicorn scripts.hosted_app:app --host 127.0.0.1 --port "$AETHER_API_PORT" &
 api_pid=$!
 # Call Vite directly so cleanup owns the server process, not an npm wrapper.
 (cd frontend && exec node node_modules/vite/bin/vite.js preview --host 127.0.0.1 --port "$console_port" --strictPort) &

@@ -11,6 +11,11 @@ Read first: `AGENTS.md` (rules), `Implementation/Parameter_Register.md` (every n
 
 ### REL-02 product delivery follow-up
 
+Follow-up UI-09: the user requested a frontend redesign and full data connections.
+The delivery branch owns the unified frontend shell, its read-only hosting routes,
+completed comparison/sample packaging and related delivery documentation. Scientific
+modules, parameters and ongoing Claude experiment jobs remain unchanged.
+
 The user additionally requested connection to real live/satellite data. REL-02 is
 extended to optional public current-data context: CelesTrak GP and NASA CMR
 catalogue metadata, with timestamps, cached hashes, provider policy and propagated

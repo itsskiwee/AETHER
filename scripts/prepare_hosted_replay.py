@@ -6,12 +6,18 @@ import argparse
 import hashlib
 import json
 import shutil
+import zipfile
 from pathlib import Path
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--demo", type=Path, required=True)
+    parser.add_argument(
+        "--include-comparison",
+        action="store_true",
+        help="include a completed evaluator comparison and timing sidecar",
+    )
     parser.add_argument(
         "--destination", type=Path, default=Path("data/fixtures/hosted_replay")
     )
@@ -46,6 +52,11 @@ def main() -> None:
             raise ValueError(f"Invalid schedule: {path}")
         for name in ("run.json", "manifest.json", "performance.json"):
             planned[f"{path.parent.name}/{name}"] = (path.parent / name).read_bytes()
+        archive = args.demo / f"{run['run_id']}.zip"
+        with zipfile.ZipFile(archive) as exported:
+            if json.loads(exported.read("run.json")) != run:
+                raise ValueError(f"Export does not match accepted run: {archive}")
+        planned[f"exports/{archive.name}"] = archive.read_bytes()
         found.add(run["policy_id"])
     if found != set(rows):
         raise ValueError("Duplicate or missing demo policy")
@@ -57,8 +68,24 @@ def main() -> None:
         b"Both records have byte-identical replay and verified exports in acceptance.json.\n"
         b"The forecast refresh changes no selection in this sample. No policy advantage,\n"
         b"completed holdout experiment or passed capacity gate is claimed.\n"
-        b"Comparison artifacts are omitted until their development run is finished.\n"
+        b"Comparison output, if present, retains its own seed counts and preliminary status.\n"
     )
+    if args.include_comparison:
+        comparison_root = args.demo / "benchmark"
+        report = json.loads(
+            (comparison_root / "benchmark-confidence-intervals.json").read_bytes()
+        )
+        if not isinstance(report.get("comparisons"), list) or not isinstance(
+            report.get("n_seeds"), int
+        ):
+            raise ValueError("Comparison report is not complete")
+        for name in (
+            "benchmark-results.csv",
+            "benchmark-confidence-intervals.json",
+            "benchmark-runs.csv",
+            "development-timing.json",
+        ):
+            planned[f"benchmark/{name}"] = (comparison_root / name).read_bytes()
     hashes = {
         name: hashlib.sha256(data).hexdigest() for name, data in sorted(planned.items())
     }

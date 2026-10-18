@@ -81,6 +81,7 @@ with zero recorded checker violations. Missing rates and unknown retrieval time
 remain explicit. The forecast refresh changes no selected option in these runs.
 The sample proves no adaptive advantage, passed capacity gate or holdout result.
 
-The comparison panel will honestly report unavailable until authoritative completed
-comparison artifacts are supplied via AETHER_BENCHMARK_DIR. Existing exploratory
-experiments are not silently substituted for a registered benchmark.
+The sample now includes the completed six-run development comparison, two seeds,
+its bootstrap intervals and measured timing. It remains preliminary, unlocked and
+insufficient for a research verdict. AETHER_BENCHMARK_DIR can point at a separately
+reviewed completed evaluator directory. Missing artifacts remain unavailable.

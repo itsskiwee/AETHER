@@ -1,6 +1,12 @@
 {
-  "README.md": "ebd6a1c14441c7288504e31c7d28e3ccc2c7069d868b27966ae8ca2999239f99",
+  "README.md": "4458b04f8fc8a0ff05a7cc3b8ffd0364b3296e726f35707ebc9b1b6fdabbc54d",
   "acceptance.json": "7b4466d6f09fcb1180d9dbdf0b7c82568e3cd921cc62d731909c08c891d19aeb",
+  "benchmark/benchmark-confidence-intervals.json": "7b5da2855ee91ac33ba87066cd436fd273c72d9ab5e6cb57ff2f505623f6cf84",
+  "benchmark/benchmark-results.csv": "359757aabad7b56589c3bb48b4aa37f8ec2c3d197ee18a37219fd2f95bd76660",
+  "benchmark/benchmark-runs.csv": "81f712fdddc2fc7dc97c9bc7f5b142b5f712ac65758b9433cc92bc6b9e137ec5",
+  "benchmark/development-timing.json": "5c35ede66f390331085e6fee8d4192cc816a2b867cc0f0542556cac7a4e84da8",
+  "exports/permian-p0-demo-adaptive_eig-1000-dce5146a454990c2.zip": "d45f1d8b594cf788c2830eb3aa32e36ea00657db7c991dc904d913683f04f06c",
+  "exports/permian-p0-demo-largest_first-1000-a11794bdb0e480a2.zip": "9e679c50b8796da6fef5ccc5773724b6a3c1349aedc8b99ee19292b461695906",
   "permian-p0-demo-adaptive_eig-1000-dce5146a454990c2/manifest.json": "6a1673fe52349a82706f89babc49f827430d26a3a9ab1e9a787ef6cfd6e64fc1",
   "permian-p0-demo-adaptive_eig-1000-dce5146a454990c2/performance.json": "aa66eed126965837859cd6103d620de5b637dcb14370c91d5c72c746ae5a7290",
   "permian-p0-demo-adaptive_eig-1000-dce5146a454990c2/run.json": "8516e1d6b0240b1ba02f0848eda5e97dd2ee551c9c3182406b535fdc13552fdc",

@@ -97,6 +97,32 @@ def main() -> None:
     if found != set(summaries):
         raise ValueError("Both accepted demo runs must exist")
     files["runs/demo-pinned/acceptance.json"] = (demo / "acceptance.json").read_bytes()
+    comparison_names = (
+        "benchmark-results.csv",
+        "benchmark-confidence-intervals.json",
+        "benchmark-runs.csv",
+        "development-timing.json",
+    )
+    comparison_complete = all(
+        (demo / "benchmark" / name).is_file() for name in comparison_names
+    )
+    if comparison_complete:
+        report = json.loads(
+            (demo / "benchmark/benchmark-confidence-intervals.json").read_bytes()
+        )
+        if not isinstance(report.get("comparisons"), list) or not isinstance(
+            report.get("n_seeds"), int
+        ):
+            raise ValueError("Completed comparison report has an invalid shape")
+        for name in comparison_names:
+            files[f"runs/demo-pinned/benchmark/{name}"] = (
+                demo / "benchmark" / name
+            ).read_bytes()
+    comparison_note = (
+        "A completed preliminary development comparison is included with its authoritative seed counts and intervals. It is not a holdout result."
+        if comparison_complete
+        else "Unfinished comparison outputs are excluded. An unavailable comparison is not a scientific verdict."
+    )
     guide = f"""# AETHER: pinned-data replay bundle
 
 Source revision: `{revision}`. Source files are from that exact Git commit. Uncommitted
@@ -115,8 +141,7 @@ bash scripts/serve-demo.sh runs/demo-pinned
 
 Open http://127.0.0.1:4173. Initial dependency installation needs network access;
 the saved demo then replays offline. Do not regenerate the simulation to view it.
-Comparison benchmark outputs are excluded while their generation is unfinished;
-an unavailable comparison is not a scientific verdict.
+{comparison_note}
 
 ## What this demonstrates
 

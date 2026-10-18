@@ -1,0 +1,111 @@
+{
+  "label": "SIMULATED MISSION \u2014 offline development comparison",
+  "protocol_version": 1,
+  "protocol_sha256": "9afbfc76795e202b0e011244f748bd3a212e000919c19a36141cdbbd11c8d6b2",
+  "protocol_locked": false,
+  "lock_tag": null,
+  "base_config": "configs/base.yaml",
+  "config_hashes": {
+    "1000": {
+      "model": "4698090aa9a16ca9f5af027967cd2ade1ed01af22649a46dbba56cf9e87bffe3",
+      "truth": "4698090aa9a16ca9f5af027967cd2ade1ed01af22649a46dbba56cf9e87bffe3"
+    },
+    "1001": {
+      "model": "e9608e31e9885da9eb33477d4d32f68cde74ad188c675c5b851eaf365caa701a",
+      "truth": "e9608e31e9885da9eb33477d4d32f68cde74ad188c675c5b851eaf365caa701a"
+    }
+  },
+  "seeds": [
+    1000,
+    1001
+  ],
+  "n_seeds": 2,
+  "preliminary": true,
+  "insufficient_samples": true,
+  "total_checker_violations": 0,
+  "comparisons": [
+    {
+      "family": "m0_well_specified",
+      "a": "adaptive_eig",
+      "b": "largest_first",
+      "metric": "brier_active_state",
+      "better_direction": "lower",
+      "n_pairs": 2,
+      "n_excluded_undefined": 0,
+      "result": {
+        "mean_diff": -0.014490491918128484,
+        "lo": -0.02242900488946392,
+        "hi": -0.006551978946793047,
+        "p_value": 0.00019998000199980003,
+        "n": 2,
+        "resamples": 10000,
+        "level": 0.95
+      },
+      "preliminary": true,
+      "note": "insufficient samples (< 10 defined pairs); preliminary"
+    },
+    {
+      "family": "m0_well_specified",
+      "a": "adaptive_eig",
+      "b": "largest_first",
+      "metric": "high_impact_recall_at_5",
+      "better_direction": "higher",
+      "n_pairs": 2,
+      "n_excluded_undefined": 0,
+      "result": {
+        "mean_diff": 0.09999999999999998,
+        "lo": 0.0,
+        "hi": 0.19999999999999996,
+        "p_value": 0.5133486651334866,
+        "n": 2,
+        "resamples": 10000,
+        "level": 0.95
+      },
+      "preliminary": true,
+      "note": "insufficient samples (< 10 defined pairs); preliminary"
+    },
+    {
+      "family": "m0_well_specified",
+      "a": "adaptive_eig",
+      "b": "greedy_eig",
+      "metric": "brier_active_state",
+      "better_direction": "lower",
+      "n_pairs": 2,
+      "n_excluded_undefined": 0,
+      "result": {
+        "mean_diff": -0.003167884847253888,
+        "lo": -0.004654384923900523,
+        "hi": -0.0016813847706072527,
+        "p_value": 0.00019998000199980003,
+        "n": 2,
+        "resamples": 10000,
+        "level": 0.95
+      },
+      "preliminary": true,
+      "note": "insufficient samples (< 10 defined pairs); preliminary"
+    },
+    {
+      "family": "m0_well_specified",
+      "a": "adaptive_eig",
+      "b": "greedy_eig",
+      "metric": "high_impact_recall_at_5",
+      "better_direction": "higher",
+      "n_pairs": 2,
+      "n_excluded_undefined": 0,
+      "result": {
+        "mean_diff": -0.4,
+        "lo": -1.0,
+        "hi": 0.19999999999999996,
+        "p_value": 0.5085491450854914,
+        "n": 2,
+        "resamples": 10000,
+        "level": 0.95
+      },
+      "preliminary": true,
+      "note": "insufficient samples (< 10 defined pairs); preliminary"
+    }
+  ],
+  "holm_primary": {},
+  "success_verdict": null,
+  "note": "Preliminary development results; insufficient samples; single family only; research success criterion not evaluated."
+}
