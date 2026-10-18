@@ -3,11 +3,13 @@
 Uses a throwaway local git repository (no network).
 """
 
+import json
 import shutil
 import subprocess
 
 import pytest
 
+from aether.evaluation.freeze import scientific_identity, write_freeze
 from aether.evaluation.protocol import (
     ProtocolLockError,
     check_seed_access,
@@ -30,10 +32,19 @@ def _git(cwd, *args):
 
 @pytest.fixture()
 def repo(tmp_path, repo_root):
+    """A throwaway repository holding every scientific input the freeze identity covers."""
     exp = tmp_path / "experiments"
     exp.mkdir()
     for name in ("protocol.yaml", "seeds_dev.txt", "seeds_holdout.txt"):
         shutil.copy(repo_root / "experiments" / name, exp / name)
+    shutil.copytree(repo_root / "configs", tmp_path / "configs")
+    manifest = json.loads((repo_root / "data/manifests/emit_permian.json").read_text())
+    for rel in ["data/manifests/emit_permian.json", manifest["normalized"]["path"],
+                *(r["path"] for r in manifest["raw_files"])]:  # fmt: skip
+        (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(repo_root / rel, tmp_path / rel)
+    for name in ("ephemeris", "eop"):  # read-only pinned inputs, linked rather than copied
+        (tmp_path / "data" / name).symlink_to(repo_root / "data" / name, target_is_directory=True)
     _git(tmp_path, "init", "-q")
     _git(tmp_path, "config", "user.email", "test@example.invalid")
     _git(tmp_path, "config", "user.name", "test")
@@ -42,9 +53,12 @@ def repo(tmp_path, repo_root):
     return tmp_path
 
 
-def _lock(repo, commit=True, tag=True):
+def _lock(repo, commit=True, tag=True, freeze=True):
     path = repo / "experiments/protocol.yaml"
     path.write_text(path.read_text().replace("locked: false", "locked: true"))
+    if freeze:
+        write_freeze(repo)
+        _git(repo, "add", "experiments/freeze.json")
     if commit:
         _git(repo, "commit", "-q", "-am", "lock protocol")
     if tag:
@@ -114,3 +128,71 @@ def test_read_seeds_rejects_duplicates_and_garbage(tmp_path):
         read_seeds(f)
     f.write_text("# header\n5  # comment\n\n6\n")
     assert read_seeds(f) == (5, 6)
+
+
+def _holdout(repo):
+    path = repo / "experiments/protocol.yaml"
+    return check_seed_access(load_protocol(path), path, repo / "experiments/seeds_holdout.txt")
+
+
+def test_freeze_identity_binds_configs_dataset_seeds_code_and_runtime(repo):
+    identity = scientific_identity(repo)
+    assert "configs/base.yaml" in identity["configs_sha256"]
+    assert len(identity["family_config_hashes"]) == 6
+    assert len(identity["dataset"]["files_sha256"]) == 42
+    assert set(identity["seeds"]) == {"experiments/seeds_dev.txt", "experiments/seeds_holdout.txt"}
+    assert len(identity["code"]["aether_package_sha256"]) == 64
+    assert "data/ephemeris/de421.bsp" in identity["runtime_inputs"]["pinned_data_sha256"]
+    assert "commit" not in json.dumps(identity)  # no self-referential git hashes
+
+
+def test_holdout_refused_without_a_frozen_identity(repo):
+    _lock(repo, freeze=False)
+    with pytest.raises(ProtocolLockError, match="freeze.json is missing"):
+        _holdout(repo)
+
+
+def test_freeze_committed_after_the_tag_is_refused(repo):
+    _lock(repo, freeze=False)
+    write_freeze(repo)
+    _git(repo, "add", "experiments/freeze.json")
+    _git(repo, "commit", "-q", "-m", "freeze after lock")
+    with pytest.raises(ProtocolLockError, match="does not contain"):
+        _holdout(repo)
+
+
+@pytest.mark.parametrize(
+    "rel, edit",
+    [
+        ("configs/base.yaml", lambda t: t.replace("count: 20 ", "count: 21 ")),
+        ("configs/scenarios/m2_pod_optimistic.yaml", lambda t: t + "\n# drift\n"),
+        ("data/normalized/emit_permian_plumes.json", lambda t: t.replace("490.7823", "490.7824")),
+        ("experiments/seeds_holdout.txt", lambda t: t + "999999\n"),
+    ],
+)
+def test_committed_scientific_drift_after_the_tag_is_refused(repo, rel, edit):
+    _lock(repo)
+    assert _holdout(repo) == "protocol-v1-locked"
+    path = repo / rel
+    changed = edit(path.read_text())
+    assert changed != path.read_text()
+    path.write_text(changed)
+    _git(repo, "commit", "-q", "-am", f"drift {rel}")
+    with pytest.raises(ProtocolLockError, match="drifted"):
+        _holdout(repo)
+
+
+def test_uncommitted_scientific_input_is_refused(repo):
+    _lock(repo)
+    (repo / "configs/base.yaml").write_text((repo / "configs/base.yaml").read_text() + "\n")
+    with pytest.raises(ProtocolLockError, match="uncommitted scientific inputs"):
+        _holdout(repo)
+
+
+def test_code_drift_is_refused(repo, monkeypatch):
+    _lock(repo)
+    import aether.evaluation.matrix as matrix
+
+    monkeypatch.setattr(matrix, "code_sha256", lambda: "f" * 64)
+    with pytest.raises(ProtocolLockError, match="code.aether_package_sha256"):
+        _holdout(repo)

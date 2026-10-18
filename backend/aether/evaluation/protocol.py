@@ -1,9 +1,11 @@
 """Pre-registered benchmark protocol: loading, seed lists and the holdout lock (EVL-05, PRD 9.4).
 
 Holdout seeds may run only when ``experiments/protocol.yaml`` says ``locked: true`` AND that file
-is committed with no local edits AND a git tag contains the last commit that touched it. The flag
-alone is not enough: anyone can flip a flag after seeing results, but a tagged commit records when
-the protocol was frozen.
+is committed with no local edits AND a git tag contains the last commit that touched it AND the
+committed scientific identity ``experiments/freeze.json`` (``freeze.py``: configs, dataset, seeds,
+code, ephemeris/EOP, packages) is in the same tag and still matches. The flag alone is not
+enough: anyone can flip a flag after seeing results, but a tagged commit records when the
+protocol was frozen, and the identity check rejects running it against drifted inputs.
 """
 
 from __future__ import annotations
@@ -150,4 +152,7 @@ def check_seed_access(
         raise ProtocolLockError(f"{seeds_path} is neither the tuning nor the holdout seed list")
     if not protocol.locked:
         raise ProtocolLockError("holdout seeds requested but protocol.yaml has locked: false")
-    return verify_git_lock(protocol_path, git)
+    # The tag must also freeze every result-affecting input, not only this file (freeze.py).
+    from aether.evaluation.freeze import verify_freeze
+
+    return verify_freeze(root, git)
