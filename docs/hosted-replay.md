@@ -3,8 +3,8 @@
 The production console and read-only FastAPI API can run in one container. It serves
 the checked-in accepted replay under `data/fixtures/hosted_replay`, without running
 the simulation or requiring credentials. This makes a public repository usable for
-local replay and a container host. Publication, repository visibility and paid hosting
-are separate actions; this branch does not perform them.
+local replay and a container host. A Cloudflare deployment configuration is included;
+account setup and publication are described in [Cloudflare hosting](cloudflare-hosting.md).
 
 ## Container host
 
@@ -18,6 +18,11 @@ Dockerfile, set its HTTP port to 8080 (or provide PORT), and set the health chec
 to `/healthz`. The API is at `/api/docs`. Both console and API use the same origin;
 there is no development proxy or separate API URL to configure. Use the hosting
 service's HTTPS endpoint for public access. No account keys belong in this repo.
+
+## Cloudflare
+
+The Cloudflare Worker and Container setup, Workers Builds configuration, account
+requirements and cost notes are in [Cloudflare hosting](cloudflare-hosting.md).
 
 ## Run without Docker
 

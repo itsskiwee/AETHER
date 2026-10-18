@@ -18,7 +18,9 @@ PYTHONPATH=backend backend/.venv/bin/python -m uvicorn scripts.hosted_app:app --
 
 Open **http://127.0.0.1:8080**. Initial dependency installation needs network access;
 recorded replay then runs offline. This serves the production console and API together.
-For container hosting, see [hosted replay instructions](docs/hosted-replay.md).
+For local container hosting, see [hosted replay instructions](docs/hosted-replay.md).
+For the Cloudflare Workers and Containers deployment, see
+[Cloudflare hosting](docs/cloudflare-hosting.md).
 The saved sample contains two demo policies and a completed six-run development
 comparison on two seeds. It is labelled preliminary and insufficient for research
 claims. No benchmark win is claimed. See the [workspace guide](docs/frontend-workspace.md).
