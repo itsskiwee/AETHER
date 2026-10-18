@@ -27,7 +27,7 @@ async function mockApi(page: Page, api: Api = {}) {
 }
 
 const pages = [
-  ['overview', 'Overview', 'REAL DATA'],
+  ['overview', 'Observation planning for the Permian Basin', 'REAL DATA'],
   ['observations', 'Real observations', 'REAL DATA'],
   ['passes', 'Real satellite passes', 'REAL DATA'],
   ['planner', 'Planner', 'SIMULATION'],
@@ -52,7 +52,8 @@ for (const [view, heading, kind] of pages) {
     const text = await page.locator('body').innerText()
     for (const rule of FORBIDDEN) expect(text, `forbidden wording ${rule}`).not.toMatch(rule)
     const axe = await new AxeBuilder({ page }).include('main').analyze()
-    expect(axe.violations.filter(v => v.impact === 'serious' || v.impact === 'critical').map(v => v.id)).toEqual([])
+    const serious = axe.violations.filter(v => v.impact === 'serious' || v.impact === 'critical')
+    expect(serious.map(v => ({ id: v.id, nodes: v.nodes.map(node => ({ target: node.target, failureSummary: node.failureSummary })) }))).toEqual([])
     expect(errors).toEqual([])
   })
 }
@@ -73,8 +74,27 @@ test('sidebar navigation updates the URL and survives a reload', async ({ page }
   await page.reload()
   await expect(page.getByRole('heading', { level: 1, name: 'Planner' })).toBeVisible()
   await page.goBack()
-  await expect(page.getByRole('heading', { level: 1, name: 'Overview' })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 1, name: 'Observation planning for the Permian Basin' })).toBeVisible()
   await expect(page.locator('.cx-globe-link')).toHaveAttribute('href', '/?view=globe')
+})
+
+test('each view only requests the data it needs', async ({ page }) => {
+  const requested: string[] = []
+  page.on('request', request => requested.push(new URL(request.url()).pathname))
+  await mockApi(page)
+  await page.goto('/?view=setup')
+  await expect(page.getByRole('heading', { level: 1, name: 'Setup' })).toBeVisible()
+  expect(requested).toContain('/api/project')
+  expect(requested).not.toContain('/api/runs')
+  expect(requested).not.toContain('/globe/globe-data.json')
+  expect(requested).not.toContain('/api/benchmark-results.csv')
+  expect(requested).not.toContain('/api/benchmark-confidence-intervals.json')
+  expect(requested).not.toContain('/api/benchmark-protocol')
+
+  await page.getByRole('button', { name: 'Real observations' }).click()
+  await expect(page.getByRole('heading', { level: 1, name: 'Real observations' })).toBeVisible()
+  expect(requested).toContain('/globe/globe-data.json')
+  expect(requested).not.toContain('/api/runs')
 })
 
 test('missing provider emission rates are shown as not quantified, never as zero', async ({ page }) => {

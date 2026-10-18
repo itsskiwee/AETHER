@@ -64,10 +64,13 @@ export default function GlobeView() {
   const horizonS = (data?.simulation.horizon_hours ?? 0) * 3600
 
   useEffect(() => {
-    const id = window.setInterval(() => {
-      setNow(Date.now())
-      if (playing) setSimS(s => (horizonS ? (s + speed * 0.25) % horizonS : 0))
-    }, 250)
+    const id = window.setInterval(() => setNow(Date.now()), 30000)
+    return () => window.clearInterval(id)
+  }, [])
+
+  useEffect(() => {
+    if (!playing || !horizonS) return
+    const id = window.setInterval(() => setSimS(s => (s + speed * 0.25) % horizonS), 250)
     return () => window.clearInterval(id)
   }, [playing, speed, horizonS])
 
@@ -76,7 +79,7 @@ export default function GlobeView() {
     const g = new Globe(host.current)
       .globeImageUrl('/globe/earth-blue-marble.jpg')
       .bumpImageUrl('/globe/earth-topology.png')
-      .backgroundImageUrl('/globe/night-sky.png')
+      .backgroundColor('#02060d')
       .atmosphereColor('#7fc8ff')
       .pointOfView({ lat: 28, lng: -100, altitude: 2.4 })
       .htmlTransitionDuration(0)
@@ -101,8 +104,6 @@ export default function GlobeView() {
       .pathDashGap((d: object) => ((d as Path).kind === 'sim' ? 0.01 : 0))
       .pointLat('lat').pointLng('lon').pointColor(() => '#ff9d3c').pointAltitude(0.004).pointRadius(0.12)
       .pointLabel((d: object) => { const s = d as GlobeData['plume_sources'][number]; return `EMIT plume location (historical, real)<br>${s.plume_id ?? 'unattributed'}<br>${fmt(s.lat, 3)}°, ${fmt(s.lon, 3)}°` })
-      .ringColor((d: object) => () => OUTCOME_COLOR[(d as { outcome: string }).outcome] ?? '#fff')
-      .ringMaxRadius(1.6).ringPropagationSpeed(1.2).ringRepeatPeriod(700)
     g.controls().autoRotate = false
     globe.current = g
     const resize = () => { if (host.current) g.width(host.current.clientWidth).height(host.current.clientHeight) }
@@ -130,7 +131,7 @@ export default function GlobeView() {
   }), [recs, trailKey])
 
   const sim = useMemo(() => {
-    if (!data || !run) return { markers: [] as Marker[], paths: [] as Path[], rings: [] as object[], counts: {} as Record<string, number> }
+    if (!data || !run) return { markers: [] as Marker[], paths: [] as Path[], counts: {} as Record<string, number> }
     const step = data.simulation.track_step_s
     const sources = new Map(data.plume_sources.map(s => [s.id, s]))
     const markers: Marker[] = []
@@ -141,7 +142,6 @@ export default function GlobeView() {
       markers.push({ kind: 'sim', id: f.id, label: `${f.id} · SIM`, lat, lng, alt_km: alt })
       paths.push({ kind: 'sim', points: f.track.slice(Math.max(0, i - 40), i + 1) })
     }
-    const rings: object[] = []
     const counts: Record<string, number> = {}
     for (const a of run.acquisitions) {
       const t = (utc(a.time_utc) - epochMs) / 1000
@@ -152,16 +152,15 @@ export default function GlobeView() {
       const s = sources.get(a.source_id)
       if (!f || !s) continue
       paths.push({ kind: 'look', outcome: a.outcome, points: [f.track[simIndex(f, t, step)], [s.lat, s.lon, 0]] })
-      rings.push({ lat: s.lat, lng: s.lon, outcome: a.outcome })
     }
-    return { markers, paths, rings, counts }
+    return { markers, paths, counts }
   }, [data, run, simS, epochMs])
 
   useEffect(() => {
     const g = globe.current
     if (!g || !data) return
     const real: Marker[] = realNow.map(r => ({ kind: 'real', id: String(r.sat.norad_id), label: r.sat.name, lat: r.lat, lng: r.lng, alt_km: r.alt_km }))
-    g.htmlElementsData([...real, ...sim.markers]).pathsData([...realTrails, ...sim.paths]).ringsData(sim.rings).pointsData(data.plume_sources)
+    g.htmlElementsData([...real, ...sim.markers]).pathsData([...realTrails, ...sim.paths]).pointsData(data.plume_sources)
     if (follow) {
       const iss = realNow.find(r => r.sat.norad_id === 25544)
       if (iss) g.pointOfView({ lat: iss.lat, lng: iss.lng, altitude: 1.6 }, 900)
