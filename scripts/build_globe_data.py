@@ -29,9 +29,10 @@ import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+import numpy as np
 from aether.config import load_scenario
-from aether.orbit import _timescale, build_satellite
-from skyfield.api import wgs84
+from aether.orbit import _timescale, build_satellite, load_ephemeris
+from skyfield.api import EarthSatellite, wgs84
 
 from scripts.live_context import fetch
 
@@ -47,6 +48,17 @@ REAL = {
 }
 GP_URL = "https://celestrak.org/NORAD/elements/gp.php?CATNR={}&FORMAT=JSON"
 TRACK_STEP_S = 60
+PLUMES = ROOT / "data/normalized/emit_permian_plumes.json"
+# PR-LIVE02: swath widths (km) for geometric pass opportunities, look-ahead and sampling.
+SWATH_KM = {25544: 75.0, 39084: 185.0, 49260: 185.0, 42969: 2600.0}
+PASS_LOOKAHEAD_H = 72
+PASS_STEP_S = 10
+EARTH_RADIUS_KM = 6371.0088
+# The configured Permian region (configs/regions/permian.yaml), queried in NASA CMR.
+CMR_URL = (
+    "https://cmr.earthdata.nasa.gov/search/granules.json?short_name=EMITL2BCH4PLM&version=002"
+    "&bounding_box=-104.5,30.8,-101.0,33.5&page_size=20&sort_key=-start_date"
+)
 
 
 def real_elements(previous: dict, offline: bool) -> list[dict]:
@@ -75,6 +87,112 @@ def real_elements(previous: dict, offline: bool) -> list[dict]:
                 entry = old | {"refresh_status": f"CACHED: {exc}"}
         out.append(entry)
     return out
+
+
+def emit_records() -> list[dict]:
+    """The 20 pinned EMIT V002 records exactly as normalized (REAL_OBSERVATION)."""
+    keep = ("id", "native_id", "acquisition_time_utc", "lat", "lon", "emission_rate_kg_h",
+            "emission_rate_uncertainty_kg_h", "missing_rate_reason", "provider",
+            "dataset_version", "provenance_class")  # fmt: skip
+    return [{k: r.get(k) for k in keep} for r in json.loads(PLUMES.read_bytes())]
+
+
+def emit_recent(previous: dict, offline: bool) -> dict:
+    """Newest EMIT CH4 plume granules over the Permian box from NASA CMR (catalogue metadata)."""
+    try:
+        if offline:
+            raise RuntimeError("offline: refresh not attempted")
+        data = fetch(CMR_URL)
+        entries = json.loads(data)["feed"]["entry"]
+        return {
+            "url": CMR_URL,
+            "retrieved_at_utc": datetime.now(UTC).isoformat(timespec="seconds"),
+            "sha256": hashlib.sha256(data).hexdigest(),
+            "refresh_status": "OK",
+            "granules": [
+                {
+                    "title": e.get("title"),
+                    "time_start": e.get("time_start"),
+                    "updated": e.get("updated"),
+                    "data_url": next(
+                        (
+                            link["href"]
+                            for link in e.get("links", [])
+                            if link.get("href", "").startswith("https://")
+                            and link.get("rel", "").endswith("/data#")
+                        ),
+                        None,
+                    ),
+                }
+                for e in entries
+            ],
+        }
+    except (OSError, RuntimeError, ValueError, KeyError) as exc:
+        old = previous.get("emit_recent")
+        if old and old.get("granules") is not None:
+            return old | {"refresh_status": f"CACHED: {exc}"}
+        return {"url": CMR_URL, "refresh_status": f"UNAVAILABLE: {exc}", "granules": []}
+
+
+def real_passes(sats: list[dict], sites: list[dict], start: datetime) -> list[dict]:
+    """Geometric opportunities: sub-satellite point within half the swath of a plume site."""
+    ts = _timescale()
+    eph = load_ephemeris()
+    n = int(PASS_LOOKAHEAD_H * 3600 // PASS_STEP_S) + 1
+    t = ts.from_datetimes(
+        [start + timedelta(seconds=i * PASS_STEP_S) for i in range(n)]
+    )
+    site_lat = np.radians([s["lat"] for s in sites])[None, :]
+    site_lon = np.radians([s["lon"] for s in sites])[None, :]
+    centre = wgs84.latlon(float(np.mean([s["lat"] for s in sites])),
+                          float(np.mean([s["lon"] for s in sites])))  # fmt: skip
+    out = []
+    for sat in sats:
+        if "omm" not in sat:
+            continue
+        es = EarthSatellite.from_omm(ts, sat["omm"])
+        sub = wgs84.subpoint_of(es.at(t))
+        lat = sub.latitude.radians[:, None]
+        lon = sub.longitude.radians[:, None]
+        hav = (np.sin((site_lat - lat) / 2) ** 2
+               + np.cos(lat) * np.cos(site_lat) * np.sin((site_lon - lon) / 2) ** 2)  # fmt: skip
+        dist = 2 * EARTH_RADIUS_KM * np.arcsin(np.sqrt(hav))
+        inside = dist <= SWATH_KM[sat["norad_id"]] / 2
+        rows = np.flatnonzero(inside.any(axis=1))
+        if rows.size == 0:
+            continue
+        groups = np.split(rows, np.flatnonzero(np.diff(rows) > 1) + 1)
+        for g in groups:
+            best = g[np.argmin(dist[g].min(axis=1))]
+            when = t[int(best)]
+            sun_alt = (
+                (eph["earth"] + centre)
+                .at(when)
+                .observe(eph["sun"])
+                .apparent()
+                .altaz()[0]
+            )
+            covered = sorted(
+                {sites[j]["id"] for j in np.flatnonzero(inside[g].any(axis=0))}
+            )
+            out.append(
+                {
+                    "norad_id": sat["norad_id"],
+                    "satellite": sat["name"],
+                    "start_utc": t[int(g[0])]
+                    .utc_datetime()
+                    .isoformat(timespec="seconds"),
+                    "end_utc": t[int(g[-1])]
+                    .utc_datetime()
+                    .isoformat(timespec="seconds"),
+                    "closest_utc": when.utc_datetime().isoformat(timespec="seconds"),
+                    "sites_in_swath": covered,
+                    "min_ground_distance_km": round(float(dist[g].min()), 1),
+                    "sun_elevation_deg": round(float(sun_alt.degrees), 1),
+                    "daylit": bool(sun_alt.degrees > 0),
+                }
+            )
+    return sorted(out, key=lambda p: p["closest_utc"])
 
 
 def virtual_fleet(cfg) -> list[dict]:
@@ -145,9 +263,22 @@ def main() -> None:
     previous = json.loads(OUT.read_bytes()) if OUT.exists() else {}
     cfg = load_scenario(ROOT / "configs/demo.yaml").model
     sources, runs = replay_runs()
+    sats = real_elements(previous, args.offline)
+    built = datetime.now(UTC).replace(microsecond=0)
+    records = emit_records()
     data = {
         "label": "REAL orbital context + SIMULATED MISSION replay; see layer labels",
-        "real_satellites": real_elements(previous, args.offline),
+        "built_at_utc": built.isoformat(),
+        "real_satellites": sats,
+        "emit_records": records,
+        "emit_recent": emit_recent(previous, args.offline),
+        "real_passes": {
+            "from_utc": built.isoformat(),
+            "lookahead_hours": PASS_LOOKAHEAD_H,
+            "swath_km": {str(k): v for k, v in SWATH_KM.items()},
+            "note": "Geometric opportunity only (PR-LIVE02); not an acquisition forecast or tasking",
+            "passes": real_passes(sats, records, built),
+        },
         "plume_sources": sources,
         "simulation": {
             "scenario_id": cfg.scenario_id,
@@ -162,6 +293,12 @@ def main() -> None:
     OUT.write_text(json.dumps(data, separators=(",", ":")) + "\n", encoding="utf-8")
     for sat in data["real_satellites"]:
         print(sat["name"], sat["refresh_status"])
+    print(
+        "EMIT recent:",
+        data["emit_recent"]["refresh_status"],
+        len(data["emit_recent"]["granules"]),
+    )
+    print("real passes:", len(data["real_passes"]["passes"]))
     print(f"wrote {OUT.relative_to(ROOT)} ({OUT.stat().st_size} bytes)")
 
 

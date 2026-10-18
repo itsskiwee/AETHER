@@ -253,6 +253,7 @@ So the base scenario is probably **more persistent than the Permian**, perhaps b
 | ID | Parameter | Value | Tag / rationale |
 |---|---|---|---|
 | PR-LIVE01 | Current-feed refresh cadence, response size, catalogue count | At most one upstream refresh per 7,200 s; maximum response 1,048,576 bytes; 5 newest matching EMIT V002 catalogue entries; cache labelled stale at 7,200 s | [D] CelesTrak usage policy specifies GP updates every 2 h (`https://celestrak.org/usage-policy.php`). Bounded read-only context; not simulation parameters or evidence of current methane activity. Display Landsat 8/9 from the provider's named Landsat group. |
+| PR-LIVE02 | Real-sensor swath widths for geometric pass opportunities over the plume sites (console "Real passes" page) | EMIT 75 km; Landsat 8/9 OLI 185 km; Sentinel-5P TROPOMI 2,600 km; site counted when the sub-satellite ground distance is at most half the swath; 72 h look-ahead sampled every 10 s; "daylit" when the sun is above 0° at the region centre | [D] NASA JPL EMIT mission page (75 km swath from the ISS); USGS Landsat 8/9 OLI specifications (185 km); ESA Sentinel-5P TROPOMI (2,600 km). A geometric opportunity only, not an acquisition forecast: EMIT acquires per its own observation plan and ISS attitude, and nothing here is tasking. Never a simulation or evidence input. |
 
 | Gap | Who | Blocking? |
 |---|---|---|

@@ -180,7 +180,7 @@ export default function GlobeView() {
           <button onClick={() => { setFollow(false); globe.current?.pointOfView({ lat: 32, lng: -102.8, altitude: 0.9 }, 1500) }}>Focus Permian Basin</button>
           <button aria-pressed={follow} onClick={() => setFollow(f => !f)}>{follow ? 'Following ISS' : 'Follow ISS (EMIT)'}</button>
           <button onClick={() => { setFollow(false); globe.current?.pointOfView({ lat: 20, lng: -100, altitude: 2.6 }, 1500) }}>Whole Earth</button>
-          <a className="globe-primary" href="/?view=overview">Open mission workspace →</a>
+          <a className="globe-primary" href="/?view=overview">Open the console →</a>
         </div>
       </header>
 
