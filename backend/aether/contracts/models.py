@@ -10,7 +10,7 @@ Rules:
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from pydantic import (
     AfterValidator,
@@ -492,3 +492,31 @@ class RunRecord(Contract):
         ):
             raise ValueError("input_dataset counts disagree with the run's sources")
         return self
+
+
+class PlanTiming(Contract):
+    """Measured wall time of one ``policy.plan`` call (model build + solve), in seconds."""
+
+    revision: int = Field(ge=0)
+    checker_retry: int = Field(ge=0)
+    candidate_window_count: int = Field(ge=0)
+    solver_status: SolverStatus
+    policy_plan_wall_s: float = Field(ge=0, allow_inf_nan=False)
+
+
+class RunPerformance(Contract):
+    """Measured timing for one run, stored beside (never inside) its RunRecord (PERF-01).
+
+    Wall-clock values are machine- and load-dependent and are not reproducible output. They live
+    in this separate artifact so RunRecord bytes stay deterministic. ``Plan.runtime_s`` remains
+    None. Every value here comes from ``time.perf_counter``; nothing is estimated or zero-filled.
+    """
+
+    run_id: str
+    measured: Literal[True] = True
+    timer: Literal["time.perf_counter"] = "time.perf_counter"
+    machine: dict[str, str]
+    total_run_wall_s: float = Field(ge=0, allow_inf_nan=False)
+    windows_wall_s: float = Field(ge=0, allow_inf_nan=False)
+    windows_from_process_cache: bool
+    plan_timings: tuple[PlanTiming, ...]

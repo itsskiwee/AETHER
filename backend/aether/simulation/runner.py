@@ -5,6 +5,9 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
+import platform
+import time
 from collections import defaultdict
 from collections.abc import Iterable
 from datetime import datetime, timedelta
@@ -22,8 +25,10 @@ from aether.contracts.models import (
     InputDatasetRef,
     ObservationWindow,
     Plan,
+    PlanTiming,
     PlumeObservation,
     RunEvent,
+    RunPerformance,
     RunRecord,
     ScheduleValidation,
     Selection,
@@ -182,15 +187,21 @@ def _effective_bundle(bundle: ScenarioBundle, seed: int) -> ScenarioBundle:
     )
 
 
-def _windows_for(cfg: ScenarioConfig, sources: tuple[Source, ...], start: datetime, end: datetime):
-    """Reuse geometry across policies in one process; the cache key covers every input."""
-    key = (
+def _window_cache_key(
+    cfg: ScenarioConfig, sources: tuple[Source, ...], start: datetime, end: datetime
+) -> tuple:
+    return (
         cfg.config_hash(),
         tuple((source.id, source.lon, source.lat) for source in sources),
         start,
         end,
         _ephemeris_sha256(),
     )
+
+
+def _windows_for(cfg: ScenarioConfig, sources: tuple[Source, ...], start: datetime, end: datetime):
+    """Reuse geometry across policies in one process; the cache key covers every input."""
+    key = _window_cache_key(cfg, sources, start, end)
     cached = _WINDOW_CACHE.get(key)
     if cached is None:
         cached = tuple(generate_windows(cfg, list(sources), start, end))
@@ -349,9 +360,38 @@ def run_policy(
 ) -> RunRecord:
     """Run one deterministic, closed-loop policy; truth remains inside this function.
 
-    Every persisted contract is revalidated at its boundary. Reproducible solver wall time is
-    recorded as unavailable (``None``), since measuring it would make RunRecord bytes differ.
+    Every persisted contract is revalidated at its boundary. ``Plan.runtime_s`` is None so
+    RunRecord bytes never depend on wall time; use ``run_policy_with_performance`` for timing.
     """
+    return run_policy_with_performance(
+        bundle, policy_id, seed, plume_observations=plume_observations
+    )[0]
+
+
+def machine_description() -> dict[str, str]:
+    """What the timing was measured on. Descriptive only; nothing here enters a RunRecord."""
+    return {
+        "platform": platform.platform(),
+        "machine": platform.machine(),
+        "processor": platform.processor() or "unknown",
+        "python": platform.python_version(),
+        "cpu_count": str(os.cpu_count() or "unknown"),
+    }
+
+
+def run_policy_with_performance(
+    bundle: ScenarioBundle,
+    policy_id: PolicyId | str,
+    seed: int,
+    *,
+    plume_observations: Iterable[PlumeObservation] | None = None,
+) -> tuple[RunRecord, RunPerformance]:
+    """``run_policy`` plus measured wall times in a separate ``RunPerformance`` (PERF-01).
+
+    The RunRecord is identical to ``run_policy``'s: timings never flow into it.
+    """
+    run_started = time.perf_counter()
+    plan_timings: list[PlanTiming] = []
     policy_id = PolicyId(policy_id)
     if isinstance(seed, bool) or not isinstance(seed, int):
         raise TypeError("seed must be an integer")
@@ -364,7 +404,10 @@ def run_policy(
 
     start_utc = cfg.simulation_epoch_utc
     end_utc = start_utc + timedelta(hours=cfg.horizon_hours)
+    windows_started = time.perf_counter()
+    windows_cached = _window_cache_key(cfg, sources, start_utc, end_utc) in _WINDOW_CACHE
     windows = _windows_for(cfg, sources, start_utc, end_utc)
+    windows_wall_s = time.perf_counter() - windows_started
     by_window = {window.id: window for window in windows}
     pass_groups = _pass_groups(tuple(window for window in windows if window.feasible))
     pass_starts = {pass_id: bounds[0] for pass_id, bounds in pass_groups.items()}
@@ -510,9 +553,21 @@ def run_policy(
                 "simulation",
                 {"revision": current_revision, "cause": cause, "checker_retry": retry},
             )
-            proposed = revalidate_contract(policy.plan(context))
+            plan_started = time.perf_counter()
+            proposed = policy.plan(context)
+            plan_wall_s = time.perf_counter() - plan_started
+            proposed = revalidate_contract(proposed)
             if not isinstance(proposed, Plan):
                 raise TypeError("policy returned a non-Plan value")
+            plan_timings.append(
+                PlanTiming(
+                    revision=current_revision,
+                    checker_retry=retry,
+                    candidate_window_count=len(candidate_windows),
+                    solver_status=proposed.solver_status,
+                    policy_plan_wall_s=plan_wall_s,
+                )
+            )
             # Wall-clock solver time is not reproducible output and is deliberately unavailable.
             proposed = revalidate_contract(proposed.model_copy(update={"runtime_s": None}))
             if proposed.run_id != run_id or proposed.policy_id is not policy_id:
@@ -805,7 +860,16 @@ def run_policy(
         events=tuple(events),
         input_dataset=dataset_ref,
     )
-    return revalidate_contract(run)
+    run = revalidate_contract(run)
+    performance = RunPerformance(
+        run_id=run_id,
+        machine=machine_description(),
+        total_run_wall_s=time.perf_counter() - run_started,
+        windows_wall_s=windows_wall_s,
+        windows_from_process_cache=windows_cached,
+        plan_timings=tuple(plan_timings),
+    )
+    return run, performance
 
 
 def _forecast_event_times(cfg: ScenarioConfig) -> list[tuple[datetime, dict]]:
@@ -853,6 +917,8 @@ __all__ = [
     "generate_sources",
     "load_configured_dataset",
     "repo_root",
+    "machine_description",
     "resolve_sources",
     "run_policy",
+    "run_policy_with_performance",
 ]
