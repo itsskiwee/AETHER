@@ -165,12 +165,12 @@ be reported together with this result.
 
 | Option | What changes | Evidence / cost |
 |---|---|---|
-| A. Make `h168_long_horizon` (168 h, 60 sources) the benchmark base | horizon, source count | More passes for regime learning; 3× sources lowers per-seed SD. Diagnostic gate on 10 seeds running now. Runs cost about 5–8× more |
+| A. Make `h168_long_horizon` (168 h, 60 sources) the benchmark base | horizon, source count | More passes for regime learning; 3× sources lowers per-seed SD. A 10-seed diagnostic was proposed, but no h168 gate output exists in any worktree (checked 18 Oct, 09:20 EDT), so its outcome is **unknown**. Runs cost about 5–8× more |
 | B. More passes: denser virtual constellation (more spacecraft/planes) | `configs/spacecraft`, base | Directly raises information per evaluation interval; changes G1-F evidence and orbit artifacts |
 | C. Evaluate at pass times or hourly instead of every 6 h (PR-E01) | metric definition | Measures what observation can know. It is a metric change, which must be decided before lock and must not be chosen for being favourable |
 | D. Keep the scenario and accept a likely null | none | Honest but uninformative; power would need far more than 100 seeds |
 
-Claude-2 recommendation: wait for the h168 diagnostic. If it passes, adopt **A** (already a
+Claude-2 recommendation (written before the diagnostic; it never produced output): wait for the h168 diagnostic. If it passes, adopt **A** (already a
 registered family, smallest conceptual change). Otherwise combine A with B. C and D are not
 recommended.
 
