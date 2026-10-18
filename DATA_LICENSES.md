@@ -48,5 +48,5 @@ The app's MIT code license does not assert a new license over provider data.
 
 ## Globe view (UI-10)
 
-- `frontend/public/globe/earth-blue-marble.jpg`, `earth-topology.png`, `night-sky.png`: from the `three-globe` package examples (MIT). The Earth imagery derives from NASA Blue Marble / NASA Visible Earth (public domain, NASA media guidelines; no endorsement implied).
+- `frontend/public/globe/earth-blue-marble.jpg`, `earth-topology.png`: from the `three-globe` package examples (MIT). The Earth imagery derives from NASA Blue Marble / NASA Visible Earth (public domain, NASA media guidelines; no endorsement implied).
 - `frontend/public/globe/globe-data.json`: CelesTrak GP orbital elements (OMM JSON) for NORAD 25544, 39084, 49260 and 42969, with retrieval time, URL and SHA-256 per record, built by `scripts/build_globe_data.py`. Positions shown are SGP4 propagations, not telemetry.

@@ -52,6 +52,7 @@
 .globe-sat.real{color:var(--g-real)}.globe-sat.real i{background:var(--g-real)}
 .globe-sat.sim{color:var(--g-sim)}.globe-sat.sim i{background:transparent;border:2px solid var(--g-sim);border-radius:2px;transform:rotate(45deg)}
 .globe-error{position:absolute;top:92px;left:50%;transform:translateX(-50%);background:#3a1414;border:1px solid #a33;color:#ffd7d7;padding:12px 16px;border-radius:8px;font-size:12px}
+.globe-loading{min-height:100vh;display:grid;place-items:center;margin:0;padding:24px;background:#02060d;color:#e8f0f8;font:500 14px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
 @media (max-width:900px){.globe-panel{position:absolute;left:16px;right:16px;width:auto}.globe-real{top:auto;bottom:150px}.globe-sim{display:none}.globe-top{flex-direction:column;align-items:flex-start}.globe-legend{bottom:10px}}
 /* Isolate from the console's global table/body styles. */

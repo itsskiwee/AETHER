@@ -96,6 +96,13 @@ export default function App() {
   const [realError, setRealError] = useState('')
   const [now, setNow] = useState(() => Date.now())
   const [failed, setFailed] = useState<string[]>([])
+  const [evaluationLoaded, setEvaluationLoaded] = useState(false)
+  const needsRealData = view === 'overview' || view === 'observations' || view === 'passes'
+  const needsRunData = view === 'overview' || view === 'planner' || view === 'beliefs' || view === 'comparison' || view === 'evidence'
+  const needsEvaluation = view === 'beliefs' || view === 'comparison' || view === 'evidence'
+  const needsProject = view === 'setup'
+  const needsClock = view === 'overview' || view === 'passes'
+  const projectFailed = failed.includes('project')
   const fail = (what: string) => setFailed(f => f.includes(what) ? f : [...f, what])
 
   const navigate = useCallback((next: View) => {
@@ -106,29 +113,78 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    if (!needsRealData || real || realError) return
     const controller = new AbortController()
-    const { signal } = controller
-    get<RealBundle>('/globe/globe-data.json', signal).then(setReal).catch(e => { if (!signal.aborted) setRealError(String(e.message ?? e)) })
-    get<RunIndexItem[]>('/api/runs', signal).then(runs => {
+    get<RealBundle>('/globe/globe-data.json', controller.signal)
+      .then(value => { if (!controller.signal.aborted) setReal(value) })
+      .catch(error => { if (!controller.signal.aborted) setRealError(String(error.message ?? error)) })
+    return () => controller.abort()
+  }, [needsRealData, real, realError])
+
+  useEffect(() => {
+    if (!needsRunData || index.length > 0 || runError) return
+    const controller = new AbortController()
+    get<RunIndexItem[]>('/api/runs', controller.signal).then(runs => {
+      if (controller.signal.aborted) return
       setIndex(runs)
       setRunId(previous => previous || runs.find(item => item.policy_id === 'adaptive_eig')?.run_id || runs[0]?.run_id || '')
       if (!runs.length) setRunError('No recorded simulation runs in this deployment.')
-    }).catch(() => { if (!signal.aborted) setRunError('The simulation archive is unavailable. Real-data pages still work.') })
-    get<ProjectSnapshot>('/api/project', signal).then(p => { if (p?.scenario?.id) setProject(p); else fail('project') }).catch(() => { if (!signal.aborted) fail('project') })
-    get<BenchmarkRow[]>('/api/benchmark-results.csv', signal).then(r => setRows(Array.isArray(r) ? r : [])).catch(() => { if (!signal.aborted) fail('benchmark') })
-    get<BenchmarkReport>('/api/benchmark-confidence-intervals.json', signal).then(r => setReport(Array.isArray(r?.comparisons) ? r : null)).catch(() => { if (!signal.aborted) fail('benchmark') })
-    get<BenchmarkProtocol>('/api/benchmark-protocol', signal).then(p => setProtocol(Array.isArray(p?.primary_comparison) ? p : null)).catch(() => undefined)
+    }).catch(() => {
+      if (!controller.signal.aborted) setRunError('The simulation archive is unavailable. Real-data pages still work.')
+    })
     return () => controller.abort()
-  }, [])
+  }, [needsRunData, index.length, runError])
+
   useEffect(() => {
-    if (!runId) return
+    if (!needsProject || project || projectFailed) return
+    const controller = new AbortController()
+    get<ProjectSnapshot>('/api/project', controller.signal).then(value => {
+      if (controller.signal.aborted) return
+      if (value?.scenario?.id) setProject(value)
+      else fail('project')
+    }).catch(() => { if (!controller.signal.aborted) fail('project') })
+    return () => controller.abort()
+  }, [needsProject, project, projectFailed])
+
+  useEffect(() => {
+    if (!needsEvaluation || evaluationLoaded) return
+    const controller = new AbortController()
+    const { signal } = controller
+    Promise.allSettled([
+      get<BenchmarkRow[]>('/api/benchmark-results.csv', signal),
+      get<BenchmarkReport>('/api/benchmark-confidence-intervals.json', signal),
+      get<BenchmarkProtocol>('/api/benchmark-protocol', signal),
+    ]).then(([rowResult, reportResult, protocolResult]) => {
+      if (signal.aborted) return
+      if (rowResult.status === 'fulfilled') setRows(Array.isArray(rowResult.value) ? rowResult.value : [])
+      else fail('benchmark')
+      if (reportResult.status === 'fulfilled') {
+        setReport(Array.isArray(reportResult.value?.comparisons) ? reportResult.value : null)
+      } else fail('benchmark')
+      if (protocolResult.status === 'fulfilled') {
+        setProtocol(Array.isArray(protocolResult.value?.primary_comparison) ? protocolResult.value : null)
+      }
+      setEvaluationLoaded(true)
+    })
+    return () => controller.abort()
+  }, [needsEvaluation, evaluationLoaded])
+
+  useEffect(() => {
+    if (!needsRunData || !runId || run?.run_id === runId) return
     const controller = new AbortController()
     setRun(null)
-    get<unknown>(`/api/runs/${encodeURIComponent(runId)}`, controller.signal).then(value => { if (!controller.signal.aborted) setRun(parseRun(value)) })
-      .catch(error => { if (!controller.signal.aborted) setRunError(error.message) })
+    setRunError('')
+    get<unknown>(`/api/runs/${encodeURIComponent(runId)}`, controller.signal).then(value => {
+      if (!controller.signal.aborted) setRun(parseRun(value))
+    }).catch(error => { if (!controller.signal.aborted) setRunError(error.message) })
     return () => controller.abort()
-  }, [runId])
-  useEffect(() => { const id = window.setInterval(() => setNow(Date.now()), 30000); return () => window.clearInterval(id) }, [])
+  }, [needsRunData, runId, run])
+
+  useEffect(() => {
+    if (!needsClock) return
+    const id = window.setInterval(() => setNow(Date.now()), 30000)
+    return () => window.clearInterval(id)
+  }, [needsClock])
   useEffect(() => { const onPop = () => setView(currentView()); window.addEventListener('popstate', onPop); return () => window.removeEventListener('popstate', onPop) }, [])
   useEffect(() => { document.title = `${views.find(([key]) => key === view)?.[1]} · AETHER` }, [view])
 
@@ -196,41 +252,44 @@ function Overview({ real, realError, run, now, navigate }: { real: RealBundle | 
   const violations = run ? run.validations.reduce((n, v) => n + v.violations.length, 0) : 0
   return <div className="cx-page">
     <header className="cx-page-head cx-head-row">
-      <div><span className="cx-kicker">Permian Basin · methane observation planning</span><h1>Overview</h1>
-        <p>Methane leaks switch on and off, and each satellite pass can only look at a few places. AETHER starts from real NASA EMIT plume observations and real satellite orbits, then tests in simulation a planner that chooses which site to look at next.</p></div>
-      <a className="cx-primary" href="/?view=globe"><Icon name="globe" /> Open the 3D globe</a>
+      <div><span className="cx-kicker">Permian Basin / methane observation planning</span><h1>Observation planning for the Permian Basin</h1>
+        <p>Historical NASA EMIT observations and estimates from real satellite orbits provide the context. A reproducible simulation tests how a planner chooses the next site to observe.</p></div>
+      <a className="cx-primary" href="/?view=globe"><Icon name="globe" /> View the globe</a>
     </header>
     {realError && <div className="cx-empty" role="alert">Real-data bundle unavailable: {realError}</div>}
-    <div className="cx-stats">
+    <section className="cx-stats" aria-label="Research snapshot">
       <Stat kind="real" label="Real EMIT plume observations" value={String(records.length || '—')} note={records.length ? `${quantified} with a provider emission rate · ${day(records.map(r => r.acquisition_time_utc).sort()[0])} to ${day(records.map(r => r.acquisition_time_utc).sort().slice(-1)[0])}` : 'Loading'} />
       <Stat kind="real" label="Newest EMIT plume granule over the Permian" value={latest ? day(latest.time_start) : '—'} note={latest ? `NASA CMR catalogue · ${real?.emit_recent.granules.length} newest listed` : real?.emit_recent.refresh_status ?? 'Loading'} />
       <Stat kind="real" label="Next daylit real pass over a plume site" value={next ? next.satellite : '—'} note={next ? `${relative(parse(next.closest_utc) - now)} · ${next.sites_in_swath.length} of 20 sites in swath` : real && snapshotAge(real, now).expired ? 'Pass snapshot expired: rebuild to refresh' : 'None in the look-ahead window'} />
       <Stat kind="sim" label="Simulated looks by the planner" value={run ? String(looks) : '—'} note={run ? `${policyName(run.policy_id)} · ${violations} schedule-checker violations` : 'Loading'} />
-    </div>
-    <div className="cx-two">
-      <Card title="What is real" aside={<Tag kind="real" />}>
+    </section>
+    <div className="cx-two cx-overview-sections">
+      <section className="cx-overview-section" aria-labelledby="cx-real-inputs">
+        <div className="cx-overview-section-head"><div><span className="cx-kicker">Historical and current context</span><h2 id="cx-real-inputs">Real observations and orbits</h2></div></div>
         <ul className="cx-list">
-          <li><b>20 EMIT plume records</b> (NASA LP DAAC, V002, 2023–2024): times, locations, emission rates and uncertainties, pinned by SHA-256. <button className="cx-link" onClick={() => navigate('observations')}>See them →</button></li>
-          <li><b>Recent EMIT detections</b> over the Permian, listed live from NASA's catalogue.</li>
-          <li><b>Real satellites</b>: ISS (carries EMIT), Landsat 8 and 9, Sentinel-5P, propagated from CelesTrak elements, and their real upcoming passes over these sites. <button className="cx-link" onClick={() => navigate('passes')}>See passes →</button></li>
+          <li><b>20 EMIT plume records</b> (NASA LP DAAC, V002, 2023–2024), with times, locations and provider-reported rates when available. Each record is pinned by SHA-256. <button className="cx-link" onClick={() => navigate('observations')}>Browse records</button></li>
+          <li><b>Recent EMIT plume granules</b> over the Permian Basin, listed in NASA's CMR catalogue.</li>
+          <li><b>Satellite positions and passes</b> are propagated from published CelesTrak elements for the ISS, Landsat 8 and 9, and Sentinel-5P. They are estimates, not live telemetry. <button className="cx-link" onClick={() => navigate('passes')}>View passes</button></li>
         </ul>
-      </Card>
-      <Card title="What is simulated, and why" aside={<Tag kind="sim" />}>
+      </section>
+      <section className="cx-overview-section" aria-labelledby="cx-simulation">
+        <div className="cx-overview-section-head"><div><span className="cx-kicker">Reproducible test</span><h2 id="cx-simulation">A separate simulated mission</h2></div></div>
         <ul className="cx-list">
-          <li><b>Four virtual satellites</b> that can be pointed, with a modelled sensor. Nobody here can command real ones.</li>
-          <li><b>Hidden "true" emissions and weather.</b> Scoring a planner needs ground truth, which does not exist for real sites, so every planner is tested against the same simulated truth.</li>
-          <li><b>The planner and its beliefs</b>, solved with Google OR-Tools CP-SAT and checked by an independent schedule checker. <button className="cx-link" onClick={() => navigate('planner')}>Watch it decide →</button></li>
+          <li><b>Four virtual spacecraft</b> and a modelled sensor form the simulated fleet. They cannot command real satellites.</li>
+          <li><b>Emissions and weather are simulated.</b> They provide the ground truth used to score each planner under the same conditions.</li>
+          <li><b>The planner and its beliefs</b> are solved with OR-Tools CP-SAT and checked by an independent schedule checker. <button className="cx-link" onClick={() => navigate('planner')}>View the plan</button></li>
         </ul>
-      </Card>
+      </section>
     </div>
-    <Card title="Research status (18 Oct 2026)" aside={<button className="cx-link" onClick={() => navigate('comparison')}>Details →</button>}>
+    <section className="cx-overview-status" aria-labelledby="cx-research-status">
+      <div className="cx-overview-section-head"><div><span className="cx-kicker">Evidence snapshot / 18 Oct 2026</span><h2 id="cx-research-status">Research status</h2></div><button className="cx-link" onClick={() => navigate('comparison')}>Review evaluation →</button></div>
       <ul className="cx-list cx-status">
-        <li><span className="cx-pill ok">PASSED</span>Data provenance, orbit geometry, an independent checker (0 violations), belief updates, byte-identical replay</li>
-        <li><span className="cx-pill fail">FAILED</span>Capacity on the 72 h scenario: one pass supports only 2 looks (the minimum is 4)</li>
-        <li><span className="cx-pill fail">FAILED</span>Discriminability: on the 72 h scenario, even a truth-informed reference cannot beat random looks, so no planner comparison would be informative yet. A 168 h scenario is under evaluation (H3)</li>
-        <li><span className="cx-pill wait">PENDING</span>Locked protocol and held-out benchmark. No claim that one planner beats another is made</li>
+        <li><span className="cx-pill ok">Passed</span><span>Data provenance, orbit geometry, independent schedule checks (0 violations), belief updates and byte-identical replay.</span></li>
+        <li><span className="cx-pill fail">Failed</span><span>Capacity on the 72 h scenario: one pass supports 2 looks; the minimum is 4.</span></li>
+        <li><span className="cx-pill fail">Failed</span><span>Discriminability on the 72 h scenario: a truth-informed reference does not outperform random looks. A 168 h diagnostic fixes capacity but not discriminability (H3).</span></li>
+        <li><span className="cx-pill wait">Pending</span><span>Protocol lock and held-out benchmark. No planner superiority claim is supported.</span></li>
       </ul>
-    </Card>
+    </section>
   </div>
 }
 
@@ -315,7 +374,7 @@ function PolicyTest({ run, rows, report, protocol, failed }: { run: RunRecord; r
     <Card title="Where the science stands">
       <ul className="cx-list cx-status">
         <li><span className="cx-pill fail">FAILED</span><b>Discriminability gate, 72 h scenario.</b> In all six test families (30 seeds each), a reference that can see the hidden truth scores almost the same as random looks. Comparing planners there would measure noise, so no comparison is claimed.</li>
-        <li><span className="cx-pill wait">UNDER EVALUATION</span><b>168 h scenario</b> (60 sources, 16 passes per 168 h): gate run on the tuning seeds started 18 Oct 2026. Adopting it as the benchmark is a recorded human decision (H3), not automatic.</li>
+        <li><span className="cx-pill fail">DOES NOT SEPARATE</span><b>168 h scenario diagnostic</b> (60 sources, 16 passes, tuning seeds, 18 Oct 2026): capacity is fixed (6.6 or more looks per pass), but the truth-informed reference still scores like random looks. A longer horizon alone does not make the benchmark informative; the next candidate is a denser fleet (decision H3).</li>
         <li><span className="cx-pill wait">PRELIMINARY</span><b>Two-seed comparison below</b>: shows the pipeline works. With 2 seeds it carries no statistical weight.</li>
       </ul>
     </Card>

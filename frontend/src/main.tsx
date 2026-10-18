@@ -8,5 +8,5 @@ const GlobeView = lazy(() => import('./Globe'))
 const globe = new URLSearchParams(location.search).get('view') === 'globe'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>{globe ? <Suspense fallback={null}><GlobeView /></Suspense> : <App />}</React.StrictMode>,
+  <React.StrictMode>{globe ? <Suspense fallback={<main className="globe-loading" role="status">Loading the globe…</main>}><GlobeView /></Suspense> : <App />}</React.StrictMode>,
 )
