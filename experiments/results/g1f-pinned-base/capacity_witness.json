@@ -1,0 +1,196 @@
+{
+  "evidence_type": "independent_checker_capacity_lower_bound",
+  "input": {
+    "artifact_status": "CANDIDATE_NOT_GOLDEN",
+    "config_file_sha256": "2f413da22bfa6b6434570fe925e8ca149ad6031b62f55aa6e78a97e5f7182c4b",
+    "model_config_hash": "91920c150359e7eeb0ba137211d66b2e202ba88880c187630dedaf9328f5c079",
+    "seeded_source_count": 20,
+    "source_count": 20,
+    "source_set_sha256": "4043449edba7bb51356ef99ec6fede1be8245a1008fa4f38731ef60ddef9bdf4",
+    "uniform_fill_count": 0,
+    "windows_path": "data/fixtures/windows_permian_pinned_candidate.json",
+    "windows_sha256": "f55075e120bea22da2df872b786028a0bbbf3486c86cd1208fb1666d94160c62"
+  },
+  "method": "deterministic chronological first-fit insertion over acquisition options; each proposed plan is accepted only when the independent checker reports zero violations; no solver or policy module is imported",
+  "minimum_selected_acquisitions_lower_bound_per_pass": 2,
+  "pass_count": 7,
+  "passes": [
+    {
+      "checker_ok": true,
+      "checker_violations": [],
+      "feasible_window_count": 13,
+      "orbit_numbers": [
+        26
+      ],
+      "pass_id": "vsat_a:26",
+      "rejected_candidate_rules": {
+        "NO_OVERLAP": 34,
+        "SLEW": 93
+      },
+      "selected_acquisitions_lower_bound": 7,
+      "selected_option_ids": [
+        "vsat_a:vs_a_point_source:source-af068bf01092f7a2:2026-10-18T17:39:16.937Z:13@20261018T173916.937500Z",
+        "vsat_a:vs_a_point_source:source-79ec6e3390d9209a:2026-10-18T17:39:20.312Z:13@20261018T173930.312500Z",
+        "vsat_a:vs_a_point_source:source-42eef05c467d3f69:2026-10-18T17:39:27.875Z:13@20261018T173947.875000Z",
+        "vsat_a:vs_a_point_source:source-1fbb811380101afb:2026-10-18T17:39:29.625Z:13@20261018T174009.625000Z",
+        "vsat_a:vs_a_point_source:source-0f7e1c18522cfa45:2026-10-18T17:39:31.687Z:13@20261018T174021.687500Z",
+        "vsat_a:vs_a_point_source:source-1d6d71a2508ea34f:2026-10-18T17:39:31.687Z:14@20261018T174041.687500Z",
+        "vsat_a:vs_a_point_source:source-e622ac4958f0a517:2026-10-18T17:39:32.875Z:11@20261018T174102.875000Z"
+      ],
+      "spacecraft_ids": [
+        "vsat_a"
+      ]
+    },
+    {
+      "checker_ok": true,
+      "checker_violations": [],
+      "feasible_window_count": 20,
+      "orbit_numbers": [
+        41
+      ],
+      "pass_id": "vsat_a:41",
+      "rejected_candidate_rules": {
+        "NO_OVERLAP": 44,
+        "SLEW": 261
+      },
+      "selected_acquisitions_lower_bound": 7,
+      "selected_option_ids": [
+        "vsat_a:vs_a_point_source:source-a3b04fd568c413f3:2026-10-19T17:19:30.750Z:17@20261019T171930.750000Z",
+        "vsat_a:vs_a_point_source:source-7ff2be6e98f66af4:2026-10-19T17:19:31.375Z:18@20261019T171951.375000Z",
+        "vsat_a:vs_a_point_source:source-bc1be3fc6a0f98aa:2026-10-19T17:19:33.500Z:17@20261019T172003.500000Z",
+        "vsat_a:vs_a_point_source:source-1d6d71a2508ea34f:2026-10-19T17:19:35.250Z:21@20261019T172034.078934Z",
+        "vsat_a:vs_a_point_source:source-ff3e8d7f747dea9c:2026-10-19T17:19:35.937Z:21@20261019T172055.937500Z",
+        "vsat_a:vs_a_point_source:source-d60b64ff2a4432f5:2026-10-19T17:19:37.062Z:17@20261019T172117.062500Z",
+        "vsat_a:vs_a_point_source:source-acf5c0c4b2d6cca3:2026-10-19T17:19:41.437Z:18@20261019T172140.875000Z"
+      ],
+      "spacecraft_ids": [
+        "vsat_a"
+      ]
+    },
+    {
+      "checker_ok": true,
+      "checker_violations": [],
+      "feasible_window_count": 20,
+      "orbit_numbers": [
+        11
+      ],
+      "pass_id": "vsat_b:11",
+      "rejected_candidate_rules": {
+        "NO_OVERLAP": 61,
+        "SLEW": 226
+      },
+      "selected_acquisitions_lower_bound": 7,
+      "selected_option_ids": [
+        "vsat_b:vs_a_point_source:source-a3b04fd568c413f3:2026-10-17T17:12:01.250Z:4@20261017T171201.250000Z",
+        "vsat_b:vs_a_point_source:source-7ff2be6e98f66af4:2026-10-17T17:12:02.937Z:4@20261017T171212.937500Z",
+        "vsat_b:vs_a_point_source:source-bc1be3fc6a0f98aa:2026-10-17T17:12:03.562Z:4@20261017T171233.562500Z",
+        "vsat_b:vs_a_point_source:source-d60b64ff2a4432f5:2026-10-17T17:12:07.000Z:4@20261017T171247Z",
+        "vsat_b:vs_a_point_source:source-acf5c0c4b2d6cca3:2026-10-17T17:12:12.875Z:4@20261017T171302.875000Z",
+        "vsat_b:vs_a_point_source:source-86fd675596e9bcc9:2026-10-17T17:12:14.000Z:4@20261017T171324Z",
+        "vsat_b:vs_a_point_source:source-ae19cc513be9a70c:2026-10-17T17:12:14.375Z:4@20261017T171344.375000Z"
+      ],
+      "spacecraft_ids": [
+        "vsat_b"
+      ]
+    },
+    {
+      "checker_ok": true,
+      "checker_violations": [],
+      "feasible_window_count": 8,
+      "orbit_numbers": [
+        13
+      ],
+      "pass_id": "vsat_c:13",
+      "rejected_candidate_rules": {
+        "NO_OVERLAP": 10,
+        "SLEW": 27
+      },
+      "selected_acquisitions_lower_bound": 5,
+      "selected_option_ids": [
+        "vsat_c:vs_a_point_source:source-af068bf01092f7a2:2026-10-17T20:45:02.000Z:7@20261017T204502Z",
+        "vsat_c:vs_a_point_source:source-79ec6e3390d9209a:2026-10-17T20:45:07.937Z:7@20261017T204517.937500Z",
+        "vsat_c:vs_a_point_source:source-42eef05c467d3f69:2026-10-17T20:45:18.062Z:7@20261017T204528.062500Z",
+        "vsat_c:vs_a_point_source:source-e622ac4958f0a517:2026-10-17T20:45:20.500Z:7@20261017T204540.500000Z",
+        "vsat_c:vs_a_point_source:source-0f7e1c18522cfa45:2026-10-17T20:45:25.937Z:7@20261017T204601.562500Z"
+      ],
+      "spacecraft_ids": [
+        "vsat_c"
+      ]
+    },
+    {
+      "checker_ok": true,
+      "checker_violations": [],
+      "feasible_window_count": 20,
+      "orbit_numbers": [
+        28
+      ],
+      "pass_id": "vsat_c:28",
+      "rejected_candidate_rules": {
+        "NO_OVERLAP": 59,
+        "SLEW": 248
+      },
+      "selected_acquisitions_lower_bound": 8,
+      "selected_option_ids": [
+        "vsat_c:vs_a_point_source:source-af068bf01092f7a2:2026-10-18T20:24:59.375Z:14@20261018T202459.375000Z",
+        "vsat_c:vs_a_point_source:source-79ec6e3390d9209a:2026-10-18T20:25:00.625Z:14@20261018T202510.625000Z",
+        "vsat_c:vs_a_point_source:source-1d6d71a2508ea34f:2026-10-18T20:25:01.187Z:11@20261018T202531.187500Z",
+        "vsat_c:vs_a_point_source:source-ff3e8d7f747dea9c:2026-10-18T20:25:01.937Z:11@20261018T202551.937500Z",
+        "vsat_c:vs_a_point_source:source-7ff2be6e98f66af4:2026-10-18T20:25:02.125Z:11@20261018T202622.125000Z",
+        "vsat_c:vs_a_point_source:source-a3b04fd568c413f3:2026-10-18T20:25:02.312Z:11@20261018T202642.312500Z",
+        "vsat_c:vs_a_point_source:source-1fbb811380101afb:2026-10-18T20:25:05.062Z:13@20261018T202704.125000Z",
+        "vsat_c:vs_a_point_source:source-f780a347fdf3b243:2026-10-18T20:25:16.937Z:11@20261018T202716Z"
+      ],
+      "spacecraft_ids": [
+        "vsat_c"
+      ]
+    },
+    {
+      "checker_ok": true,
+      "checker_violations": [],
+      "feasible_window_count": 9,
+      "orbit_numbers": [
+        43
+      ],
+      "pass_id": "vsat_c:43",
+      "rejected_candidate_rules": {
+        "NO_OVERLAP": 13,
+        "SLEW": 50
+      },
+      "selected_acquisitions_lower_bound": 6,
+      "selected_option_ids": [
+        "vsat_c:vs_a_point_source:source-a3b04fd568c413f3:2026-10-19T20:05:39.125Z:17@20261019T200539.125000Z",
+        "vsat_c:vs_a_point_source:source-bc1be3fc6a0f98aa:2026-10-19T20:05:40.937Z:17@20261019T200550.937500Z",
+        "vsat_c:vs_a_point_source:source-7ff2be6e98f66af4:2026-10-19T20:05:42.687Z:17@20261019T200612.687500Z",
+        "vsat_c:vs_a_point_source:source-d60b64ff2a4432f5:2026-10-19T20:05:44.250Z:17@20261019T200624.250000Z",
+        "vsat_c:vs_a_point_source:source-86fd675596e9bcc9:2026-10-19T20:05:46.687Z:17@20261019T200636.687500Z",
+        "vsat_c:vs_a_point_source:source-ae19cc513be9a70c:2026-10-19T20:05:47.062Z:17@20261019T200657.062500Z"
+      ],
+      "spacecraft_ids": [
+        "vsat_c"
+      ]
+    },
+    {
+      "checker_ok": true,
+      "checker_violations": [],
+      "feasible_window_count": 2,
+      "orbit_numbers": [
+        13
+      ],
+      "pass_id": "vsat_d:13",
+      "rejected_candidate_rules": {
+        "NO_OVERLAP": 1,
+        "SLEW": 1
+      },
+      "selected_acquisitions_lower_bound": 2,
+      "selected_option_ids": [
+        "vsat_d:vs_a_point_source:source-86fd675596e9bcc9:2026-10-17T19:58:46.500Z:3@20261017T195846.500000Z",
+        "vsat_d:vs_a_point_source:source-ae19cc513be9a70c:2026-10-17T19:58:46.875Z:3@20261017T195904.281746Z"
+      ],
+      "spacecraft_ids": [
+        "vsat_d"
+      ]
+    }
+  ],
+  "passes_with_at_least_four_validated_acquisitions": 6,
+  "window_group_count": 58
+}

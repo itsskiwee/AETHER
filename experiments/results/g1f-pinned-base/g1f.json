@@ -1,0 +1,98 @@
+{
+  "failing_pass": "vsat_d:13 has only 2 feasible source windows (12 options); proven optimal capacity 2; witness lower bound 2",
+  "gate": "G1-F",
+  "model_config_hash": "91920c150359e7eeb0ba137211d66b2e202ba88880c187630dedaf9328f5c079",
+  "notes": [
+    "Per-pass capacities are independent solves; cross-pass resource carryover is not modelled, so they are not summed into a mission throughput.",
+    "cpsat_optimal_capacity: production CP-SAT with a counting objective, status OPTIMAL, independently checked; witness_lower_bound: Codex-3 solver-free first-fit accepted only by the independent checker."
+  ],
+  "pass_count_threshold_met": true,
+  "passes": [
+    {
+      "candidate_options": 139,
+      "cpsat_checker_ok": true,
+      "cpsat_optimal_capacity": 9,
+      "cpsat_status": "OPTIMAL",
+      "feasible_source_windows": 13,
+      "pass_id": "vsat_a:26",
+      "qualifies_ge_4": true,
+      "witness_checker_ok": true,
+      "witness_lower_bound": 7
+    },
+    {
+      "candidate_options": 240,
+      "cpsat_checker_ok": true,
+      "cpsat_optimal_capacity": 10,
+      "cpsat_status": "OPTIMAL",
+      "feasible_source_windows": 20,
+      "pass_id": "vsat_a:41",
+      "qualifies_ge_4": true,
+      "witness_checker_ok": true,
+      "witness_lower_bound": 7
+    },
+    {
+      "candidate_options": 214,
+      "cpsat_checker_ok": true,
+      "cpsat_optimal_capacity": 9,
+      "cpsat_status": "OPTIMAL",
+      "feasible_source_windows": 20,
+      "pass_id": "vsat_b:11",
+      "qualifies_ge_4": true,
+      "witness_checker_ok": true,
+      "witness_lower_bound": 7
+    },
+    {
+      "candidate_options": 55,
+      "cpsat_checker_ok": true,
+      "cpsat_optimal_capacity": 6,
+      "cpsat_status": "OPTIMAL",
+      "feasible_source_windows": 8,
+      "pass_id": "vsat_c:13",
+      "qualifies_ge_4": true,
+      "witness_checker_ok": true,
+      "witness_lower_bound": 5
+    },
+    {
+      "candidate_options": 240,
+      "cpsat_checker_ok": true,
+      "cpsat_optimal_capacity": 10,
+      "cpsat_status": "OPTIMAL",
+      "feasible_source_windows": 20,
+      "pass_id": "vsat_c:28",
+      "qualifies_ge_4": true,
+      "witness_checker_ok": true,
+      "witness_lower_bound": 8
+    },
+    {
+      "candidate_options": 87,
+      "cpsat_checker_ok": true,
+      "cpsat_optimal_capacity": 8,
+      "cpsat_status": "OPTIMAL",
+      "feasible_source_windows": 9,
+      "pass_id": "vsat_c:43",
+      "qualifies_ge_4": true,
+      "witness_checker_ok": true,
+      "witness_lower_bound": 6
+    },
+    {
+      "candidate_options": 12,
+      "cpsat_checker_ok": true,
+      "cpsat_optimal_capacity": 2,
+      "cpsat_status": "OPTIMAL",
+      "feasible_source_windows": 2,
+      "pass_id": "vsat_d:13",
+      "qualifies_ge_4": false,
+      "witness_checker_ok": true,
+      "witness_lower_bound": 2
+    }
+  ],
+  "passes_meeting_4": 6,
+  "per_pass_capacity_threshold_met": false,
+  "qualifying_passes_with_feasible_windows": 7,
+  "registered_rule": "Parameter_Register: >= 5 regional passes per 72 h AND >= 4 acquisitions per pass; on fail the register says switch the demo to h168_long_horizon",
+  "scenario": "configs/base.yaml (pinned EMIT Permian sample, 20 plume-seeded sources, 0 uniform fill)",
+  "verdict": "FAIL",
+  "window_groups_total": 58,
+  "windows_artifact": "data/fixtures/windows_permian_pinned_candidate.json",
+  "windows_identical_to_codex2_historical_candidate": true
+}
