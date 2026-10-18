@@ -18,12 +18,12 @@ def _register_ids(text):
 
 
 def test_no_dangling_parameter_ids(repo_root):
-    register = _register_ids((repo_root / "Implementation" / "Parameter_Register.md").read_text())
+    register = _register_ids((repo_root / "Implementation" / "Parameter_Register.md").read_text(encoding="utf-8"))
     cited = {}
     for folder in ("configs", "backend/aether", "experiments", "scripts"):
         for path in (repo_root / folder).rglob("*"):
             if path.suffix in {".yaml", ".py", ".md"} and path.is_file():
-                text = path.read_text()
+                text = path.read_text(encoding="utf-8")
                 for p, lo, hi in RANGE.findall(text):
                     for i in range(int(lo), int(hi) + 1):
                         cited.setdefault(f"PR-{p}{i:02d}", path)
