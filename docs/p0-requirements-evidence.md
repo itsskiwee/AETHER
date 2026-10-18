@@ -64,3 +64,17 @@ ERA5 replay, Carbon Mapper records, operational tasking and raster flux inversio
 ## Checks
 
 Filled in from the final-revision runs; see the end of `docs/lanes/completion-claude-1.md`.
+
+**REL-05, Windows 11 / Python 3.13.9, branch `lane/REL-05-ship-hardening` (18 Oct 2026).** Fresh install from `pyproject.toml`; the package versions match the committed gate evidence.
+
+| Check | Result |
+|---|---|
+| Byte-exact checkout (`.gitattributes`) | PASSED: 0 CRLF-converted files; manifest SHA-256 `216cf916…982c55` matches `configs/base.yaml` |
+| `ruff check` / `ruff format --check` (backend) | PASSED |
+| Frontend production build (`npm ci && npm run build`) | PASSED |
+| Hosted app startup (`scripts.hosted_app`) and `/`, `/api/runs`, `/api/project`, `/api/live-context` | PASSED (HTTP 200). Before REL-05 it failed at startup on Windows (manifest SHA-256 mismatch) |
+| Registry, security baseline, truth isolation, pinned-sample tests | PASSED |
+| Full backend suite | Before REL-05: every test passed except 2 Windows-only failures (CRLF hashes; cp1252 decode). After REL-05: both pass (`test_parameter_registry.py`; `test_closed_loop.py`, 6/6 incl. byte-identical replay) |
+| Cross-platform reproduction of committed G4.5 seed 1000 | Selections and counts exact; Brier differs at ≈1e-17 (`docs/validation-report.md` §7) |
+| Browser and Axe suite | Not re-run here; the hosting lane owns it this afternoon |
+
