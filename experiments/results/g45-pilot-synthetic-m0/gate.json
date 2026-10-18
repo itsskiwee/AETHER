@@ -1,0 +1,133 @@
+{
+  "config_hashes": {
+    "m0_well_specified": {
+      "model": "e8c361f588cf7233e1a3b4b2bc86a9e3852fd0c703a4b49d92b145061d567655",
+      "seed_for_hash": 1000,
+      "truth": "e8c361f588cf7233e1a3b4b2bc86a9e3852fd0c703a4b49d92b145061d567655"
+    }
+  },
+  "environment": {
+    "code_sha256": "0e042fec4fd9c78a3e89c7dcd926682d22bdc4305cd6c4bc3ff8936bc0b94d50",
+    "code_version": "0.1.0",
+    "cpu_count": 12,
+    "git_commit": "18a74f4d68d642ab4d7f88a5b9332f090beca2d5",
+    "git_dirty_paths": [],
+    "machine": "x86_64",
+    "python": "3.14.7",
+    "runtime_inputs": {
+      "package_versions": {
+        "astropy": "8.0.2",
+        "numpy": "2.5.4",
+        "ortools": "9.15.6755",
+        "pydantic": "2.14.1",
+        "pyyaml": "6.0.3",
+        "scipy": "1.18.1",
+        "sgp4": "2.27",
+        "skyfield": "1.55"
+      },
+      "pinned_data_sha256": {
+        "data/eop/README.md": "134134b8e10112b7c1f2dadc04f6c0928bee9619aeb47e11f3204b42aac91a70",
+        "data/eop/finals2000A.all": "bfa2066aab0400b075357f573af6081e0068a518993609eee0c5ca991bab0845",
+        "data/eop/manifest.json": "193f70e3ddefa7e161afcd8d2cbb8a5b51ed0b0a60b7ccee761d35e707fb4deb",
+        "data/ephemeris/de421.bsp": "a20a7139da04cbc462454634918e9a9ca69127044e2cc9d4f9c16e238d2deedc",
+        "data/ephemeris/manifest.json": "61adedbdb403bf1acceaa5b7de265a03e919fcaafd3f874f35282b4231c562ed"
+      }
+    }
+  },
+  "families": [
+    "m0_well_specified"
+  ],
+  "family_scope_rule": "gate passes only if it passes in every family evaluated (D9)",
+  "input_datasets": [
+    null
+  ],
+  "label": "SIMULATED MISSION \u2014 G4.5 discriminability gate (tuning seeds; reference policies only; not a policy comparison)",
+  "overall_passed": false,
+  "per_family": {
+    "m0_well_specified": {
+      "capacity_random_feasible": {
+        "acquisitions": {
+          "max": 42.0,
+          "mean": 37.1,
+          "min": 32.0,
+          "n": 30
+        },
+        "acquisitions_per_pass": {
+          "max": 6.833333333333333,
+          "mean": 5.686507936507935,
+          "min": 4.571428571428571,
+          "n": 30
+        },
+        "capacity_to_demand_ratio": {
+          "max": 0.3416666666666667,
+          "mean": 0.2843253968253968,
+          "min": 0.22857142857142856,
+          "n": 30
+        },
+        "passes": {
+          "max": 7.0,
+          "mean": 6.566666666666666,
+          "min": 6.0,
+          "n": 30
+        },
+        "passes_per_72h": {
+          "max": 7.0,
+          "mean": 6.566666666666666,
+          "min": 6.0,
+          "n": 30
+        }
+      },
+      "gap_mean_random_minus_oracle": 0.004761033759156667,
+      "mean_brier": {
+        "oracle": 0.2039689913395805,
+        "random_feasible": 0.20873002509873714
+      },
+      "n_seeds": 30,
+      "passed": false,
+      "reference_checker_violations": 0,
+      "rule": "mean(random - oracle) > 2 * sd(random - oracle)",
+      "sd_paired": 0.022054867372179748,
+      "se_paired": 0.004026649454175845,
+      "seeds_where_oracle_better": 15,
+      "threshold_2sd": 0.044109734744359495
+    }
+  },
+  "protocol_locked": false,
+  "protocol_sha256": "9afbfc76795e202b0e011244f748bd3a212e000919c19a36141cdbbd11c8d6b2",
+  "reference_note": "oracle = oracle-informed greedy reference that reads truth; not a proven upper bound",
+  "seed_subset_only": false,
+  "seeds": [
+    1000,
+    1001,
+    1002,
+    1003,
+    1004,
+    1005,
+    1006,
+    1007,
+    1008,
+    1009,
+    1010,
+    1011,
+    1012,
+    1013,
+    1014,
+    1015,
+    1016,
+    1017,
+    1018,
+    1019,
+    1020,
+    1021,
+    1022,
+    1023,
+    1024,
+    1025,
+    1026,
+    1027,
+    1028,
+    1029
+  ],
+  "seeds_file": "experiments/seeds_dev.txt",
+  "seeds_sha256": "deb917ed5fe0c6aa3a98ef322b79dd8a9a3743df6beb5c44a53a82da17785812"
+}
