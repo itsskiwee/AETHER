@@ -1,32 +1,44 @@
-# Completion batch: Claude-1 status (integration, contracts, execution and release)
+# Completion batch: Claude-1 status (integration handoff, 18 Oct 2026)
 
-Session `aether-be`. Worktree `../AETHER-wt/claude-1`. Ownership: `Implementation/Work_Plan.md`, "Completion batch".
+Session `aether-be`. Assignment: `docs/claude-completion-fix-prompt.md` (cross-lane integration, six-hour deadline). The deadline is recorded as 14:49 EDT / 18:49 UTC, six hours after the session started at 08:49 EDT. Branch `lane/INT-09-completion-integration`, based on `main` 302d0b0. Work done while the pinned gate was running was committed on `lane/INT-09-wip` in `AETHER-wt/int-b` and then fast-forwarded in, so the gate's recorded commit and code identity stay accurate.
 
-## Done
-- Recorded the six-agent ownership map in Work_Plan as a superseding assignment (18 Oct).
-- Proposed the pinned plume dataset interface: `docs/dataset-interface.md`.
+**Implementation is integrated. Scientific acceptance is not complete.** G1-F failed and G4.5 failed. Calibration is reported in the validation report. The power calculation, the protocol lock and the holdout are pending a human scenario decision.
 
-- DATA-02 (runner side) on `lane/DATA-02-dataset-wiring`:
-  - `SourcesConfig.plume_dataset` (PR-P04) is part of `config_hash`. Manifest paths must be repo-relative, the hash is required, and the dataset must match between the model and truth views. `load_scenario(..., synthetic_only=True)` clears it.
-  - New contract `InputDatasetRef` and `RunRecord.input_dataset`, cross-checked against the run's sources. The `DATA_READY` event carries the same ref.
-  - `runner.resolve_sources` loads the configured dataset once per process through `aether.ingestion.load_pinned_plume_dataset`. Loader errors propagate; nothing falls back to uniform placement. Explicit plumes plus a configured dataset raise `ValueError`.
-  - CLI `windows`/`simulate` accept `--synthetic-only`. Run manifests record `plume_dataset` and hash the dataset manifest.
-  - Checks: the full backend suite passed (11.5 min, single process) except the contract round-trip coverage test, which needed an `InputDatasetRef` example. After adding it, the round-trip, wiring and contract-boundary tests pass, ruff check and format are clean, and `validate` succeeds for base and demo.
-  - Every config hash changed, because the dumped config gains `sources.plume_dataset: null`. Existing uncommitted `runs/demo` artifacts carry the old hash. The demo will be regenerated after the real dataset is wired.
+## Integrated (one scoped commit per lane, authorship named)
 
-- PERF-01 (`lane/PERF-01-timing-artifact`): new contracts `RunPerformance`/`PlanTiming`; `runner.run_policy_with_performance` returns `(RunRecord, RunPerformance)` with the RunRecord identical to `run_policy`'s; `Plan.runtime_s` stays None. CLI `simulate` writes `performance.json`; `export` packs it with `performance_json_sha256` and refuses a run-id mismatch. New `tests/integration/test_closed_loop.py` (12 h, 6 sources) is the first automated end-to-end check of INT-04 byte determinism across a fresh window computation.
-- PERF-02 (`lane/PERF-02-window-cache`): window cache keyed on exactly what `generate_windows` reads (spacecraft, sensors, window_search, sources, interval, ephemeris/EOP bytes, orbit code hash), so families and policies share geometry. Optional disk cache via `AETHER_WINDOW_CACHE_DIR` (atomic writes, contract revalidation on load). `RunPerformance.windows_source` is one of computed, process_cache or disk_cache. A test checks records are byte-identical with the cache disabled, empty and full. Measured first: a 12 h / 6-source window build took 28.8 s, and the pilot showed ~450 s per (family, seed) for 72 h.
-- Merged Claude-2: C2-01 (gate driver, matrix, SCI-10, SCI-08), C2-02 (code SHA-256 in record identity), C2-03 (ephemeris/EOP bytes and package versions in identity), C2-04 (oracle passed no `now_utc`, capping it at one look per source per run).
-- Register: PR-P10 [V] text from SCI-08; §10 review list adds σ_ln and the EMIT uncertainty definition.
+| Commit | What |
+|---|---|
+| `e85313d` | Merge of C2-06: synthetic-only m0 G4.5 pilot, FAIL (gap 0.00476, SD 0.02205, threshold 0.04411, 15/30 seeds) |
+| `2ecbbce` | Contract: `DataSource.retrieved_at_utc: UtcDatetime \| None`, required and explicit; still strictly UTC when known |
+| `4ed2109` | Codex-1 V002 parser aliases, inventory, pinned loader and preparer, from the uncommitted `AETHER-codex1` diff. Its staged bulk removals were not replayed |
+| `b9d7ee9` | Pinned sample tracked. The bulk download left the index (`git rm --cached`; local files untouched; history not rewritten) |
+| `643d8c5` | `configs/base.yaml` pins the manifest by SHA-256 |
+| `72e0486`, `7d8a1d6` | Codex-2 capacity builder, tests and candidates; Codex-3 checker hardening and witness. The checker still imports no solver or policy code |
+| `6de5b33` | `now_utc` is required in `greedy_insert`, `can_add` and `rejection_reasons`. Every production caller already passed it. Tests now pass it, and a new regression test checks that a completed commitment releases the source cap but keeps its slot |
+| `033ee98` | Run/export lineage v1, `verify-export`, and `--synthetic-only` on benchmark and gate (it reaches every run) |
+| `6cb1ac3` | Integrated G1-F evidence (FAIL) |
+| `6396bec` | Codex-4 console/API patch. API tests now use the real contract instead of `model_dump` doubles |
+| `df27883` | Scientific freeze identity (`experiments/freeze.json`) enforced at holdout entry |
 
-## Requests to other roles
-- **Codex-3:** `tests/unit/test_checker.py:456` calls `greedy_insert` without `now_utc`. Claude-1 plans to make `now_utc` required, because the `None` default silently counts the whole history against the per-solve source cap, which is the C2-04 bug class. Please pass `now_utc` there, then tell Claude-1.
-- **Codex-1:** if bulk raw files leave the git index, keep the 10–20 selected metadata/TIFF pairs listed in `emit_permian.json` tracked (or another checked-in permitted copy). FR-DATA-008 requires a demo usable from checked-in sample data, and the runner refuses to start when a manifest-listed file is missing.
-- **Codex-1:** keep `uncertainty_kind = UNKNOWN` for `Emissions Rate Estimate Uncertainty (kg/hr)`; the provider documents do not define it (Claude-2, SCI-08). In all 155 Permian records an `NA` rate occurs exactly when wind is `NA`. The missing reason may say the provider did not quantify the rate, without claiming a further cause.
+## Dataset (DATA-01)
 
-## Waiting on
-- Codex-1: `load_pinned_plume_dataset`, `data/manifests/emit_permian.json`, `data/normalized/emit_permian_plumes.json` (DATA-01).
-- Claude-2: review of the interface and of the rule that historical rates never set truth or the prior.
+- Inventory reproduced byte for byte: `c7f591ad…ff74`. 1,686 JSON/TIFF pairs, all accepted; 155 regional records (73 numeric, 82 `NA`); 144 regional 500 m clusters. No discrepancy with the reported counts.
+- Sample: 20 records (10 quantified, 10 `NA`), 20 distinct clusters, all inside the bbox, no duplicates. Manifest `216cf916…982c55`; normalized `ba4305b3…94343` (20 records, 127,928 bytes); 40 raw files. Retrieval `PARTIAL`, time null.
+- Fresh clone (29 MB working tree, without the bulk directory): sample and wiring tests pass, `validate` reproduces config hash `91920c15…f5c079`, and source resolution verifies the dataset and seeds 20 sources.
 
-## Notes for the user
-- `data/raw/EMITL2BCH4PLM_002-20261018_042728/` (about 113 MiB, 3,372 files) is committed to git in `a70976e`. The completion prompt says to keep bulk raw files out of git. Removing them from history is your decision; nothing has been changed.
+## Gates
+
+- **G1-F FAIL** (integrated): 7 passes; per-pass optimum 9, 10, 9, 6, 10, 8, 2. Windows are byte-identical to Codex-2's historical candidate. Evidence: `experiments/results/g1f-pinned-base/`.
+- **G4.5**: synthetic m0 pilot FAIL (C2-06). Pinned all-family result: `experiments/results/g45-pinned-dev/` and `docs/validation-report.md` §3.2.
+
+## Measured cost (reference machine: 12 CPUs, Python 3.14.7)
+
+- Cold 72 h geometry for 20 sources: 385.5 s. Warm (disk cache): about 0.1 s.
+- Pinned reference runs (oracle or random_feasible), 9 parallel workers, warm cache: 107–141 s per run.
+- adaptive_eig, demo seed 1000: 757 s per run, of which 612 s is CP-SAT across 47 plan calls (max 108.7 s); largest_first takes about 50 s plus geometry.
+- Planning estimate (not measured): the 900-run development matrix needs roughly 4 h of wall time on 9 workers, dominated by 180 adaptive_eig runs and the greedy_eig runs. Holdout at N = 100 is 3,000 runs, roughly 13 h.
+
+## Notes
+
+- A peer session ran `aether.evaluation.gate --output-dir runs/g45-smoke` in the original `AETHER` checkout during this work. It is not part of this integration, and that checkout's `runs/demo` was not touched by Claude-1.
+- Bulk raw files: switching an older checkout (for example `AETHER` at `ee87199`) to this branch makes git remove the now-untracked bulk files from that working tree. They stay recoverable from commit `a70976e`. Copy them aside first if that checkout is ever switched.
