@@ -11,6 +11,13 @@ Read first: `AGENTS.md` (rules), `Implementation/Parameter_Register.md` (every n
 
 ### REL-02 product delivery follow-up
 
+The user additionally requested connection to real live/satellite data. REL-02 is
+extended to optional public current-data context: CelesTrak GP and NASA CMR
+catalogue metadata, with timestamps, cached hashes, provider policy and propagated
+position estimates. This explicitly extends original P0 replay scope. These feeds
+do not change registered scenarios, truth, prior calibration, virtual-spacecraft
+taskability, scientific results or acceptance thresholds.
+
 The user subsequently asked Codex to connect and finish the product, with a public
 repository submission, probable hosted website, and continued local evidence work.
 Codex works in the separate `lane/REL-02-hosted-replay` branch/worktree

@@ -13,6 +13,7 @@
 !.env.example
 runs
 artifacts
+data/live_context
 frontend/dist
 frontend/test-results
 frontend/playwright-report

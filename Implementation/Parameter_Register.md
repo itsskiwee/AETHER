@@ -248,6 +248,12 @@ So the base scenario is probably **more persistent than the Permian**, perhaps b
 
 ## 10. Remaining gaps that need a human
 
+### Read-only current-data context (user-requested scope extension, 18 October 2026)
+
+| ID | Parameter | Value | Tag / rationale |
+|---|---|---|---|
+| PR-LIVE01 | Current-feed refresh cadence, response size, catalogue count | At most one upstream refresh per 7,200 s; maximum response 1,048,576 bytes; 5 newest matching EMIT V002 catalogue entries; cache labelled stale at 7,200 s | [D] CelesTrak usage policy specifies GP updates every 2 h (`https://celestrak.org/usage-policy.php`). Bounded read-only context; not simulation parameters or evidence of current methane activity. Display Landsat 8/9 from the provider's named Landsat group. |
+
 | Gap | Who | Blocking? |
 |---|---|---|
 | NASA Earthdata login (needed to download EMIT V002 fixtures): run `! earthaccess login` or provide `~/.netrc` | You | ING-02 only; everything else uses a synthetic fixture first |

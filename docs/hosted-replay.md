@@ -21,6 +21,35 @@ service's HTTPS endpoint for public access. No account keys belong in this repo.
 
 ## Run without Docker
 
+### Optional current public satellite context
+
+Open `/?view=live` or follow Satellite context in the replay header. The view uses
+public CelesTrak GP elements for Landsat 8/9 and NASA CMR EMIT V002 catalogue
+metadata. Positions are SGP4/Skyfield estimates, not telemetry. NASA catalogue
+entries are not real-time methane measurements: the newest observation returned
+during initial connection was September 2025.
+
+```bash
+# Container: explicitly enable the provider refresh worker
+docker run --rm -p 8080:8080 -e AETHER_ENABLE_LIVE=1 aether-replay
+
+# Native, after dependency installation and production frontend build
+AETHER_ENABLE_LIVE=1 AETHER_PYTHON=backend/.venv/bin/python sh scripts/serve_hosted.sh
+```
+
+The updater runs separately from the read-only API. Browser refresh recalculates
+positions using cached elements; it never downloads from providers per visitor.
+GP inputs are refreshed at most every two hours under CelesTrak's usage policy.
+An upstream non-200 response stops the worker for investigation. Retained data
+keep their original ages, hashes and timestamps; stale inputs are labelled.
+Without the updater, the view is a timestamped cache. Snapshots are ignored by Git
+and excluded from Docker build context. No Earthdata credentials are needed for
+these catalogue queries; protected raster downloads can require authentication.
+Current feeds do not alter the saved scientific experiment or establish access
+to a spacecraft's sensors or commanding interfaces.
+
+### Native replay commands
+
 ```bash
 python -m venv backend/.venv
 backend/.venv/bin/pip install -e './backend[geo,api]'

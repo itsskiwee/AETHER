@@ -10,8 +10,9 @@ WORKDIR /app
 COPY . .
 RUN pip install --no-cache-dir -e './backend[geo,api]'
 COPY --from=console /build/frontend/dist ./frontend/dist
-ENV PYTHONPATH=/app/backend PYTHONUNBUFFERED=1 PORT=8080
+ENV PYTHONPATH=/app/backend PYTHONUNBUFFERED=1 PORT=8080 AETHER_HTTP_HOST=0.0.0.0
 RUN useradd --uid 10001 --create-home aether
+RUN mkdir -p /app/data/live_context && chown aether:aether /app/data/live_context
 USER aether
 EXPOSE 8080
-CMD ["sh", "-c", "exec python -m uvicorn scripts.hosted_app:app --host 0.0.0.0 --port \"${PORT:-8080}\""]
+CMD ["sh", "scripts/serve_hosted.sh"]

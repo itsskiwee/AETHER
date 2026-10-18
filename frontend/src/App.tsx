@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import type { BeliefSnapshot, BenchmarkComparison, BenchmarkProtocol, BenchmarkReport, BenchmarkRow, Plan, ProjectSnapshot, RunIndexItem, RunRecord } from './types'
 import { parseRun } from './types'
 import { DevelopmentTiming, HistoricalContext, RunManifest } from './ArtifactEvidence'
+import LiveContext from './LiveContext'
 import './benchmark.css'
 import './project.css'
 
@@ -58,6 +59,10 @@ function DataTable({ headers, children, label }: { headers: string[]; children: 
 }
 
 export default function App() {
+  return new URLSearchParams(location.search).get('view') === 'live' ? <LiveContext /> : <ReplayApp />
+}
+
+function ReplayApp() {
   const [screen, setScreen] = useState<Screen>('A')
   const [runs, setRuns] = useState<RunIndexItem[]>([])
   const [run, setRun] = useState<RunRecord | null>(null)
@@ -156,7 +161,7 @@ export default function App() {
         <span className="brand-mark" aria-hidden="true"><i /><i /><i /></span><span>AETHER<small>RESEARCH CONSOLE</small></span>
       </a>
       <div className="topbar-center"><span className="archive-marker" aria-hidden="true" /> READ ONLY <span className="topbar-divider">/</span> OFFLINE ARTIFACTS</div>
-      <div className="topbar-right"><span className="avatar">R</span><span>Research workspace</span></div>
+      <div className="topbar-right"><a href="/?view=live">Satellite context</a><span className="avatar">R</span><span>Research workspace</span></div>
     </header>
     <div className="mission-banner"><span className="banner-symbol" aria-hidden="true">◉</span><strong>SIMULATED MISSION</strong><span>All spacecraft and acquisitions in this console are virtual.</span><span className="banner-end">NO REAL SATELLITE TASKING</span></div>
     <div className="workspace">

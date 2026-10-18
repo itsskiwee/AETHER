@@ -17,3 +17,11 @@
 
 The `data/fixtures/*_synthetic.geojson` files are fabricated by this project for offline parser
 examples. They must not be cited as source data or described as NASA or Carbon Mapper records.
+# Optional current satellite context
+
+- CelesTrak / T. S. Kelso. General Perturbations orbital elements and OMM-compatible
+  JSON format: https://celestrak.org/NORAD/documentation/gp-data-formats.php.
+  Usage policy: https://celestrak.org/usage-policy.php (reviewed 18 October 2026).
+- NASA EOSDIS. Common Metadata Repository Search API:
+  https://cmr.earthdata.nasa.gov/search/site/docs/search/api.html. EMIT product identity
+  remains EMITL2BCH4PLM V002, DOI https://doi.org/10.5067/EMIT/EMITL2BCH4PLM.002.

@@ -12,6 +12,27 @@ for the exact provider, product version, URL, retrieval time, citation and byte 
 
 ## Operational rules
 
+### User-requested current-data context (18 October 2026)
+
+The optional satellite-context view reads public CelesTrak GP JSON and NASA CMR
+discovery metadata. These inputs are stored locally under ignored `data/live_context/`,
+with original response hashes, exact request URLs and authentic retrieval times. No
+Carbon Mapper data, authenticated response or NASA raster is downloaded by this view.
+The app's MIT code license does not assert a new license over provider data.
+
+- CelesTrak attribution: CelesTrak / T. S. Kelso, GP orbital elements, JSON OMM-compatible
+  format. Documentation: https://celestrak.org/NORAD/documentation/gp-data-formats.php.
+  Usage policy reviewed 18 October 2026: https://celestrak.org/usage-policy.php (updated
+  22 May 2026). GP updates are every two hours; cache server-side, fetch only the needed
+  group, and stop after any non-200 HTTP response. The updater implements that cadence
+  and stops on errors. Provider snapshots are not added to the public source tree.
+- NASA CMR attribution: NASA EOSDIS Common Metadata Repository; EMITL2BCH4PLM V002
+  discovery metadata. API: https://cmr.earthdata.nasa.gov/search/site/docs/search/api.html.
+  Data-use guidance: https://www.earthdata.nasa.gov/engage/open-data-services-software/data-use-policy.
+  Discovery metadata are not methane measurements. Observation times remain separate
+  from catalogue modification and retrieval times. Protected granule download links do
+  not imply credentials or download authorization are available to the app.
+
 - Never commit credentials, access tokens, or authenticated request headers.
 - Store real downloaded source files under `data/raw/` only when the source's current terms permit it; this directory is ignored by git.
 - A manifest's `license_url` may be null when the product terms are not explicit. Do not replace an unknown license with an assumed one.

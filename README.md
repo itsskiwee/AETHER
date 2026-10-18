@@ -22,6 +22,21 @@ For container hosting, see [hosted replay instructions](docs/hosted-replay.md).
 The saved sample contains two demo policies; comparison artifacts are unavailable
 until a completed evaluator batch is supplied. No benchmark win is claimed.
 
+### Current satellite context
+
+The **Satellite context** link opens `/?view=live`: publicly published Landsat
+orbital elements, propagated position estimates and NASA EMIT catalogue entries,
+with retrieval times, observation times and hashes. To enable provider refresh:
+
+```bash
+AETHER_ENABLE_LIVE=1 AETHER_PYTHON=backend/.venv/bin/python sh scripts/serve_hosted.sh
+```
+
+Upstream inputs are cached for two hours; positions are recalculated on request.
+This is provider data and modelled position context, not live telemetry or a
+real-time methane feed. It does not change recorded planning or benchmark evidence.
+See [hosting and data semantics](docs/hosted-replay.md) for failure states and deployment.
+
 ## Regenerate the demo and development comparison
 
 ```bash

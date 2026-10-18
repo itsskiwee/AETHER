@@ -6,6 +6,7 @@ __pycache__/
 *.egg-info/
 runs/
 artifacts/
+data/live_context/
 data/raw/*
 !data/raw/pinned_emit_permian_v1/
 !data/raw/pinned_emit_permian_v1/**

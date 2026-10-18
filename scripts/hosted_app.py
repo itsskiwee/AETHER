@@ -12,7 +12,10 @@ from aether.api import create_app
 from aether.config import load_scenario
 from aether.contracts import RunRecord
 from aether.ingestion import load_pinned_plume_dataset
+from fastapi import HTTPException
 from fastapi.staticfiles import StaticFiles
+
+from scripts.live_context import DEFAULT_SNAPSHOT, context
 
 root = Path(__file__).resolve().parents[1]
 run_root = Path(os.environ.get("AETHER_RUNS_DIR", root / "data/fixtures/hosted_replay"))
@@ -48,6 +51,16 @@ for record in records:
         raise RuntimeError(f"Replay schedule validation failed: {record.run_id}")
 
 app = create_app(run_root=run_root, project_root=root)
+
+
+@app.get("/api/live-context")
+def live_context() -> dict:
+    try:
+        return context(Path(os.environ.get("AETHER_LIVE_CONTEXT", DEFAULT_SNAPSHOT)))
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        raise HTTPException(
+            status_code=503, detail="Provider context is malformed or unavailable"
+        ) from exc
 
 
 @app.get("/healthz", include_in_schema=False)

@@ -29,6 +29,27 @@ evidence package. Branch `lane/REL-02-hosted-replay`; base int-b `ed1f7fd`.
 
 ## Limits and integration
 
+### User-requested current-data extension
+
+Connected public CelesTrak GP and NASA CMR endpoints through the existing URL/DNS
+policy and timeout constants. `scripts/live_context.py` saves original response
+bytes and hashes locally, stops after provider errors, caches upstream refreshes
+for 2 h and preserves original timestamps. No Carbon Mapper or authenticated
+granule download is attempted. `scripts/serve_hosted.sh` enables the refresh
+worker only with AETHER_ENABLE_LIVE=1. The scientific aether package is unchanged.
+
+`/?view=live` shows actual Landsat 8/9 provider epochs, SGP4/Skyfield subpoints,
+NASA catalogue observation/update times, URLs and response hashes. A schematic
+coordinate plot has an equivalent table. UI distinguishes modelled positions,
+published metadata and simulated planning. The newest EMIT observation returned
+was 2025-09-22; a fresh query does not make that observation current.
+
+Actual provider requests succeeded and both positions propagated without errors.
+Production TypeScript/Vite build succeeded. React review: hooks are unconditional,
+initial request is abortable, failed/stale/unavailable states are explicit, values
+render as text and the plot has a table alternative. No new visual browser/Axe
+result is claimed.
+
 Docker CLI is installed, but access to the daemon socket is denied. The image build
 has not been run; native execution verifies the shared ASGI path, not Docker layers.
 No new browser/Axe result is claimed because no browser surface was available.
