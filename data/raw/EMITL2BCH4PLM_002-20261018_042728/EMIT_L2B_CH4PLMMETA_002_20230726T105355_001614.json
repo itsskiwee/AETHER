@@ -1,0 +1,132 @@
+{
+    "crs": {
+        "properties": {
+            "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+        },
+        "type": "name"
+    },
+    "features": [
+        {
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            61.4775,
+                            36.44367
+                        ],
+                        [
+                            61.4775,
+                            36.44312
+                        ],
+                        [
+                            61.47696,
+                            36.44312
+                        ],
+                        [
+                            61.47696,
+                            36.44258
+                        ],
+                        [
+                            61.47588,
+                            36.44204
+                        ],
+                        [
+                            61.47588,
+                            36.43879
+                        ],
+                        [
+                            61.47534,
+                            36.43879
+                        ],
+                        [
+                            61.47534,
+                            36.43716
+                        ],
+                        [
+                            61.47479,
+                            36.43716
+                        ],
+                        [
+                            61.47479,
+                            36.43553
+                        ],
+                        [
+                            61.47534,
+                            36.43553
+                        ],
+                        [
+                            61.47534,
+                            36.43499
+                        ],
+                        [
+                            61.48184,
+                            36.43499
+                        ],
+                        [
+                            61.48184,
+                            36.43553
+                        ],
+                        [
+                            61.48293,
+                            36.43607
+                        ],
+                        [
+                            61.48293,
+                            36.43987
+                        ],
+                        [
+                            61.48238,
+                            36.43987
+                        ],
+                        [
+                            61.48238,
+                            36.44258
+                        ],
+                        [
+                            61.48184,
+                            36.44258
+                        ],
+                        [
+                            61.48184,
+                            36.44312
+                        ],
+                        [
+                            61.48076,
+                            36.44312
+                        ],
+                        [
+                            61.48076,
+                            36.44367
+                        ],
+                        [
+                            61.4775,
+                            36.44367
+                        ]
+                    ]
+                ]
+            },
+            "type": "Feature",
+            "properties": {
+                "Plume ID": "CH4_PlumeComplex-1614",
+                "Orbit": "2320707",
+                "DCID": "1373672534",
+                "UTC Time Observed": "2023-07-26T10:53:55Z",
+                "Max Plume Concentration (ppm m)": 874.0,
+                "Latitude of max concentration": 36.43906,
+                "Longitude of max concentration": 61.48049,
+                "Wind Speed (m/s)": "NA",
+                "Wind Speed Std (m/s)": "NA",
+                "Wind Speed Source": "NA",
+                "Emissions Rate Estimate (kg/hr)": "NA",
+                "Emissions Rate Estimate Uncertainty (kg/hr)": "NA",
+                "Fetch Length (m)": "NA",
+                "DAAC Scene Names": [
+                    "EMIT_L2B_CH4ENH_V002_20230726T105355_2320707_043"
+                ]
+            }
+        }
+    ],
+    "name": "methane_metadata",
+    "type": "FeatureCollection"
+}

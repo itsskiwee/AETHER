@@ -1,0 +1,140 @@
+{
+    "crs": {
+        "properties": {
+            "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+        },
+        "type": "name"
+    },
+    "features": [
+        {
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            9.79515,
+                            28.0922
+                        ],
+                        [
+                            9.79515,
+                            28.09166
+                        ],
+                        [
+                            9.79461,
+                            28.09166
+                        ],
+                        [
+                            9.79407,
+                            28.09057
+                        ],
+                        [
+                            9.79353,
+                            28.09057
+                        ],
+                        [
+                            9.79353,
+                            28.08895
+                        ],
+                        [
+                            9.79299,
+                            28.08895
+                        ],
+                        [
+                            9.79299,
+                            28.08786
+                        ],
+                        [
+                            9.79407,
+                            28.08732
+                        ],
+                        [
+                            9.79407,
+                            28.08624
+                        ],
+                        [
+                            9.79461,
+                            28.08624
+                        ],
+                        [
+                            9.79461,
+                            28.08515
+                        ],
+                        [
+                            9.79515,
+                            28.08515
+                        ],
+                        [
+                            9.79515,
+                            28.08407
+                        ],
+                        [
+                            9.7957,
+                            28.08407
+                        ],
+                        [
+                            9.7957,
+                            28.08353
+                        ],
+                        [
+                            9.79841,
+                            28.08353
+                        ],
+                        [
+                            9.79841,
+                            28.08461
+                        ],
+                        [
+                            9.79895,
+                            28.08461
+                        ],
+                        [
+                            9.79949,
+                            28.08678
+                        ],
+                        [
+                            9.80003,
+                            28.08678
+                        ],
+                        [
+                            9.80003,
+                            28.09112
+                        ],
+                        [
+                            9.79949,
+                            28.09112
+                        ],
+                        [
+                            9.79895,
+                            28.0922
+                        ],
+                        [
+                            9.79515,
+                            28.0922
+                        ]
+                    ]
+                ]
+            },
+            "type": "Feature",
+            "properties": {
+                "Plume ID": "CH4_PlumeComplex-150",
+                "Orbit": "2317707",
+                "DCID": "1371320639",
+                "UTC Time Observed": "2023-06-26T10:13:43Z",
+                "Max Plume Concentration (ppm m)": 1662.0,
+                "Latitude of max concentration": 28.08868,
+                "Longitude of max concentration": 9.79651,
+                "Wind Speed (m/s)": "NA",
+                "Wind Speed Std (m/s)": "NA",
+                "Wind Speed Source": "NA",
+                "Emissions Rate Estimate (kg/hr)": "NA",
+                "Emissions Rate Estimate Uncertainty (kg/hr)": "NA",
+                "Fetch Length (m)": "NA",
+                "DAAC Scene Names": [
+                    "EMIT_L2B_CH4ENH_V002_20230626T101343_2317707_016"
+                ]
+            }
+        }
+    ],
+    "name": "methane_metadata",
+    "type": "FeatureCollection"
+}
