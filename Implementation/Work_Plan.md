@@ -1,4 +1,4 @@
-# AETHER — Work Plan for 9 agents (3 Claude, 6 Codex)
+# AETHER — Work Plan
 
 Read first: `AGENTS.md` (rules), `Implementation/Parameter_Register.md` (every number),
 `Implementation/PRD_Amendments.md` (where the build departs from the PRD and why),
@@ -6,6 +6,27 @@ Read first: `AGENTS.md` (rules), `Implementation/Parameter_Register.md` (every n
 `Implementation/Parameter_2.md` Parts D–H (security, API, UX, ops, QA rules: adopted as written),
 `Implementation/lessons.md` (review findings; closure status in Parameter_Register §0b),
 `backend/aether/*/__init__.py` (the interface each lane implements).
+
+## Current completion batch: six-model ownership (supersedes the original lanes below)
+
+This assignment applies to the completion batch described in
+`Implementation/Six_Model_Completion_Prompt.md`. It supersedes the original nine-lane
+ownership and work sequencing below for this batch. The scientific integrity rules and
+acceptance criteria remain binding. Each owner keeps changes in the paths listed here;
+cross-owner defects are sent to the owner with a concrete reproducer.
+
+| Owner | Scope for this batch | Coordination boundary |
+|---|---|---|
+| Claude-1 | Contracts, config, RNG, CLI, runner, configs, root governance and parameter documents, workflow integration, and merges to `main` | Sole owner for shared contracts/config/CLI/runner changes, dataset integration, orchestration, protocol lock, and final evidence matrix. |
+| Claude-2 | Sensors, belief, evaluation, experiments, model cards, validation report, and experiment protocol reports | Owns scientific methods, gate analysis, results, and claims; coordinates gate and sign-off with Claude-1. |
+| Codex-1 | Ingestion, downloaded/local data, licenses/citations, ingestion tests and docs | Owns EMIT inventory, parser, pinned regional input/manifest, and lineage; requests shared CLI/config changes from Claude-1. |
+| Codex-2 | `backend/aether/orbit/`, `scripts/build_orbit_candidate.py`, `docs/orbit-model-report.md`, orbit tests, and window artifact generation | Owns orbit production utilities and G1-F capacity evidence; does not edit checker/oracle or `scripts/feasibility/`. Coordinates independent confirmation with Codex-3. |
+| Codex-3 | `backend/aether/planning/checker.py`, `backend/tests/golden/`, `scripts/feasibility/`, checker and geometry cross-validation tests | Owns independent verification; does not implement production orbit or solver fixes. Routes production defects to Codex-2 or Claude-1. |
+| Codex-4 | Frontend, backend API, UI/API tests, demo walkthrough, and comparison docs | Owns artifact display and user-facing wording; coordinates result claims with Claude-2 and requests contract changes from Claude-1. |
+
+Use isolated branches/worktrees for the six-model batch. Preserve existing worktrees and
+uncommitted changes. Only Claude-1 integrates or merges shared changes. The original
+nine-lane plan below is retained as historical context; it is not the active ownership map.
 
 ## Status of Wave 0 (done)
 
@@ -20,7 +41,7 @@ Already in the repo and tested (`cd backend && pytest`, 32 passing):
 - Tests: config, contracts, RNG, truth-isolation import guard, checker-independence guard, dangling parameter-ID guard.
 - `experiments/protocol.yaml` and seed lists. `scripts/feasibility/pass_budget.py` (independent pass counts).
 
-## Lanes and assignment
+## Historical lanes and assignment (superseded for the current completion batch)
 
 The Claude lanes get the work that needs cross-cutting judgment: integration, scientific modelling, and claims review. The Codex lanes get modules with crisp specs and test oracles. **Each lane owns its directories exclusively**; anything else goes through the owner (see "Ownership").
 
