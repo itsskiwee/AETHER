@@ -1,6 +1,21 @@
 {
  "protocol_version": 1,
  "locked": false,
+ "families": [
+  "m0_well_specified",
+  "m1_persistence_wrong",
+  "m2_pod_optimistic",
+  "m3_forecast_overconfident",
+  "m4_false_positives",
+  "r1_resource_scarce"
+ ],
+ "policies": [
+  "first_feasible",
+  "largest_first",
+  "static_priority",
+  "adaptive_eig",
+  "greedy_eig"
+ ],
  "primary_metric": "brier_active_state",
  "primary_comparison": [
   "adaptive_eig",

@@ -61,7 +61,8 @@ test('planner shows actual checker record, forecast cause and absent runtime hon
 test('paired intervals are read with the recorded direction', async ({ page }) => {
   await openComparison(page, { ...withRun, results, ci: ci30 })
   const main = page.locator('main')
-  await expect(main).toContainText('TUNING SEEDS · NOT A PRE-REGISTERED TEST')
+  await expect(main).toContainText('PRELIMINARY · UNLOCKED DEVELOPMENT PROTOCOL')
+  await expect(main).toContainText('Tuning-seed results; not a pre-registered test.')
   await expect(main).toContainText('30 seeds')
   await expect(main).toContainText('Success criterion met')
   await expect(row(page, 'm0_well_specified', 'adaptive_eig', 'largest_first', 'brier_active_state')).toContainText('FAVOURS adaptive_eig')
@@ -176,4 +177,88 @@ test('belief chart uses elapsed UTC time for irregular snapshots', async ({ page
   await expect(circles).toHaveCount(3)
   const positions = await circles.evaluateAll((items) => items.map((item) => Number(item.getAttribute('cx'))))
   expect((positions[1] - positions[0]) / (positions[2] - positions[0])).toBeCloseTo(1 / 6, 8)
+})
+
+
+test('historical context preserves null flux, unknown uncertainty and source lineage', async ({ page }) => {
+  const replay = structuredClone(run)
+  replay.sources[0].seeded_from_plume_id = 'NASA:historical-test'
+  await mockApi(page, { ...withRun, run: replay })
+  await page.route('**/api/runs/*/historical-context', (route) => route.fulfill({ json: {
+    status: 'pinned',
+    input_dataset: { dataset_id: 'TEST ONLY', manifest_path: 'data/manifests/test.json', manifest_sha256: 'a'.repeat(64),
+      normalized_sha256: 'b'.repeat(64), record_count: 1, in_region_count: 1, seeded_source_count: 1, uniform_fill_count: 1 },
+    manifest: { citation_text: 'TEST ONLY', retrieval: { status: 'UNAVAILABLE', retrieved_at_utc: null } },
+    observations: [{ id: 'NASA:historical-test', native_id: 'historical-test', provider: 'NASA LP DAAC', dataset_version: '002',
+      provenance_class: 'REAL_OBSERVATION', acquisition_time_utc: '2023-01-01T00:00:00Z', lon: -103, lat: 32,
+      emission_rate_kg_h: null, emission_rate_uncertainty_kg_h: 20, missing_rate_reason: 'CRITERIA_NOT_MET',
+      uncertainty_kind: 'UNKNOWN', quality_flags: [], source: { provider: 'NASA LP DAAC', url: 'https://example.invalid/granule.json',
+        sha256: 'c'.repeat(64) } }],
+  } }))
+  await page.goto('/')
+  await page.getByRole('navigation').getByRole('button', { name: /Sources/ }).click()
+  await expect(page.getByRole('table', { name: 'Source hypothesis coordinates' })).toContainText('Seeded from historical plume: NASA:historical-test')
+  await expect(page.getByRole('table', { name: 'Source hypothesis coordinates' })).toContainText('Uniform simulated fill')
+  const evidence = page.getByRole('region', { name: 'Historical plume evidence' }).getByRole('table')
+  await expect(evidence).toContainText('Not estimated (CRITERIA_NOT_MET)')
+  await expect(evidence).toContainText('2023-01-01T00:00:00Z')
+  await expect(evidence).toContainText('Meaning: unknown; no interval or standard deviation is inferred')
+  await expect(page.locator('main')).toContainText('uniform synthetic fill: 1')
+  await page.getByText('Dataset citation, retrieval evidence and input lineage').click()
+  await expect(page.locator('main')).toContainText('UNAVAILABLE')
+  const audit = await new AxeBuilder({ page }).include('main').analyze()
+  expect(audit.violations.filter((v) => ['serious', 'critical'].includes(v.impact ?? ''))).toEqual([])
+})
+
+test('project EMIT context is separate from the synthetic parser fixture', async ({ page }) => {
+  await mockApi(page, {})
+  await page.route('**/api/project/historical-context', (route) => route.fulfill({ json: {
+    status: 'pinned',
+    input_dataset: { dataset_id: 'TEST ONLY', manifest_path: 'data/manifests/test.json', manifest_sha256: 'a'.repeat(64),
+      normalized_sha256: 'b'.repeat(64), record_count: 1 },
+    manifest: { provider: 'NASA LP DAAC', dataset: 'EMITL2BCH4PLM', version: '002',
+      retrieval: { status: 'UNAVAILABLE', retrieved_at_utc: null, evidence: 'TEST ONLY' } },
+    observations: [{ id: 'NASA:project-test', native_id: 'project-test', provider: 'NASA LP DAAC', dataset_version: '002',
+      provenance_class: 'REAL_OBSERVATION', acquisition_time_utc: '2023-02-01T12:30:00Z', lon: -103, lat: 32,
+      emission_rate_kg_h: 1200, emission_rate_uncertainty_kg_h: null, missing_rate_reason: null,
+      uncertainty_kind: 'UNKNOWN', quality_flags: [], source: { provider: 'NASA LP DAAC', url: 'https://example.invalid/source.json',
+        sha256: 'c'.repeat(64) } }],
+  } }))
+  await page.goto('/')
+  await expect(page.locator('main')).toContainText('PROJECT DATA')
+  await page.keyboard.press('2')
+  const main = page.locator('main')
+  await expect(main).toContainText('REAL_OBSERVATION')
+  await expect(main).toContainText('2023-02-01T12:30:00Z')
+  await expect(main).toContainText('1,200 kg/h')
+  await expect(main).toContainText('Unavailable')
+  await expect(main).toContainText('SYNTHETIC FIXTURE')
+  await expect(main).toContainText('EXAMPLE ONLY · NOT SOURCE VERIFIED')
+})
+
+test('comparison shows recorded whole-run timing separately from solver runtime', async ({ page }) => {
+  await mockApi(page, { ...withRun, results, ci: ci5 })
+  await page.route('**/api/development-timing.json', (route) => route.fulfill({ json: {
+    complete_comparison_elapsed_s: 12.75, runs: [{ run_id: run.run_id, complete_run_elapsed_s: 12.5 }],
+  } }))
+  await page.goto('/')
+  await page.getByRole('navigation').getByRole('button', { name: /Comparison/ }).click()
+  await expect(page.getByRole('table', { name: 'Measured development timing' })).toContainText('12.5')
+  await expect(page.locator('main')).toContainText('Complete comparison: 12.75 s')
+  await expect(page.locator('main')).toContainText('Solver runtime is unavailable here')
+})
+
+test('method shows archived manifest, and historical API failures remain explicit', async ({ page }) => {
+  await mockApi(page, withRun)
+  await page.route(/\/api\/runs\/[^/]+\/manifest\.json$/, (route) => route.fulfill({ json: {
+    input_sha256: { 'data/old-selected.json': 'c'.repeat(64) }, package_versions: { aether: 'TEST ONLY' },
+  } }))
+  await page.route('**/api/runs/*/historical-context', (route) => route.fulfill({ status: 422, json: { detail: 'invalid' } }))
+  await page.goto('/')
+  await page.getByRole('navigation').getByRole('button', { name: /Sources/ }).click()
+  await expect(page.locator('main')).toContainText('Artifact could not be validated or read')
+  await page.getByRole('navigation').getByRole('button', { name: /Method/ }).click()
+  await page.getByText('Inspect input hashes, package versions, and dataset identity').click()
+  await expect(page.locator('main')).toContainText('data/old-selected.json')
+  await expect(page.locator('main')).toContainText('c'.repeat(64))
 })

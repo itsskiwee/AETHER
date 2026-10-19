@@ -60,6 +60,14 @@ output remains explicitly unavailable in the console.
 1. Point out **SIMULATED MISSION**, **OFFLINE ARTIFACTS**, and **REPLAY**. In the
    run selector, choose `largest_first`, then `adaptive_eig`; these are separate
    actual simulator records, each with seed 1000.
+   On **Sources**, inspect the location-lineage column and counts for plume-seeded
+   hypotheses versus uniform simulated fill. The historical EMIT panel uses only
+   the selected run's pinned dataset reference. When that reference is attached,
+   it displays the manifest hash, observed UTC times, provider source hashes,
+   nullable rates, and uncertainty kind. The preserved two-run demo predates that
+   field and reports its historical context as unavailable; the console does not
+   substitute the current project selection. A missing retrieval timestamp remains
+   unavailable when the manifest has no authentic retrieval evidence.
 2. Open **Windows** (or press `3`) to inspect spacecraft windows and the table
    of feasible options. Toggle rejected windows to inspect rejection reasons.
 3. Open **Planner** (`5`). Select a plan revision and inspect its actual option
@@ -91,7 +99,7 @@ output remains explicitly unavailable in the console.
    intervals when defined, and the preliminary/insufficient-samples label for
    fewer than 10 seeds. A single-seed pilot establishes execution, not superiority.
 7. Open **Method** (`7`) for configuration hashes, code identity, provenance,
-   and limitations.
+   archived input hashes/package versions, and limitations.
 
 ## Limitations
 
@@ -102,6 +110,15 @@ forecast event. Development-seed comparisons are preliminary; the protocol remai
 unlocked and no holdout result is implied. Solver runtime may be absent from
 deterministic run records; “Not recorded” is not a measured zero. A missing artifact
 or API error is displayed rather than replaced by a result.
+
+Historical EMIT rows are provider detections from the years in the pinned manifest.
+They are location context only: they do not describe the source's activity at the
+virtual scenario epoch, set simulated truth, or turn absent plume rows into
+non-detections. A numeric uncertainty whose provider meaning is unknown is shown
+with that unknown meaning rather than interpreted as an interval or standard
+deviation. The comparison screen shows registered family coverage and the separate
+measured timing sidecar when those artifacts are present; timing is complete-run
+wall time, not solver runtime.
 
 The injected hour-20 cloud event affects a source with no feasible window in its
 hours-20–32 interval. The demonstrated `largest_first` revision retains its

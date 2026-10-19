@@ -27,8 +27,11 @@ empty. The API validates run records with the canonical Pydantic contract. Set
 
 Benchmark output is read from `AETHER_BENCHMARK_DIR`, defaulting to the `benchmark/` directory
 inside the configured run archive. Screen F reads `benchmark-confidence-intervals.json` and the registered
-`experiments/protocol.yaml` as well, so it can show paired intervals and protocol decisions without
-recomputing them. Without artifacts, each screen displays an explicit empty state. The interface
+`experiments/protocol.yaml` as well, so it can show paired intervals, family coverage, protocol
+status, and measured timing without recomputing them. Historical EMIT context is loaded either from
+the current project configuration in project mode or from the selected run's immutable dataset
+reference. A run never inherits the current project dataset. Missing data, changed hashes, unknown
+uncertainty meaning, and null rates remain visible as such. Without artifacts, each screen displays an explicit empty state. The interface
 uses local assets and system font fallbacks, so it can be served without external network access.
 
 With the launcher running against actual demo and evaluator output, run the opt-in browser check:

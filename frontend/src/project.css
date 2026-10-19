@@ -21,6 +21,14 @@
 .hash-cell{max-width:350px;word-break:break-all}
 .fixture-dot{fill:#fff;stroke:#a4773d;stroke-width:3}
 .fixture-legend{display:inline-block;width:9px;height:9px;border:2px solid #a4773d;border-radius:50%;margin-right:6px;vertical-align:-1px}
+.source-fill-dot{fill:#eaf0ec;stroke:#55745f;stroke-width:2}
+.uniform-fill-legend{display:inline-block;width:9px;height:9px;border:2px solid #55745f;background:#eaf0ec;margin-right:6px;vertical-align:-1px}
+.source-origin-counts{display:flex;flex-wrap:wrap;gap:8px;padding:12px 15px 0;color:#53645a;font:10px var(--mono);text-transform:uppercase}
+.source-origin-counts span{padding:6px 8px;border:1px solid #dfe5df;background:#f8faf7}
+.historical-dataset-summary{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:0 15px 12px;color:#53645a;font-size:10px}
+.historical-dataset-summary>strong,.historical-dataset-summary>span{padding:6px 8px;border:1px solid #dfe5df;background:#f8faf7}
+.historical-dataset-summary code{overflow-wrap:anywhere}
+.artifact-json{max-height:360px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;color:#4f5d52;font:10px/1.6 var(--mono)}
 .table-footnote{margin:10px 1px;color:#636b64;font-size:10px;line-height:1.6;overflow-wrap:anywhere}
 .table-footnote code{font-size:10px;color:#59675d}
 .project-panel .panel-padding{line-height:1.65;color:#5f6960}
