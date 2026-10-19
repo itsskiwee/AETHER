@@ -3,7 +3,7 @@ from datetime import UTC, datetime, timedelta
 import numpy as np
 import pytest
 
-from aether.config import load_scenario
+from aether.config import BlackoutConfig, load_scenario
 from aether.contracts.enums import PolicyId, SolverStatus
 from aether.contracts.models import (
     AcquisitionOption,
@@ -31,12 +31,13 @@ def make_window(
     spacecraft_id="vsat_a",
     start_s=0,
     end_s=None,
+    duration_s=3.0,
     orbit=1,
     data_bytes=1,
     energy_wh=0.1,
 ):
     start = T0 + timedelta(seconds=start_s)
-    end = T0 + timedelta(seconds=start_s + 3 if end_s is None else end_s)
+    end = T0 + timedelta(seconds=start_s + duration_s if end_s is None else end_s)
     option_id = acquisition_option_id(window_id, start)
     option = AcquisitionOption(
         option_id=option_id,
@@ -60,7 +61,7 @@ def make_window(
         rejection_reasons=(),
         min_off_nadir_deg=5.0,
         options=(option,),
-        duration_s=3.0,
+        duration_s=duration_s,
         energy_wh=energy_wh,
         data_bytes=data_bytes,
     )
@@ -127,9 +128,73 @@ def test_wrong_parent_window_reports_unknown_option(bundle, geometry_stub):
     assert "UNKNOWN_OPTION" in {item.rule for item in result.violations}
 
 
+def test_checker_rejects_selection_missing_from_plan_candidate_set(bundle, geometry_stub):
+    window, option_id = make_window()
+    plan = make_plan([Selection(window_id=window.id, option_id=option_id)]).model_copy(
+        update={"candidate_window_ids": ()}
+    )
+
+    result = call(bundle, plan, [window])
+
+    assert "NOT_CANDIDATE" in {item.rule for item in result.violations}
+
+
+def test_checker_rejects_option_duration_that_disagrees_with_sensor(bundle, geometry_stub):
+    window, option_id = make_window()
+    original_option = window.options[0]
+    shorter_option = original_option.model_copy(
+        update={"end_utc": original_option.start_utc + timedelta(seconds=1)}
+    )
+    window = window.model_copy(update={"options": (shorter_option,)})
+
+    result = call(
+        bundle,
+        make_plan([Selection(window_id=window.id, option_id=option_id)]),
+        [window],
+    )
+
+    assert "DURATION" in {item.rule for item in result.violations}
+
+
+def test_checker_rejects_selection_before_replan_time(bundle, geometry_stub):
+    window, option_id = make_window()
+    plan = make_plan([Selection(window_id=window.id, option_id=option_id)]).model_copy(
+        update={"created_at_sim_utc": T0 + timedelta(seconds=4)}
+    )
+
+    result = call(bundle, plan, [window])
+
+    assert "PAST_ACQUISITION" in {item.rule for item in result.violations}
+
+
+def test_checker_rejects_selection_after_replan_lookahead(bundle, geometry_stub):
+    beyond_lookahead_s = int(bundle.model.planner.lookahead_hours * 3600) + 1
+    window, _ = make_window()
+    option_start = T0 + timedelta(seconds=beyond_lookahead_s)
+    option = window.options[0].model_copy(
+        update={
+            "option_id": acquisition_option_id(window.id, option_start),
+            "start_utc": option_start,
+            "end_utc": option_start + timedelta(seconds=3),
+        }
+    )
+    window = window.model_copy(
+        update={"start_utc": option.start_utc, "end_utc": option.end_utc, "options": (option,)}
+    )
+    option_id = option.option_id
+
+    result = call(
+        bundle,
+        make_plan([Selection(window_id=window.id, option_id=option_id)]),
+        [window],
+    )
+
+    assert "OUTSIDE_LOOKAHEAD" in {item.rule for item in result.violations}
+
+
 def test_checker_detects_overlapping_observations(bundle, geometry_stub):
-    first, first_id = make_window("a", source_id="s1", start_s=0, end_s=4)
-    second, second_id = make_window("b", source_id="s2", start_s=2, end_s=6)
+    first, first_id = make_window("a", source_id="s1", start_s=0, end_s=3)
+    second, second_id = make_window("b", source_id="s2", start_s=2, end_s=5)
     result = call(
         bundle,
         make_plan(
@@ -196,6 +261,8 @@ def test_mutated_orbit_slew_helper_cannot_hide_conflicting_schedule(bundle, monk
         )
         for window in (first, second)
     }
+    monkeypatch.setattr("aether.orbit.slew_time_s", lambda *_: 0.0)
+    # greedy imports the helper by value, so mutate its active call-site alias as well.
     monkeypatch.setattr("aether.planning.greedy.slew_time_s", lambda *_: 0.0)
     monkeypatch.setattr(checker, "_load_pinned_eop", lambda: "fixture-eop")
     monkeypatch.setattr(checker, "_build_satellite", lambda _: object())
@@ -281,9 +348,55 @@ def test_checker_rejects_selected_option_in_infeasible_window(bundle, geometry_s
     assert "INFEASIBLE_WINDOW" in {item.rule for item in result.violations}
 
 
+def test_checker_rejects_acquisition_overlapping_spacecraft_blackout(bundle, geometry_stub):
+    window, option_id = make_window()
+    option = window.options[0]
+    base = bundle.model.spacecraft[window.spacecraft_id]
+    blackout = BlackoutConfig(
+        start_utc=option.start_utc + timedelta(seconds=1),
+        end_utc=option.end_utc + timedelta(seconds=1),
+        reason="injected maintenance",
+    )
+    spacecraft = {
+        **bundle.model.spacecraft,
+        base.id: base.model_copy(update={"blackouts": (blackout,)}),
+    }
+
+    report = check_schedule(
+        make_plan([Selection(window_id=window.id, option_id=option_id)]),
+        [window],
+        [Source(id="s1", lon=-103, lat=32)],
+        spacecraft,
+        bundle.model.sensors["vs_a_point_source"],
+        bundle.model,
+    )
+
+    assert "BLACKOUT" in {item.rule for item in report.violations}
+
+
+def test_checker_rejects_sensor_not_carried_by_spacecraft(bundle, geometry_stub):
+    window, option_id = make_window()
+    base = bundle.model.spacecraft[window.spacecraft_id]
+    spacecraft = {
+        **bundle.model.spacecraft,
+        base.id: base.model_copy(update={"sensor_ids": ()}),
+    }
+
+    report = check_schedule(
+        make_plan([Selection(window_id=window.id, option_id=option_id)]),
+        [window],
+        [Source(id="s1", lon=-103, lat=32)],
+        spacecraft,
+        bundle.model.sensors["vs_a_point_source"],
+        bundle.model,
+    )
+
+    assert "UNKNOWN_SENSOR" in {item.rule for item in report.violations}
+
+
 def test_checker_includes_committed_acquisitions_in_conflict_checks(bundle, geometry_stub):
-    candidate, candidate_id = make_window("candidate", source_id="s1", start_s=0, end_s=8)
-    fixed, fixed_id = make_window("fixed", source_id="s2", start_s=4, end_s=12)
+    candidate, candidate_id = make_window("candidate", source_id="s1", start_s=0, end_s=3)
+    fixed, fixed_id = make_window("fixed", source_id="s2", start_s=2, end_s=5)
     result = check_schedule(
         make_plan([Selection(window_id="candidate", option_id=candidate_id)]),
         [candidate],
@@ -311,6 +424,35 @@ def test_checker_reports_missing_committed_selection(bundle, geometry_stub):
     assert "COMMITTED_ACQUISITION" in {item.rule for item in result.violations}
 
 
+def test_checker_revalidates_slew_from_committed_acquisition_on_replan(bundle, monkeypatch):
+    fixed, fixed_id = make_window("fixed", source_id="s1", start_s=0, end_s=3)
+    candidate, candidate_id = make_window("candidate", source_id="s2", start_s=4, end_s=7)
+    monkeypatch.setattr(checker, "_load_pinned_eop", lambda: "fixture-eop")
+    monkeypatch.setattr(checker, "_build_satellite", lambda _: object())
+
+    def geometry(_satellite, source, _when):
+        los = np.array([1.0, 0.0, 0.0]) if source.id == "s1" else np.array([0.0, 1.0, 0.0])
+        return 5.0, 20.0, 40.0, los
+
+    monkeypatch.setattr(checker, "_geometry", geometry)
+    plan = make_plan([Selection(window_id=candidate.id, option_id=candidate_id)]).model_copy(
+        update={"created_at_sim_utc": T0 + timedelta(seconds=3)}
+    )
+
+    result = check_schedule(
+        plan,
+        [candidate],
+        [Source(id="s1", lon=-103, lat=32), Source(id="s2", lon=-104, lat=33)],
+        bundle.model.spacecraft,
+        bundle.model.sensors["vs_a_point_source"],
+        bundle.model,
+        committed=[fixed],
+        committed_selections=[Selection(window_id=fixed.id, option_id=fixed_id)],
+    )
+
+    assert "SLEW" in {item.rule for item in result.violations}
+
+
 def test_checker_does_not_import_orbit_optimizer_or_policy_modules():
     import ast
     from pathlib import Path
@@ -332,6 +474,29 @@ def test_checker_does_not_import_orbit_optimizer_or_policy_modules():
     )
 
 
+def test_capacity_witness_does_not_import_solver_or_policy_modules(repo_root):
+    import ast
+    from pathlib import Path
+
+    source = Path(repo_root) / "scripts/feasibility/capacity_witness.py"
+    tree = ast.parse(source.read_text())
+    imported = {
+        alias.name
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Import)
+        for alias in node.names
+    }
+    imported.update(
+        node.module for node in ast.walk(tree) if isinstance(node, ast.ImportFrom) and node.module
+    )
+    assert not any(
+        name.startswith(
+            ("aether.planning.cpsat", "aether.planning.policies", "aether.planning.greedy")
+        )
+        for name in imported
+    )
+
+
 def test_raw_sgp4_astropy_geometry_uses_pinned_eop(repo_root, bundle):
     satellite = checker._build_satellite(bundle.model.spacecraft["vsat_a"])
     source = Source(id="geometry-probe", lon=-103.0, lat=32.0)
@@ -349,8 +514,8 @@ def test_raw_sgp4_astropy_geometry_uses_pinned_eop(repo_root, bundle):
 
 
 def test_brute_force_oracle_selects_highest_utility_feasible_option(bundle, geometry_stub):
-    first, _ = make_window("a", source_id="s1", start_s=0, end_s=10)
-    second, second_id = make_window("b", source_id="s2", start_s=0, end_s=10)
+    first, _ = make_window("a", source_id="s1", start_s=0, end_s=3)
+    second, second_id = make_window("b", source_id="s2", start_s=0, end_s=3)
     utilities = {
         "a": CandidateUtility(
             window_id="a",
@@ -393,17 +558,21 @@ def test_solver_matches_oracle_and_random_schedules_on_500_instances(bundle, geo
     for instance in range(500):
         rng = keyed_rng(20261017, "placement", "l8_oracle", instance)
         count = int(rng.integers(1, 7))
+        duration_s = int(rng.integers(3, 14))
+        sensor_profile = bundle.model.sensors["vs_a_point_source"].model_copy(
+            update={"exposure_seconds": duration_s}
+        )
         windows = []
         utilities = {}
         for index in range(count):
             start_s = int(rng.integers(0, 100))
-            duration_s = int(rng.integers(3, 14))
             source_id = f"s{int(rng.integers(0, len(sources)))}"
             window, _ = make_window(
                 f"i{instance}-w{index}",
                 source_id=source_id,
                 start_s=start_s,
                 end_s=start_s + duration_s,
+                duration_s=duration_s,
                 data_bytes=1,
                 energy_wh=0.1,
             )
@@ -426,7 +595,7 @@ def test_solver_matches_oracle_and_random_schedules_on_500_instances(bundle, geo
             utilities,
             sources,
             bundle.model.spacecraft,
-            bundle.model.sensors["vs_a_point_source"],
+            sensor_profile,
             bundle.model,
         )
         plan, _ = solve_schedule(
@@ -447,7 +616,7 @@ def test_solver_matches_oracle_and_random_schedules_on_500_instances(bundle, geo
             windows,
             sources,
             bundle.model.spacecraft,
-            bundle.model.sensors["vs_a_point_source"],
+            sensor_profile,
             bundle.model,
         )
         assert report.ok, (instance, report.violations)
@@ -476,7 +645,7 @@ def test_solver_matches_oracle_and_random_schedules_on_500_instances(bundle, geo
             windows,
             sources,
             bundle.model.spacecraft,
-            bundle.model.sensors["vs_a_point_source"],
+            sensor_profile,
             bundle.model,
         )
         assert greedy_report.ok, (instance, greedy_report.violations)

@@ -13,6 +13,7 @@ import math
 import zlib
 from collections import Counter, defaultdict
 from collections.abc import Iterable, Mapping
+from datetime import timedelta
 from functools import lru_cache
 from itertools import pairwise
 from pathlib import Path
@@ -170,10 +171,12 @@ def check_schedule(
     committed: Iterable[ObservationWindow] = (),
     committed_selections: Iterable[Selection] = (),
 ) -> CheckReport:
-    """Validate a Plan against exact option membership, independent geometry, and resources.
+    """Validate a Plan against candidate membership, physical geometry, timing, and resources.
 
     Source hypotheses must be from the planner-visible model view. For every Selection, its
-    ``option_id`` is looked up only inside the named window; a mismatch is UNKNOWN_OPTION.
+    ``option_id`` is looked up only inside the named window; a mismatch is UNKNOWN_OPTION. New
+    selections must be listed among the plan candidates and start between the replan time and its
+    configured lookahead. Every selected option duration must agree with its window and sensor.
     """
     window_items = tuple(windows.values()) if isinstance(windows, Mapping) else tuple(windows)
     committed_items = tuple(committed)
@@ -185,6 +188,7 @@ def check_schedule(
     def add(rule: str, ids: Iterable[str], detail: str) -> None:
         violations.append(ScheduleViolation(option_ids=tuple(ids), rule=rule, detail=detail))
 
+    candidate_window_ids = frozenset(plan.candidate_window_ids)
     if len(window_map) != len(window_items):
         add("DUPLICATE_WINDOW_ID", (), "supplied windows contain duplicate IDs")
     source_map = {source.id: source for source in sources}
@@ -203,7 +207,8 @@ def check_schedule(
                 tuple(selection.option_id for selection in fixed),
                 f"committed window {committed_window.id} requires exactly one explicit selection",
             )
-    for selection in selections:
+    for selection_index, selection in enumerate(selections):
+        is_current_selection = selection_index < len(plan.selections)
         window = window_map.get(selection.window_id)
         if window is None:
             add("UNKNOWN_WINDOW", (selection.option_id,), selection.window_id)
@@ -219,6 +224,40 @@ def check_schedule(
                 f"option does not belong to window {selection.window_id}",
             )
             continue
+        if is_current_selection and selection.window_id not in candidate_window_ids:
+            add(
+                "NOT_CANDIDATE",
+                (selection.option_id,),
+                f"window {selection.window_id} is absent from the plan's candidate set",
+            )
+        if is_current_selection:
+            if option.start_utc < plan.created_at_sim_utc:
+                add(
+                    "PAST_ACQUISITION",
+                    (selection.option_id,),
+                    "new plan selects an acquisition that starts before the replan time",
+                )
+            lookahead_end_utc = plan.created_at_sim_utc + timedelta(
+                hours=scenario.planner.lookahead_hours
+            )
+            if option.start_utc > lookahead_end_utc:
+                add(
+                    "OUTSIDE_LOOKAHEAD",
+                    (selection.option_id,),
+                    "acquisition starts after the plan lookahead ending "
+                    f"{lookahead_end_utc.isoformat()}",
+                )
+        option_duration_s = (option.end_utc - option.start_utc).total_seconds()
+        if (
+            option_duration_s != window.duration_s
+            or window.duration_s != sensor_profile.exposure_seconds
+        ):
+            add(
+                "DURATION",
+                (selection.option_id,),
+                f"option duration is {option_duration_s:.6f}s; window and sensor durations are "
+                f"{window.duration_s:.6f}s and {sensor_profile.exposure_seconds:.6f}s",
+            )
         if selection.window_id in seen_window_ids:
             add("WINDOW_LIMIT", (selection.option_id,), "multiple options selected for one window")
         seen_window_ids.add(selection.window_id)
@@ -230,9 +269,21 @@ def check_schedule(
         if profile is None:
             add("UNKNOWN_SPACECRAFT", (selection.option_id,), window.spacecraft_id)
             continue
-        if window.sensor_id != sensor_profile.id:
-            add("UNKNOWN_SENSOR", (selection.option_id,), window.sensor_id)
+        if window.sensor_id != sensor_profile.id or window.sensor_id not in profile.sensor_ids:
+            add(
+                "UNKNOWN_SENSOR",
+                (selection.option_id,),
+                f"sensor {window.sensor_id} is not supported by the supplied profiles",
+            )
             continue
+        for blackout in profile.blackouts:
+            if option.start_utc < blackout.end_utc and option.end_utc > blackout.start_utc:
+                add(
+                    "BLACKOUT",
+                    (selection.option_id,),
+                    f"acquisition overlaps blackout {blackout.reason!r} "
+                    f"[{blackout.start_utc.isoformat()}, {blackout.end_utc.isoformat()})",
+                )
         if not window.feasible:
             add("INFEASIBLE_WINDOW", (selection.option_id,), f"window {window.id} is infeasible")
         if option.start_utc < window.start_utc or option.end_utc > window.end_utc:
