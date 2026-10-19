@@ -7,8 +7,9 @@ mechanism, then pass the pinned local bytes and their ``DataSource`` provenance 
 Public API
 ----------
 ``parse_emit_plume_geojson(path, source)``
-    Parse EMIT L2B CH4 plume-complex GeoJSON. The product's enhancement (ppm m) and enhancement
-    uncertainty are not source emission rates. They remain verbatim in ``raw_properties``.
+    Parse EMIT L2B CH4 plume-complex GeoJSON, including the native V002 metadata keys
+    ``Plume ID``, ``UTC Time Observed``, representative maximum-concentration coordinates, and
+    the kg/hr emission estimate fields. Enhancement (ppm m) remains distinct from emission rate.
 ``parse_carbon_mapper_geojson(path, source)``
     Parse Carbon Mapper plume GeoJSON/API FeatureCollections. ``emission_auto`` and
     ``emission_uncertainty_auto`` are accepted only with the documented kg/hr meaning.
@@ -36,10 +37,28 @@ from typing import Any
 from aether.config import RegionConfig, ScenarioConfig
 from aether.contracts.enums import MissingReason, UncertaintyKind
 from aether.contracts.models import DataSource, PlumeObservation, Source
+from aether.ingestion.pinned import (
+    PinnedDatasetError,
+    PinnedPlumeDataset,
+    load_pinned_plume_dataset,
+)
 from aether.rng import keyed_rng
 
 ADAPTER_VERSION = "aether-ingestion/0.1.0"
 TRANSFORMATION_VERSION = "aether-geojson-normalization/1"
+__all__ = [
+    "IngestDiagnostic",
+    "PinnedDatasetError",
+    "PinnedPlumeDataset",
+    "build_manifest",
+    "build_sources",
+    "cluster_to_sources",
+    "load_pinned_plume_dataset",
+    "parse_carbon_mapper_geojson",
+    "parse_emit_plume_geojson",
+    "plumes_in_region",
+    "sha256_file",
+]
 try:
     from pyproj import Geod
 except ImportError:  # pragma: no cover - availability depends on the optional geo extra
@@ -107,7 +126,7 @@ def build_manifest(
 def parse_emit_plume_geojson(
     path: str | Path, source: DataSource
 ) -> tuple[list[PlumeObservation], list[IngestDiagnostic]]:
-    """Parse NASA EMIT L2B methane plume-complex GeoJSON without treating enhancement as flux."""
+    """Parse native NASA EMIT V002 metadata and preserve enhancement/rate unit separation."""
     identity_problem = _check_source_identity(source, "nasa", "emitl2bch4plm")
     if identity_problem:
         return [], [identity_problem]
@@ -130,49 +149,28 @@ def parse_emit_plume_geojson(
         props = feature.get("properties")
         feature_id = _identifier(feature, props)
         try:
-            if not isinstance(props, dict):
-                raise _RowError("INVALID_PROPERTIES", "feature properties must be an object")
-            native_id = _first(props, "Plume_ID", "global_plume_identifier", "plume_id")
-            if native_id is None:
-                native_id = feature_id
-            if native_id is None:
-                raise _RowError("MISSING_ID", "no provider plume identifier or GeoJSON feature id")
-            native_id = str(native_id)
+            parsed = _parse_emit_feature(feature, filename_time)
+            native_id = parsed["native_id"]
             if native_id in seen:
                 raise _RowError("DUPLICATE_ID", f"duplicate provider plume id {native_id!r}")
-
-            geometry = _validate_geometry(feature.get("geometry"))
-            lon, lat = _emit_location(props, geometry)
-            acquired = _acquisition_time(props, filename_time)
-            # EMIT CH4PLM metadata reports enhancement and its uncertainty, not kg/h flux.
-            rate_value = _first(props, "emission_rate_kg_h", "emission_rate_kg_hr")
-            rate = _number(rate_value)
-            rate_uncertainty = _number(
-                _first(props, "emission_rate_uncertainty_kg_h", "emission_rate_uncertainty_kg_hr")
-            )
-            _require_nonnegative(rate, "emission rate")
-            _require_nonnegative(rate_uncertainty, "emission-rate uncertainty")
-            uncertainty_kind = _emit_rate_uncertainty_kind(props, rate_uncertainty)
-            missing_reason = _missing_rate_reason(rate_value, rate)
-            row_flags = _quality_flags(props)
             observations.append(
                 PlumeObservation(
                     id=f"{source.provider}:{native_id}",
                     provider=source.provider,
                     native_id=native_id,
                     dataset_version=source.version,
-                    acquisition_time_utc=acquired,
-                    lon=lon,
-                    lat=lat,
-                    geometry_geojson=geometry,
+                    acquisition_time_utc=parsed["acquisition_time_utc"],
+                    lon=parsed["lon"],
+                    lat=parsed["lat"],
+                    geometry_geojson=parsed["geometry_geojson"],
                     # A scene reference is not a linked Acquisition; retain it in raw_properties.
                     acquisition_id=None,
-                    emission_rate_kg_h=rate,
-                    emission_rate_uncertainty_kg_h=rate_uncertainty,
-                    uncertainty_kind=uncertainty_kind,
-                    missing_rate_reason=missing_reason,
-                    quality_flags=row_flags,
-                    raw_properties=props,
+                    emission_rate_kg_h=parsed["emission_rate_kg_h"],
+                    emission_rate_uncertainty_kg_h=parsed["emission_rate_uncertainty_kg_h"],
+                    uncertainty_kind=parsed["uncertainty_kind"],
+                    missing_rate_reason=parsed["missing_rate_reason"],
+                    quality_flags=parsed["quality_flags"],
+                    raw_properties=parsed["raw_properties"],
                     source=source,
                 )
             )
@@ -390,6 +388,61 @@ class _RowError(ValueError):
     def __init__(self, code: str, message: str):
         super().__init__(message)
         self.code = code
+
+
+def _parse_emit_feature(
+    feature: Mapping[str, Any], filename_time: datetime | None
+) -> dict[str, Any]:
+    """Normalize one native or supported-alias EMIT feature without a provenance contract."""
+    props = feature.get("properties")
+    if not isinstance(props, dict):
+        raise _RowError("INVALID_PROPERTIES", "feature properties must be an object")
+    native_id = _first(
+        props,
+        "Plume_ID",
+        "Plume ID",
+        "global_plume_identifier",
+        "plume_id",
+    )
+    if native_id is None:
+        native_id = _identifier(feature, props)
+    if native_id is None:
+        raise _RowError("MISSING_ID", "no provider plume identifier or GeoJSON feature id")
+    native_id = str(native_id)
+
+    geometry = _validate_geometry(feature.get("geometry"))
+    lon, lat = _emit_location(props, geometry)
+    acquired = _acquisition_time(props, filename_time)
+    rate_value = _first(
+        props,
+        "Emissions Rate Estimate (kg/hr)",
+        "emission_rate_kg_h",
+        "emission_rate_kg_hr",
+    )
+    rate = _number(rate_value)
+    rate_uncertainty = _number(
+        _first(
+            props,
+            "Emissions Rate Estimate Uncertainty (kg/hr)",
+            "emission_rate_uncertainty_kg_h",
+            "emission_rate_uncertainty_kg_hr",
+        )
+    )
+    _require_nonnegative(rate, "emission rate")
+    _require_nonnegative(rate_uncertainty, "emission-rate uncertainty")
+    return {
+        "native_id": native_id,
+        "acquisition_time_utc": acquired,
+        "lon": lon,
+        "lat": lat,
+        "geometry_geojson": geometry,
+        "emission_rate_kg_h": rate,
+        "emission_rate_uncertainty_kg_h": rate_uncertainty,
+        "uncertainty_kind": _emit_rate_uncertainty_kind(props, rate_uncertainty),
+        "missing_rate_reason": _missing_rate_reason(rate_value, rate),
+        "quality_flags": _quality_flags(props),
+        "raw_properties": props,
+    }
 
 
 def _read_features(
@@ -622,8 +675,22 @@ def _validate_rings(rings: Any) -> None:
 
 
 def _emit_location(props: Mapping[str, Any], geometry: Mapping[str, Any]) -> tuple[float, float]:
-    lon = _number(_first(props, "Longitude_of_max_concentration", "longitude_of_max_concentration"))
-    lat = _number(_first(props, "Latitude_of_max_concentration", "latitude_of_max_concentration"))
+    lon = _number(
+        _first(
+            props,
+            "Longitude of max concentration",
+            "Longitude_of_max_concentration",
+            "longitude_of_max_concentration",
+        )
+    )
+    lat = _number(
+        _first(
+            props,
+            "Latitude of max concentration",
+            "Latitude_of_max_concentration",
+            "latitude_of_max_concentration",
+        )
+    )
     if lon is not None and lat is not None:
         return lon, lat
     return _geometry_location(geometry)
@@ -652,7 +719,14 @@ def _geometry_location(geometry: Mapping[str, Any]) -> tuple[float, float]:
 
 
 def _acquisition_time(props: Mapping[str, Any], filename_time: datetime | None) -> datetime:
-    raw = _first(props, "acquisition_time_utc", "datetime", "timestamp", "acquisition_time")
+    raw = _first(
+        props,
+        "UTC Time Observed",
+        "acquisition_time_utc",
+        "datetime",
+        "timestamp",
+        "acquisition_time",
+    )
     if raw is None:
         raw = filename_time
     if raw is None:
@@ -761,7 +835,15 @@ def _first(mapping: Mapping[str, Any], *names: str) -> Any:
 def _identifier(feature: Mapping[str, Any], props: Any) -> str | None:
     value = feature.get("id")
     if value is None and isinstance(props, dict):
-        value = _first(props, "Plume_ID", "global_plume_identifier", "plume_id", "plume_name", "id")
+        value = _first(
+            props,
+            "Plume_ID",
+            "Plume ID",
+            "global_plume_identifier",
+            "plume_id",
+            "plume_name",
+            "id",
+        )
     return None if value is None else str(value)
 
 

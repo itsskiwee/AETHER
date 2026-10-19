@@ -6,6 +6,9 @@ __pycache__/
 *.egg-info/
 runs/
 artifacts/
+data/raw/*
+!data/raw/pinned_emit_permian_v1/
+!data/raw/pinned_emit_permian_v1/**
 *.bsp
 !data/ephemeris/de421.bsp
 .env
